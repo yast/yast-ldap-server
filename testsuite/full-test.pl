@@ -24,10 +24,14 @@ T06_ReadIndex();
 T07_ReadSchemaIncludeList();
 T08_ReadAllowList();
 T21_ReadTLS();
-T09_AddDatabase();
-T10_EditDatabase();
+#T09_AddDatabase();
+#T10_EditDatabase();
 T11_AddIndex();
+T14_RecreateIndex();
+T23_ReadIndex2();
 T12_EditIndex();
+T14_RecreateIndex();
+T23_ReadIndex2();
 T13_DeleteIndex();
 T14_RecreateIndex();
 T15_WriteSchemaIncludeList();
@@ -54,6 +58,20 @@ sub init_testsetup {
     }
     mkdir("/$pwd/testout", 0755);
     open(STDERR, ">> /$pwd/testout/YaST2-LdapServer-fulltest-OUTPUT.log");
+
+#    if( -d '/var/lib/ldap/SuSE_Test_DB') {
+#        unlink </var/lib/ldap/SuSE_Test_DB/*>;
+#        open(SLAPD, "< /etc/openldap/slapd.conf") or die "can not read slapdconf: $!";
+#        my @lines = <SLAPD>;
+#        close SLAPD;
+#        if(grep( ($_ =~ /dc=example,dc=com/), @lines )) {
+#            print "Please remove the test DB section from slapd.conf\n";
+#            print "and restart the ldapserver.\n";
+#            exit 1;
+#        }
+#    } else {
+#        mkdir("/var/lib/ldap/SuSE_Test_DB", 0755);
+#    }
 }
 
 sub T01_Interface {
@@ -178,7 +196,7 @@ sub T09_AddDatabase {
                 rootdn      => "cn=Admin,dc=example,dc=com",
                 passwd      => "system",
                 cryptmethod => 'SMD5',
-                directory   => "/var/lib/ldap/db3",
+                directory   => "/var/lib/ldap/SuSE_Test_DB",
                };
 
     my $res = YaPI::LdapServer->AddDatabase($hash);
@@ -210,7 +228,7 @@ sub T10_EditDatabase {
     }
 
     $hash = { 
-              rootpw  => "tralla",
+              passwd  => "tralla",
               cryptmethod => "CRYPT"
             };
 
@@ -254,7 +272,7 @@ sub T11_AddIndex {
     print STDERR "------------------- T11_AddIndex ---------------------\n";
     print "------------------- T11_AddIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->AddIndex("dc=example,dc=com", "uid,cn eq");
+    my $res = YaPI::LdapServer->AddIndex("dc=example,dc=com", { attr => "uid,cn", param => "eq"});
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -268,8 +286,8 @@ sub T12_EditIndex {
     print STDERR "------------------- T12_EditIndex ---------------------\n";
     print "------------------- T12_EditIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", "eacc11456b6c2ae4e1aef0fa287e02b0",
-                                          "uid,cn,gidnumber eq");
+    my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", "2de23a0b16b428bf1e175cba305d9563",
+                                          { attr => "uid,cn,gidnumber", param => "eq"});
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -283,7 +301,7 @@ sub T13_DeleteIndex {
     print STDERR "------------------- T13_DeleteIndex ---------------------\n";
     print "------------------- T13_DeleteIndex ---------------------\n";
     
-    my $res = YaPI::LdapServer->DeleteIndex("dc=example,dc=com", "338a980b4eebe87365a4077067ce1559");
+    my $res = YaPI::LdapServer->DeleteIndex("dc=example,dc=com", "590775aeaa1fce858a7a214faa21ca07");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -443,6 +461,20 @@ sub T22_WriteTLS {
     my $res = YaPI::LdapServer->WriteTLS($hash);
     if( not defined $res ) {
         # error
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T23_ReadIndex2() {
+    print STDERR "------------------- T23_ReadIndex2 ---------------------\n";
+    print "------------------- T23_ReadIndex2 ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadIndex('dc=example,dc=com');
+    if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
     } else {
