@@ -1,5 +1,12 @@
 #! /usr/bin/perl -wT
-
+#
+# ag_ldapserver
+#
+# yast2 agent to read/write slapd.conf
+#
+# TODO: currently the order of option values is lost when more files are involved and some 
+#       of them have to be reread.
+#
 package ag_ldapserver;
 use strict;
 use YaST::SCRAgent;
@@ -7,7 +14,7 @@ use ycp;
 
 use Data::Dumper;
 
-our @ISA = ("YaST::SCRAgent" );
+our @ISA = ( "YaST::SCRAgent" );
 
 use Digest::MD5 qw( md5_hex );
 
@@ -15,12 +22,6 @@ use Digest::MD5 qw( md5_hex );
 
 #name of configfile
 my $slapdconf = "";
-
-#last executed command FIXME: remove debug stuff
-my $lastcommand = "";
-
-#md5sum of configfile
-my $md5sum = "";
 
 #command handlers
 my %command = (
@@ -43,6 +44,11 @@ my $data = {};
 
 #lookup hash to find the data points for a certain option 
 my $lookup = {};
+
+#main repository for all files
+#structure is:
+# $files = { "filename" => datahash }
+my $files = {};
 
 sub OtherCommand
 {
@@ -74,7 +80,7 @@ sub Read
     ) if( !exists( $command{Read}->{$path[0]} ) );
 
     $class->initData( $slapdconf ) || return undef;
-    
+
     #call the command function according to passed path
     my $cmdref = $command{Read}->{$path[0]};
     my $ret = $cmdref->( $class, {
@@ -122,7 +128,7 @@ sub debugWrite
         summary => "Missing parameters in command handler debugWrite",
         code    => "LDAPSERVER_INTERNAL"
     );
-    y2error( Data::Dumper->Dump( [ $path, $args ] ) );
+    #y2error( Data::Dumper->Dump( [ $path, $args ] ) );
     return 1;
 }
 
@@ -173,7 +179,7 @@ sub doDebug
         summary => "Missing argv hash in command handler",
         code    => "LDAPSERVER_INTERNAL"
     );
-    return [ $data ];
+    return [ $files ];
 }
     
 ##
@@ -195,6 +201,7 @@ sub readUnparsedSection
     $section_name .= " ".$conf->{name} if defined $conf->{name} && $conf->{command} ne 'global';
     y2debug( "Retrieving section '$section_name'" );
     my $section = $lookup->{$section_name};
+    y2debug( "Section has ".$#{[keys %$section]}." entries." );
     my $ret = {};
     while( my( $opt, $list ) = each %$section )
     {
@@ -221,8 +228,7 @@ sub readUnparsedSection
 ##
 ## return value:
 ##  \@backlist - list of backend names of all backend sections in the 
-##               configuration file in the same order they appear in
-##               the file
+##               configuration file 
 ##
 sub readBackList
 {
@@ -235,7 +241,7 @@ sub readBackList
     my @backlist;
     foreach( keys %$lookup )
     {
-        push( @backlist, $1 ) if( /^backend (.+)$/ );
+        push( @backlist, $1 ) if( /^backend (.+)$/ ) && $#{[keys %{$lookup->{$_}}]} > -1;
     }
     return [@backlist];
 }
@@ -244,8 +250,7 @@ sub readBackList
 ## readDBList
 ##
 ## return value:
-##  \@dblist - list of rootdn values of all databases in the 
-##             same order they appear in the config file
+##  \@dblist - list of basedn values of all databases  
 ##
 sub readDBList
 {
@@ -258,7 +263,7 @@ sub readDBList
     my @dblist;
     foreach( keys %$lookup )
     {
-        push( @dblist, $1 ) if( /^database (.+)$/ );
+        push( @dblist, $1 ) if( /^database (.+)$/ ) && $#{[keys %{$lookup->{$_}}]} > -1;
     }
     return [@dblist];
 }
@@ -294,7 +299,13 @@ sub initData
         );
     }
 
-    #create global lookup section 
+    #FIXME: this function gets called before the md5check is made, so it should not change
+    #anything when a config is already there.
+
+    #register main config file
+    $files->{$filename} = $data;
+
+    #create global lookup section
     $lookup->{'global'} = {} if not defined $lookup->{'global'};
     
     return $class->__init_rec( $filename, $data, $lookup->{'global'} );
@@ -304,23 +315,23 @@ sub initData
 ## sub __init_rec( $filename, $data, $section )
 ##
 ## reads configuration from $filename into datastructure $data and into lookup section $section
-## descending through include directives (that are rated as not being schema definitions)
+## descending through include directives (that contain no schema definitions)
 ##
 sub __init_rec
 {
     my $class = shift || return undef;
     my $filename = shift || return $class->SetError(
-        command => "Missing filename in __init_rec",
+        summary => "Missing filename in __init_rec",
         code    => "SCR_MISSING_ARG"
     );
     
     my $active_data = shift || return $class->SetError(
-        command => "Missing data reference in __init_rec",
+        summary => "Missing data reference in __init_rec",
         code    => "SCR_MISSING_ARG"
     );
     
     my $active_section = shift || return $class->SetError(
-        command => "Missing section reference in __init_rec",
+        summary => "Missing section reference in __init_rec",
         code    => "SCR_MISSING_ARG"
     );
     
@@ -346,6 +357,29 @@ sub __init_rec
         y2debug( "cached data from $filename is still up to date, skipping initialization" );
         close( $cfh );
         return 1;
+    }
+
+    #remove old data
+    foreach( keys %$active_data )
+    {
+        delete $active_data->{$_};
+    }
+
+    #remove old entries in lookup hash
+    while( my ($sect_name, $section) = each %$lookup )
+    {
+        while( my ($name, $optlist) = each %$section )
+        {
+            my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$optlist;
+            if( $#newlist > -1 )
+            {
+                $section->{$name} = \@newlist;
+            } else
+            {
+                delete $section->{$name};
+            }
+        }
+        #delete $lookup->{$sect_name} if( $#{[keys %$section]} == -1 );
     }
 
     $active_data->{__internal} = {};
@@ -394,7 +428,7 @@ sub __init_rec
         } elsif( /^([^\s#]+)\s+(.+)/ ) 
         {
             my $opt_name = $1;
-            my $rest = $2;
+            my $opt_val = $2;
             if( $last_opt ne "" ) {
                 $class->addOptionData({
                     data    =>  $active_data,
@@ -408,7 +442,13 @@ sub __init_rec
             }
             if( $opt_name eq "include" )
             {
-                #TODO: add schemafile check here
+                #FIXME: use a more intelligent way to detect schema includes
+                if( $opt_val =~ /\.schema$/ )
+                {
+                    $last_opt = "schemainclude";
+                    $content .= $opt_val;
+                    next;
+                }
                 
                 #store current read position and close file
                 my $pos = tell( $cfh );
@@ -423,22 +463,24 @@ sub __init_rec
                     section =>  $active_section,
                     datapos =>  $datapos,
                     name    =>  $opt_name,
-                    content =>  $rest
+                    content =>  $opt_val
                 });
 
                 $class->inc( \$datapos );
                 $last_opt = "";
                 $content = "";
 
-                #create the data structure for the included file
-                my $new_data = {};
-                $option_data->{parsed_file} = $new_data;
+                #register the file in the global file repository
+                $files->{$opt_val} = {} if( !defined( $files->{$opt_val} ) );
+
+                #put a reference to the data structure in the include option hash
+                $option_data->{parsed_file} = $files->{$opt_val};
 
                 #trim filename
-                $rest =~ s/\s+$//;
+                $opt_val =~ s/\s+$//;
 
                 #parse file
-                $class->__init_rec( $rest, $new_data, $active_section ) || return undef;
+                $class->__init_rec( $opt_val, $files->{$opt_val}, $active_section ) || return undef;
 
                 #reopen the own file
                 open( $cfh, '<', $filename ) or return $class->SetError(
@@ -454,7 +496,7 @@ sub __init_rec
             } elsif( $opt_name eq "backend" )
             {
                 #start new backend section
-                $rest =~ /^(\S+)/;
+                $opt_val =~ /^(\S+)/;
                 $active_section = {};
                 $lookup->{"backend ".$1} = $active_section;
             } elsif( $opt_name eq "database" )
@@ -465,7 +507,7 @@ sub __init_rec
                 $lookup->{"database ".$suffix} = $active_section;
             }
             $last_opt = $opt_name;
-            $content .= $rest;
+            $content .= $opt_val;
             next;
         } 
     }
@@ -552,7 +594,7 @@ sub findFirstSuffix
 }
 
 ##
-## sub inc( $datapos )
+## sub inc( \$datapos )
 ##
 ## increases the internal data index type by 1
 ##
