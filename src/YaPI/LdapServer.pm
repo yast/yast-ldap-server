@@ -44,6 +44,7 @@ use YaPI;
 
 YaST::YCP::Import ("SCR");
 YaST::YCP::Import ("Ldap");
+YaST::YCP::Import ("Service");
 
 our %TYPEINFO;
 our @CAPABILITIES = (
@@ -98,7 +99,13 @@ EXAMPLE:
 BEGIN { $TYPEINFO{AddDatabase} = ["function", "boolean", ["map", "string", "any"]]; }
 sub AddDatabase {
     my $self = shift;
-    
+    my $data = shift;
+
+    if(!defined $data->{database} || $data->{database} eq "") {
+                                          # error message at parameter check
+        return $self->SetError(summary => "Missing parameter 'database'",
+                               code => "PARAM_CHECK_FAILED");
+    }
 
 }
 
@@ -290,24 +297,16 @@ EXAMPLE:
 BEGIN { $TYPEINFO{ReadSchemaIncludeList} = ["function", ["list", "string"] ]; }
 sub ReadSchemaIncludeList {
     my $self = shift;
-    my @incList = ();
 
     my $global = SCR->Read( ".ldapserver.global" );
     if(! defined $global) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
-    use Data::Dumper;
-    print Data::Dumper->Dump([$global])."\n";
-    if(exists $global->{include} && defined $global->{include} &&
-       ref $global->{include} eq "ARRAY") {
-        foreach my $inc (@{$global->{include}}) {
-            next if( $inc eq "");
-            if( $inc =~ /schema$/ ) {
-                push @incList, $inc;
-            }
-        }
+    if(exists $global->{schemainclude} && defined $global->{schemainclude} &&
+       ref $global->{schemainclude} eq "ARRAY") {
+        return $global->{schemainclude};
     }
-    return \@incList;
+    return ();
 }
 
 =item *
@@ -481,11 +480,70 @@ sub WriteLoglevel {
 
 }
 
+=item *
+C<ModifyService($status)>
 
+with this function you can turn on and off the LDAP server
+runlevel script.
+Turning off means, no LDAP server start at boot time.
 
+EXAMPLE
 
+ ModifyService(0); # turn LDAP server off at boot time
+ ModifyService(1); # turn LDAP server on at boot time
 
+=cut
 
+BEGIN { $TYPEINFO{ModifyService} = ["function", "boolean", "boolean" ]; }
+sub ModifyService {
+    my $self = shift;
+    my $enable = shift;
 
+    if( $enable ) {
+        Service->Adjust( "ldap", "enable" );
+    } else {
+        Service->Adjust( "ldap", "disable" );
+    }
+    return 1;
+}
 
+=item *
+C<SwitchService($status)>
 
+with this function you can start and stop the LDAP server
+service.
+
+EXAMPLE
+
+ SwitchService( 0 ); # turning off the LDAP server service
+ SwitchService( 1 ); # turning on the LDAP server service
+
+=cut
+
+sub SwitchService {
+    my $self = shift;
+    my $enable = shift;
+
+    if( $enable ) {
+        Service->RunInitScript( "ldap", "restart");
+    } else {
+        Service->RunInitScript( "ldap", "stop" );
+    }
+}
+
+=item *
+C<$status = ReadService()>
+
+with this function you can read out the state of the
+LDAP server runlevel script (starting LDAP server at boot time).
+
+EXAMPLE
+
+ print "LDAP is ".( (ReadService())?('on'):('off') )."\n";
+
+=cut
+BEGIN { $TYPEINFO{ReadService} = ["function", "boolean"]; }
+sub ReadService {
+    my $self = shift;
+    return Service->Enabled('ldap');
+}
