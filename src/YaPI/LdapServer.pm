@@ -38,6 +38,9 @@ POSIX::setlocale(LC_MESSAGES, "");
 textdomain("ldap-server");
 
 use Digest::MD5 qw(md5_hex);
+use Digest::SHA1 qw(sha1);
+use MIME::Base64;
+use X500::DN;
 
 use YaPI;
 @YaPI::LdapServer::ISA = qw( YaPI );
@@ -74,23 +77,26 @@ sub ReadDatabaseList {
 =item *
 C<$bool = AddDatabase( \%valueMap )>
 
-Creates a new database section in the configuration file. 
+Creates a new database section in the configuration file,
+start or restart the LDAP Server and add the base object.
 If the database exists, nothing is done and undef is returned. 
 Supported keys in %valueMap are:
  
- * database: The database type
+ * database: The database type (required)
  
- * suffix: The suffix
+ * suffix: The suffix (required)
  
- * rootdn: The Root DN
+ * rootdn: The Root DN (required)
  
- * rootpw: The Root Password
+ * passwd: The plain Root Password (required)
+
+ * cryptmethod: The crypt method; allowed values are (CRYPT, SMD5, SHA, SSHA, PLAIN); default is 'SSHA'
  
- * directory: The Directory where the database files are(bdb/ldbm)
+ * directory: The Directory where the database files are(bdb/ldbm) (required)
  
- * cachesize: The cachesize(bdb/ldbm)
+ * cachesize: The cachesize(bdb/ldbm) (optional; default 10000)
  
- * checkpoint: The checkpoint(bdb)
+ * checkpoint: The checkpoint(bdb) (optional; default 1024 5)
 
 EXAMPLE:
 
@@ -101,11 +107,207 @@ sub AddDatabase {
     my $self = shift;
     my $data = shift;
 
+    my $passwd_string = undef;
+    my $cryptMethod   = "SSHA";
+    my $cachesize     = undef;
+    my $checkpoint    = undef;
+
+    ################
+    # check database
+    ################
     if(!defined $data->{database} || $data->{database} eq "") {
                                           # error message at parameter check
         return $self->SetError(summary => "Missing parameter 'database'",
                                code => "PARAM_CHECK_FAILED");
     }
+    if ( !grep( ($_ eq $data->{database}), ("bdb", "ldbm") ) ) {
+        return $self->SetError(summary => sprintf(
+                                   # error at paramter check
+                                 _("Database type '%s' is not supported. Allowed are 'bdb' and 'ldbm'"),
+                                                  $data->{database}),
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    ################
+    # check suffix
+    ################
+    if(!defined $data->{suffix} || $data->{suffix} eq "") {
+        return $self->SetError(summary => "Missing parameter 'suffix'",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    my $object = X500::DN->ParseRFC2253($data->{suffix});
+    my @attr = $object->getRDN($object->getRDNs()-1)->getAttributeTypes();
+    my $val = $object->getRDN($object->getRDNs()-1)->getAttributeValue($attr[0]);
+    
+    if(!defined $attr[0] || !defined $val) {
+        return $self->SetError(summary => "Can not parse 'suffix'",
+                               description => "Parsing error for suffix '".$data->{suffix}."'",
+                               code => "PARSE_ERROR");
+    }
+    my $entry = {};
+    
+    if( lc($attr[0]) eq "ou") {
+        $entry = {
+                  "objectClass" => [ "organizationalUnit" ],
+                  "ou" => $val,
+                 }
+    } elsif( lc($attr[0]) eq "o") {
+        $entry = {
+                  "objectClass" => [ "organization" ],
+                  "o" => $val,
+                 }
+    } elsif( lc($attr[0]) eq "c") {
+        if($val !~ /^\w{2}$/) {
+                                   # parameter check failed
+            return $self->SetError(summary => _("The countryName must be a ISO-3166 country 2-letter code"),
+                                   description => "Invalid value for 'c' ($val)",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $entry = {
+                  "objectClass" => [ "country" ],
+                  "c" => $val,
+                 }
+    } elsif( lc($attr[0]) eq "l") {
+        $entry = {
+                  "objectClass" => [ "locality" ],
+                  "l" => $val,
+                 }
+    } elsif( lc($attr[0]) eq "st") {
+        $entry = {
+                  "objectClass" => [ "locality" ],
+                  "st" => $val,
+                 }
+    } elsif( lc($attr[0]) eq "dc") {
+        $entry = {
+                  "objectClass" => [ "dcObject" ],
+                  "dc" => $val,
+                 }
+    } else {
+                               # parameter check failed
+        return $self->SetError(summary => _("First part of suffix must be c=, st=, l=, o=, ou= or dc="),
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    ##############
+    # check rootdn
+    ##############
+    if(!defined $data->{rootdn} || $data->{rootdn} eq "") {
+                               # parameter check failed
+        return $self->SetError(summary => "Missing parameter 'rootdn'",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    if($data->{rootdn} !~ /$data->{suffix}$/) {
+                               # parameter check failed
+        return $self->SetError(summary => _("'rootdn' must be below the 'suffix'"),
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    ##############################
+    # check passwd and cryptmethod
+    ##############################
+
+    if(!defined $data->{passwd} || $data->{passwd} eq "") {
+                               # parameter check failed
+        return $self->SetError(summary => _("You must define 'passwd'"),
+                               code => "PARAM_CHECK_FAILED");
+    }
+    if(!defined $data->{passwd} || $data->{passwd} eq "") {
+                               # parameter check failed
+        return $self->SetError(summary => _("You must define 'passwd'"),
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
+        $cryptMethod = $data->{cryptmethod};
+    }
+    if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
+        return $self->SetError(summary => sprintf(
+                               # parameter check failed
+                                                  _("'%s' is an unsupported crypt method."),
+                                                  $cryptMethod),
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    if( $cryptMethod eq "CRYPT" ) {
+        my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
+        $passwd_string = crypt $data->{passwd},$salt;
+        $passwd_string = "{crypt}".$passwd_string;
+    } elsif( $cryptMethod eq "SMD5" ) {
+        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                         (int(rand 26)+65), (int(rand 26)+65));
+        my $ctx = new Digest::MD5();
+        $ctx->add($data->{passwd});
+        $ctx->add($salt);
+        $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
+    } elsif( $cryptMethod eq "SHA"){
+        my $digest = sha1($data->{passwd});
+        $passwd_string = "{sha}".encode_base64($digest, "");
+    } elsif( $cryptMethod eq "SSHA"){
+        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                         (int(rand 26)+65), (int(rand 26)+65));
+        my $digest = sha1($data->{passwd}.$salt);
+        $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
+    } else {
+        $passwd_string = $data->{passwd};
+    }
+    
+    #################
+    # check directory
+    #################
+    
+    if(!defined $data->{directory} || $data->{directory} eq "") {
+                               # parameter check failed
+        return $self->SetError(summary => _("You must define 'directory'"),
+                               code => "PARAM_CHECK_FAILED");
+    }
+    if( ! defined  SCR->Read(".target.dir", $data->{directory})) {
+                               # parameter check failed
+        return $self->SetError(summary => _("The directory does not exist."),
+                               description => "The 'directory' (".$data->{directory}.") does not exist.",
+                               code => "DIR_DOES_NOT_EXIST");
+    }
+
+    ##################
+    # check cachesize
+    ##################
+    if(defined $data->{cachesize} && $data->{cachesize} ne "") {
+
+        if($data->{cachesize} !~ /^\d+$/) {
+            return $self->SetError(summary => _("Invalid cachesize value."),
+                                   description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $cachesize = $data->{cachesize};
+    }
+    if(! exists $data->{cachesize}) {
+        # set default if parameter does not exist
+        $cachesize = 10000;
+    }
+    
+    if($data->{database} eq "bdb") {
+        ##################
+        # check checkpoint
+        ##################
+        if(defined $data->{checkpoint} && $data->{checkpoint} ne "") {
+            my @cp = split(/\s+/, $data->{checkpoint});
+            if(!defined $cp[0] || !defined $cp[1] ||
+               $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
+                return $self->SetError(summary => _("Invalid checkpoint value."),
+                                       description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
+                                       code => "PARAM_CHECK_FAILED");
+            }
+            $checkpoint = $cp[0]." ".$cp[1];
+        }
+        if(! exists $data->{checkpoint}) {
+            # set default if parameter does not exist
+            $checkpoint = "1024 5";
+        }
+    }
+
+
+
 
 }
 
@@ -118,11 +320,19 @@ Supported keys in %valueMap are:
  
  * rootdn: The Root DN
  
- * rootpw: The Root Password
+ * passwd: The Root Password
  
+ * cryptmethod: The crypt method; allowed values are (CRYPT, SMD5, SHA, SSHA, PLAIN); default is 'SSHA'
+
  * cachesize: The cachesize(bdb/ldbm)
  
  * checkpoint: The checkpoint(bdb)
+
+If the key is defined, but the value is 'undef' the option will be deleted.
+If a key is not defined, the option is not changed.
+If the key is defined and a value is specified, this value will be set.
+
+rootdn, passwd and cryptmethod can not be deleted.
 
 EXAMPLE:
 
@@ -130,9 +340,152 @@ EXAMPLE:
 
 BEGIN { $TYPEINFO{EditDatabase} = ["function", "boolean", "string", ["map", "string", "any"]]; }
 sub EditDatabase {
-    my $self = shift;
+    my $self   = shift;
+    my $suffix = shift;
+    my $data   = shift;
+    my $cryptMethod = undef;
+    my $passwd_string = undef;
     
+    if(!defined $suffix || $suffix eq "") {
+        return $self->SetError(summary => "Missing parameter 'suffix'",
+                               code => "PARAM_CHECK_FAILED");
+    }
 
+    ###################
+    # work on rootdn
+    ###################
+    if(exists $data->{rootdn} && ! defined $data->{rootdn}) {
+                               # parameter check failed
+        return $self->SetError(summary => _("'rootdn' is required. You can not delete it"),
+                               code => "PARAM_CHECK_FAILED");
+    } elsif(exists $data->{rootdn}) {
+        if($data->{rootdn} !~ /$suffix$/) {
+            # parameter check failed
+            return $self->SetError(summary => _("'rootdn' must be below the 'suffix'"),
+                                   code => "PARAM_CHECK_FAILED");
+        } else {
+            # set new rootdn
+            # FIXME: do it here
+        }
+    }
+
+    ###################
+    # work on passwd
+    ###################
+    if(exists $data->{passwd} && ! defined $data->{passwd}) {
+                                           # parameter check failed
+        return $self->SetError(summary => _("'passwd' is required. You can not delete it"),
+                               code => "PARAM_CHECK_FAILED");
+    } elsif(exists $data->{passwd}) {
+
+        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+                                               # parameter check failed
+            return $self->SetError(summary => _("You must define 'passwd'"),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+                                   # parameter check failed
+            return $self->SetError(summary => _("You must define 'passwd'"),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+
+        if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
+            $cryptMethod = $data->{cryptmethod};
+        }
+        if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
+            return $self->SetError(summary => sprintf(
+                                                      # parameter check failed
+                                                      _("'%s' is an unsupported crypt method."),
+                                                      $cryptMethod),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+
+        if( $cryptMethod eq "CRYPT" ) {
+            my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
+            $passwd_string = crypt $data->{passwd},$salt;
+            $passwd_string = "{crypt}".$passwd_string;
+        } elsif( $cryptMethod eq "SMD5" ) {
+            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                             (int(rand 26)+65), (int(rand 26)+65));
+            my $ctx = new Digest::MD5();
+            $ctx->add($data->{passwd});
+            $ctx->add($salt);
+            $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
+        } elsif( $cryptMethod eq "SHA"){
+            my $digest = sha1($data->{passwd});
+            $passwd_string = "{sha}".encode_base64($digest, "");
+        } elsif( $cryptMethod eq "SSHA"){
+            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                             (int(rand 26)+65), (int(rand 26)+65));
+            my $digest = sha1($data->{passwd}.$salt);
+            $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
+        } else {
+            $passwd_string = $data->{passwd};
+        }
+        # set new rootdn
+        # FIXME: do it here
+    }
+
+    ###################
+    # work on cachesize
+    ###################
+    if(exists $data->{cachesize} && !defined $data->{cachesize}) {
+        # Delete cachesize option
+        # FIXME: do it here
+    } elsif(exists $data->{cachesize}) {
+
+        if(defined $data->{cachesize} && $data->{cachesize} ne "") {
+
+            if($data->{cachesize} !~ /^\d+$/) {
+                return $self->SetError(summary => _("Invalid cachesize value."),
+                                       description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
+                                       code => "PARAM_CHECK_FAILED");
+            }
+            #$cachesize = $data->{cachesize};
+            # set new cachesize
+            # FIXME: do it here
+        } else {
+            return $self->SetError(summary => _("Invalid cachesize value."),
+                                   description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+    }
+
+    ####################
+    # work on checkpoint
+    ####################
+    if(exists $data->{checkpoint}) {
+
+        if(!defined $data->{checkpoint}) {
+            # Delete checkpoint option
+            # FIXME: do it here
+        } else {
+
+            my $db = $self->ReadDatabase($suffix);
+            return undef if(! defined $db);
+            
+            if($db->{database} eq "bdb") {
+
+                if($data->{checkpoint} ne "") {
+                    my @cp = split(/\s+/, $data->{checkpoint});
+                    if(!defined $cp[0] || !defined $cp[1] ||
+                       $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
+                        return $self->SetError(summary => _("Invalid checkpoint value."),
+                                               description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
+                                               code => "PARAM_CHECK_FAILED");
+                    }
+                    #$checkpoint = $cp[0]." ".$cp[1];
+                    # set new checkpoint
+                    # FIXME: do it here
+                } else {
+                    return $self->SetError(summary => _("Invalid checkpoint value."),
+                                           description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
+                                           code => "PARAM_CHECK_FAILED");
+                }
+            }
+        }
+    }
+    return 1;
 }
 
 =item *
@@ -147,7 +500,7 @@ Supported keys in %valueMap are:
  
  * rootdn: The Root DN
  
- * rootpw: The Root Password
+ * passwd: The Root Password
  
  * directory: The Directory where the database files are(bdb/ldbm)
  
