@@ -430,12 +430,19 @@ sub AddDatabase {
     if(! SCR->Write(".ldapserver.database", $data->{suffix}, $hash)) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
+    use Time::HiRes qw( usleep ualarm gettimeofday tv_interval );
+    my $start = [gettimeofday];
+
 
     if(! $self->SwitchService(1)) {
         return undef;
     }
+
+    print STDERR "RESTART time=".tv_interval($start)."\n";
     
     sleep(2);
+
+    print STDERR "SLEEP time=".tv_interval($start)."\n";
 
     if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
                                 "port"     => 389})) {
@@ -464,8 +471,9 @@ sub AddDatabase {
 =item *
 C<$bool = EditDatabase($suffix,\%valueMap)>
 
-Edit the database section with the suffix B<$suffix> in the configuration file.
-Only save parameter are supported. 
+Edit the database section with the suffix B<$suffix> in the configuration file
+and restart the LDAP Server. Only save parameter are supported. 
+
 Supported keys in %valueMap are:
  
  * rootdn: The Root DN
@@ -483,6 +491,7 @@ If a key is not defined, the option is not changed.
 If the key is defined and a value is specified, this value will be set.
 
 rootdn, passwd and cryptmethod can not be deleted.
+
 
 EXAMPLE:
 
@@ -638,13 +647,14 @@ sub EditDatabase {
 
             my $db = $self->ReadDatabase($suffix);
             return undef if(! defined $db);
-            
-            if($db->{database} eq "bdb") {
+
+            if($db->{database}->[0] eq "bdb") {
 
                 if($data->{checkpoint} ne "") {
                     my @cp = split(/\s+/, $data->{checkpoint});
                     if(!defined $cp[0] || !defined $cp[1] ||
                        $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
+
                         return $self->SetError(summary => _("Invalid checkpoint value."),
                                                description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
                                                code => "PARAM_CHECK_FAILED");
@@ -668,6 +678,10 @@ sub EditDatabase {
         $err->{description} = $err->{summary}."\n\n".$err->{description};
         $err->{summary} = _("Edit database failed.");
         return $self->SetError(%{$err});
+    }
+
+    if(! $self->SwitchService(1)) {
+        return undef;
     }
 
     return 1;
@@ -840,14 +854,20 @@ sub AddIndex {
         return $self->SetError(summary => "Missing parameter 'index'",
                                code => "PARAM_CHECK_FAILED");
     }
+
+    my $md5 = md5_hex( $indexHash->{attr}." ".$indexHash->{param} );
     
-    $orig_idxArray = ReadIndex($suffix);
+    $orig_idxArray = $self->ReadIndex($suffix);
     if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
     
     foreach my $idx (@{$orig_idxArray}) {
-        push @new_idx, $orig_idxArray->{$idx}->{attr}." ".$orig_idxArray->{$idx}->{param};
+        if($idx->{md5} eq $md5) {
+            return $self->SetError(summary => "Index still exists",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        push @new_idx, $idx->{attr}." ".$idx->{param};
     }
     push @new_idx, $indexHash->{attr}." ".$indexHash->{param};
     
@@ -913,7 +933,7 @@ sub EditIndex {
                                code => "PARAM_CHECK_FAILED");
     }
     
-    $orig_idxArray = ReadIndex($suffix);
+    $orig_idxArray = $self->ReadIndex($suffix);
     if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
@@ -973,7 +993,7 @@ sub DeleteIndex {
                                code => "PARAM_CHECK_FAILED");
     }
     
-    $orig_idxArray = ReadIndex($suffix);
+    $orig_idxArray = $self->ReadIndex($suffix);
     if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
