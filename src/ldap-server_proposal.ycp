@@ -74,7 +74,19 @@ if(func == "MakeProposal") {
             foreach( string dn, dnlist, { new_basedn = new_basedn + "dc=" + dn + ","; } );
 
             LdapServerConf::baseDN = substring( new_basedn, 0, size( new_basedn )-1 );
-            LdapServerConf::rootDN = "cn=Administrator,"+LdapServerConf::baseDN;
+            /* XXX: hack to resolve bug #44335:
+             * a failed 'hostname' causes the initial baseDN to be empty, thus the rootDN has a trailing comma.
+             * In dialogs.ycp, when the user enters a baseDN and leaves 'append Base DN' checked, another comma
+             * is put between rootDN and the baseDN part, leading to an invalid rootDN. To resolve this, the
+             * baseDN and comma is only appended to the initial rootDN if 'hostname' succeeded, that is, dnlist
+             * at least 1 element.
+             */
+            //LdapServerConf::rootDN = "cn=Administrator,"+LdapServerConf::baseDN;
+            LdapServerConf::rootDN = "cn=Administrator";
+            if( size( dnlist ) > 0 )
+            {
+                LdapServerConf::rootDN = LdapServerConf::rootDN + "," + LdapServerConf::baseDN;
+            }
             LdapServerConf::rootPW = Users::GetRootPassword();
             LdapServerConf::enctype = "SSHA";
             LdapServer::WriteUseRootPW( true );
