@@ -430,19 +430,12 @@ sub AddDatabase {
     if(! SCR->Write(".ldapserver.database", $data->{suffix}, $hash)) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
-    use Time::HiRes qw( usleep ualarm gettimeofday tv_interval );
-    my $start = [gettimeofday];
-
 
     if(! $self->SwitchService(1)) {
         return undef;
     }
-
-    print STDERR "RESTART time=".tv_interval($start)."\n";
     
     sleep(2);
-
-    print STDERR "SLEEP time=".tv_interval($start)."\n";
 
     if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
                                 "port"     => 389})) {
@@ -621,7 +614,6 @@ sub EditDatabase {
                                        description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
                                        code => "PARAM_CHECK_FAILED");
             }
-            #$cachesize = $data->{cachesize};
             # set new cachesize
 
             $editHash->{cachesize} = $data->{cachesize};
@@ -648,7 +640,7 @@ sub EditDatabase {
             my $db = $self->ReadDatabase($suffix);
             return undef if(! defined $db);
 
-            if($db->{database}->[0] eq "bdb") {
+            if($db->{database} eq "bdb") {
 
                 if($data->{checkpoint} ne "") {
                     my @cp = split(/\s+/, $data->{checkpoint});
@@ -1182,18 +1174,14 @@ sub ReadAllowList {
     if(! defined $global) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
-    if(exists $global->{allow} && defined $global->{allow} &&
-       ref $global->{allow} eq "ARRAY") {
+    if(exists $global->{allow} && defined $global->{allow}) {
         
-        foreach my $a (@{$global->{allow}}) {
-            next if( $a eq "");
-            my @al = split(/\s+/, $a);
-            foreach my $value ( @al ) {
-                $value =~ s/\s+/ /sg;
-                $value =~ s/\s+$//;
-                next if( $value eq "");
-                push @allowList, $value;
-            }
+        foreach my $value (split(/\s+/, $global->{allow})) {
+            next if( $value eq "");
+            $value =~ s/\s+/ /sg;
+            $value =~ s/\s+$//;
+            next if( $value eq "");
+            push @allowList, $value;
         }
     }
     return \@allowList;
