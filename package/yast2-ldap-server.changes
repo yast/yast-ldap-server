@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Mar 31 17:34:55 CEST 2005 - mc@suse.de
+
+- add requires yast2-ca-management to spec file 
+
+-------------------------------------------------------------------
 Tue Nov 30 10:05:44 CET 2004 - schubi@suse.de
 
 - changes for new yast intepreter
