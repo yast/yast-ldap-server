@@ -10,6 +10,86 @@ This package is the public Yast2 API to managing a LDAP Server.
 
 use YaPI::LdapServer
 
+\@dbList = ReadDatabaseList()
+
+ Returns a List of databases (suffix).
+
+$bool = AddDatabase(\%valueMap)
+
+ Creates a new database section in the configuration file
+
+$bool = EditDatabase($suffix,\%valueMap)
+
+ Edit the database section with the suffix $suffix.
+
+\%valueMap = ReadDatabase($suffix)
+
+ Read the database section with the suffix $suffix.
+
+\@indexList = ReadIndex($suffix)
+
+ Returns a List of Maps with all index statements for this database
+
+$bool = AddIndex($suffix,\%indexMap)
+
+ Add a new index statement %indexMap to the database section
+
+$bool = EditIndex($suffix,$index_md5,\%indexMap)
+
+ Replace the index $index_md5 in the database section
+
+$bool = DeleteIndex($suffix,$index_md5)
+
+ Delete the index $index_md5 statement in the database section
+
+$bool = RecreateIndex($suffix)
+
+ Regenerate indices
+
+\@list = ReadSchemaIncludeList()
+
+ Returns a list of all included schema files
+
+$bool = WriteSchemaIncludeList(\@list)
+
+ Writes all schema includes preserving order.
+
+\@list = ReadAllowList()
+
+ Returns a list of allow statements.
+
+$bool = WriteAllowList(\@list)
+
+ Replaces the complete allow option with the specified list
+
+$loglevel = ReadLoglevel()
+
+ Read the loglevel bitmask.
+
+$bool = AddLoglevel($bit)
+
+ Set the given loglevel bit to 1 in the current bitmask.
+
+$bool = DeleteLoglevel($bit)
+
+ Set the given loglevel bit to 0 in the current bitmask.
+
+$bool = WriteLoglevel($loglevel)
+
+ Replaces the loglevel bitmask.
+
+ModifyService($status)
+
+ Turn on/of the LDAP server runnlevel script
+
+SwitchService($status)
+
+ Start/Stop the LDAP server
+
+$status = ReadService()
+
+ Read out the state of the LDAP server runlevel script
+
 =head1 DESCRIPTION
 
 =over 2
@@ -61,6 +141,16 @@ Returns a List of databases (suffix).
 
 EXAMPLE:
 
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadDatabaseList();
+ if( not defined $res ) {
+     # error    
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
 =cut
 
 BEGIN { $TYPEINFO{ReadDatabaseList} = ["function", ["list", "string"]]; }
@@ -75,11 +165,12 @@ sub ReadDatabaseList {
 }
 
 =item *
-C<$bool = AddDatabase( \%valueMap )>
+C<$bool = AddDatabase(\%valueMap)>
 
 Creates a new database section in the configuration file,
 start or restart the LDAP Server and add the base object.
 If the database exists, nothing is done and undef is returned. 
+
 Supported keys in %valueMap are:
  
  * database: The database type (required)
@@ -99,6 +190,22 @@ Supported keys in %valueMap are:
  * checkpoint: The checkpoint(bdb) (optional; default 1024 5)
 
 EXAMPLE:
+
+ my $hash = {
+             database    => 'bdb',
+             suffix      => 'dc=example,dc=com',
+             rootdn      => "cn=Admin,dc=example,dc=com",
+             passwd      => "system",
+             cryptmethod => 'SMD5',
+             directory   => "/var/lib/ldap/db1",
+            };
+
+ my $res = YaPI::LdapServer->AddDatabase($hash);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -347,7 +454,7 @@ sub AddDatabase {
 }
 
 =item *
-C<$bool = EditDatabase($suffix, \%valueMap )>
+C<$bool = EditDatabase($suffix,\%valueMap)>
 
 Edit the database section with the suffix B<$suffix> in the configuration file.
 Only save parameter are supported. 
@@ -370,6 +477,19 @@ If the key is defined and a value is specified, this value will be set.
 rootdn, passwd and cryptmethod can not be deleted.
 
 EXAMPLE:
+
+ my $hash = { suffix      => "dc=example,dc=com",
+              rootdn      => "cn=Administrator,dc=example,dc=com",
+              rootpw      => "example",
+              cryptmethod => "CRYPT"
+            };
+
+ my $res = YaPI::LdapServer->EditDatabase($hash);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -554,10 +674,11 @@ sub EditDatabase {
 }
 
 =item *
-C<$valueMap = ReadDatabase( $suffix )>
+C<\%valueMap = ReadDatabase($suffix)>
 
 Read the database section with the suffix B<$suffix>. 
-Supported keys in %valueMap are:
+
+Returned keys in %valueMap are:
  
  * database: The database type
  
@@ -573,8 +694,19 @@ Supported keys in %valueMap are:
  
  * checkpoint: The checkpoint(bdb)
  
+There can be some more, if they are in this databse section.
 
 EXAMPLE:
+
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadDatabase('"dc=example,dc=com"');
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
 
 =cut
 
@@ -600,20 +732,35 @@ sub ReadDatabase {
 }
 
 =item *
-C<\%indexMap = ReadIndex( $suffix )>
+C<\@indexList = ReadIndex($suffix)>
 
-Returns a Map with all index statements for this database. The "key" is the md5sum 
-of the statement, the "value" is the statement itself.
+Returns a List of Maps with all index statements for this database. The "keys" are:
+
+ * 'attr', an attribute or an attribute list
+
+ * 'param', a number of special index parameters 
+
+ * 'md5', a MD5 sum of this index. This numer is needed for EditIndex and DeleteIndex
 
 EXAMPLE:
 
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadIndex('"dc=example,dc=com"');
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
 =cut
 
-BEGIN { $TYPEINFO{ReadIndex} = ["function", ["map", "string", "string"], "string"]; }
+BEGIN { $TYPEINFO{ReadIndex} = ["function", ["list", ["map", "string", "string"] ], "string"]; }
 sub ReadIndex {
     my $self = shift;
     my $suffix = shift;
-    my $idxHash = {};
+    my @idxList = ();
 
     if(! defined $suffix || $suffix eq "") {
                                           # error message at parameter check
@@ -628,29 +775,59 @@ sub ReadIndex {
        ref $dbHash->{index} eq "ARRAY") {
         
         foreach my $idx (@{$dbHash->{index}}) {
-            my $hex = md5_hex($idx);
-            $idxHash->{"$hex"} = $idx;
+            my $idxHash = {};
+            
+            my ($attr, $method, $empty) = split(/\s+/, $idx);
+            if(!(! defined $empty || $empty eq "")) {
+                return $self->SetError(summary => "Index parsing error.",
+                                       code => "PARSING_ERROR");
+            }
+            
+            $idxHash->{attr} = $attr;
+            $idxHash->{param} = $method;
+            
+            my $md5 = md5_hex( $attr." ".$method );
+            $idxHash->{md5} = $md5;
+            push @idxList, $idxHash;
         }
         
     }
-    return $idxHash;
+    return \@idxList;
 }
 
 =item *
-C<$bool = AddIndex( $suffix, $index )>
+C<$bool = AddIndex($suffix,\%indexMap)>
 
-Add a new index statement B<$index> to the database section B<$suffix>.
+Add a new index statement B<%indexMap> to the database section B<$suffix>.
+
+The indexMap has two keys
+
+ * 'attr', an attribute or an attribute list
+
+ * 'param', a number of special index parameters 
 
 EXAMPLE:
 
+ my $newIndex = {
+                 'attr'  => "uid,cn",
+                 'param' => "eq"
+                };
+
+ my $res = YaPI::LdapServer->AddIndex("dc=example,dc=com", $newIndex);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
+
 =cut
 
-BEGIN { $TYPEINFO{AddIndex} = ["function", "boolean", "string", "string"]; }
+BEGIN { $TYPEINFO{AddIndex} = ["function", "boolean", "string", [ "map", "string", "string"] ]; }
 sub AddIndex {
     my $self = shift;
     my $suffix = shift;
-    my $index = shift;
-    my $orig_idxHash = undef;
+    my $indexHash = shift;
+    my $orig_idxArray = undef;
     my @new_idx = ();
 
     if(!defined $suffix || $suffix eq "") {
@@ -658,22 +835,22 @@ sub AddIndex {
                                code => "PARAM_CHECK_FAILED");
     }
 
-    # FIXME: do better check.
-    if(!defined $index || $index eq "") {
+    if(!defined $indexHash || !defined $indexHash->{attr} || 
+       !defined $indexHash->{param} ) {
         return $self->SetError(summary => "Missing parameter 'index'",
                                code => "PARAM_CHECK_FAILED");
     }
     
-    $orig_idxHash = ReadIndex($suffix);
-    if(! defined $orig_idxHash) {
+    $orig_idxArray = ReadIndex($suffix);
+    if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
     
-    foreach my $idx (keys %{$orig_idxHash}) {
-        push @new_idx, $orig_idxHash->{$idx};
+    foreach my $idx (@{$orig_idxArray}) {
+        push @new_idx, $orig_idxArray->{$idx}->{attr}." ".$orig_idxArray->{$idx}->{param};
     }
-    push @new_idx, $index;
-
+    push @new_idx, $indexHash->{attr}." ".$indexHash->{param};
+    
     if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
@@ -681,60 +858,80 @@ sub AddIndex {
 }
 
 =item *
-C<$bool = EditIndex( $suffix, $index_md5, $index )>
+C<$bool = EditIndex($suffix,$index_md5,\%indexMap)>
 
 Replace the index B<$index_md5> in the database section B<$suffix> by the new index
-statement B<$index>.
+statement B<%indexMap>.
+
+The indexMap has two keys
+
+ * 'attr', an attribute or an attribute list
+
+ * 'param', a number of special index parameters 
 
 EXAMPLE:
 
+ my $newIndex = {
+                 'attr'  => "uid,cn",
+                 'param' => "eq"
+                };
+
+ my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", "eacc11456b6c2ae4e1aef0fa287e02b0",
+                                       $newIndex);
+ if( not defined $res ) {
+     # error
+ } else {
+        print "OK: \n";
+ }
+
 =cut
 
-BEGIN { $TYPEINFO{EditIndex} = ["function", "boolean", "string", "string", "string"]; }
+BEGIN { $TYPEINFO{EditIndex} = ["function", "boolean", "string", "string", 
+                                [ "map", "string", "string"]]; }
 sub EditIndex {
     my $self = shift;
     my $suffix = shift;
     my $idx_md5 = shift;
-    my $index = shift;
-    my $orig_idxHash = undef;
+    my $indexHash = shift;
+    my $orig_idxArray = undef;
     my @new_idx = ();
+    my $found = 0;
 
-    if(!defined $suffix || $suffix eq "") {
+    if(!defined $suffix) {
         return $self->SetError(summary => "Missing parameter 'suffix'",
                                code => "PARAM_CHECK_FAILED");
     }
 
-    # FIXME: do better check.
-    if(!defined $idx_md5 || $idx_md5 eq "" ) {
+    if(!defined $idx_md5 || $idx_md5 !~ /^[[:xdigit:]]+$/ ) {
         return $self->SetError(summary => "Missing parameter 'idx_md5'",
                                code => "PARAM_CHECK_FAILED");
     }
 
-    # FIXME: do better check.
-    if(!defined $index || $index eq "") {
+    if(!defined $indexHash || !defined $indexHash->{attr} || 
+       !defined $indexHash->{param} ) {
         return $self->SetError(summary => "Missing parameter 'index'",
                                code => "PARAM_CHECK_FAILED");
     }
     
-    $orig_idxHash = ReadIndex($suffix);
-    if(! defined $orig_idxHash) {
+    $orig_idxArray = ReadIndex($suffix);
+    if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
     
-    if(!exists $orig_idxHash->{$idx_md5}) {
+    foreach my $idx (@{$orig_idxArray}) {
+        if($idx->{md5} eq $idx_md5) {
+            push @new_idx, $indexHash->{attr}." ".$indexHash->{param};
+            $found = 1;
+        } else {
+            push @new_idx, $idx->{attr}." ".$idx->{param};
+        }
+    }
+    if(!$found) {
         return $self->SetError(summary => "No such 'index'.",
                                description => "MD5 '$idx_md5' not found in this database",
                                code => "PARAM_CHECK_FAILED");
     }
-
-    foreach my $idx (keys %{$orig_idxHash}) {
-        if($idx eq $idx_md5) {
-            push @new_idx, $index;
-        } else {
-            push @new_idx, $orig_idxHash->{$idx};
-        }
-    }
-
+    
     if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
@@ -742,11 +939,18 @@ sub EditIndex {
 }
 
 =item *
-C<$bool = DeleteIndex( $suffix, $index_md5 )>
+C<$bool = DeleteIndex($suffix,$index_md5)>
 
 Delete the index B<$index_md5> statement in the database section B<$suffix>. 
 
 EXAMPLE:
+
+ my $res = YaPI::LdapServer->DeleteIndex("dc=example,dc=com", "338a980b4eebe87365a4077067ce1559");
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -755,37 +959,38 @@ sub DeleteIndex {
     my $self = shift;
     my $suffix = shift;
     my $idx_md5 = shift;
-    my $orig_idxHash = undef;
+    my $orig_idxArray = undef;
     my @new_idx = ();
+    my $found = 0;
 
-    if(!defined $suffix || $suffix eq "") {
+    if(!defined $suffix) {
         return $self->SetError(summary => "Missing parameter 'suffix'",
                                code => "PARAM_CHECK_FAILED");
     }
 
-    # FIXME: do better check.
-    if(!defined $idx_md5 || $idx_md5 eq "" ) {
+    if(!defined $idx_md5 || $idx_md5 !~ /^[[:xdigit:]]+$/ ) {
         return $self->SetError(summary => "Missing parameter 'idx_md5'",
                                code => "PARAM_CHECK_FAILED");
     }
-
-    $orig_idxHash = ReadIndex($suffix);
-    if(! defined $orig_idxHash) {
+    
+    $orig_idxArray = ReadIndex($suffix);
+    if(! defined $orig_idxArray) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
     
-    if(!exists $orig_idxHash->{$idx_md5}) {
+    foreach my $idx (@{$orig_idxArray}) {
+        if($idx->{md5} eq $idx_md5) {
+            $found = 1;
+        } else {
+            push @new_idx, $idx->{attr}." ".$idx->{param};
+        }
+    }
+    if(!$found) {
         return $self->SetError(summary => "No such 'index'.",
                                description => "MD5 '$idx_md5' not found in this database",
                                code => "PARAM_CHECK_FAILED");
-    } else {
-        delete $orig_idxHash->{$idx_md5};
     }
-
-    foreach my $idx (keys %{$orig_idxHash}) {
-        push @new_idx, $orig_idxHash->{$idx};
-    }
-
+    
     if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
@@ -793,13 +998,20 @@ sub DeleteIndex {
 }
 
 =item *
-C<$bool = RecreateIndex( $suffix )>
+C<$bool = RecreateIndex($suffix)>
 
 Regenerate indices based upon the current contents of a 
 database determined by $suffix. This function stops the 
 ldapserver, call slapindex and start the ldapserver again.
 
 EXAMPLE:
+
+ my $res = YaPI::LdapServer->RecreateIndex("dc=example,dc=com");
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -840,6 +1052,16 @@ Returns a list of all included schema files in the order they appear in the conf
 
 EXAMPLE:
 
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadSchemaIncludeList();
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
 =cut
 
 BEGIN { $TYPEINFO{ReadSchemaIncludeList} = ["function", ["list", "string"] ]; }
@@ -858,11 +1080,27 @@ sub ReadSchemaIncludeList {
 }
 
 =item *
-C<$bool = WriteSchemaIncludeList( \@list )>
+C<$bool = WriteSchemaIncludeList(\@list)>
 
 Writes all schema includes preserving order.
 
 EXAMPLE:
+
+ my $schemas = [
+                '/etc/openldap/schema/core.schema',
+                '/etc/openldap/schema/cosine.schema',
+                '/etc/openldap/schema/inetorgperson.schema',
+                '/etc/openldap/schema/rfc2307bis.schema',
+                '/etc/openldap/schema/yast2userconfig.schema',
+                '/etc/openldap/schema/samba3.schema'
+               ];
+
+ my $res = YaPI::LdapServer->WriteSchemaIncludeList($schemas);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -897,6 +1135,16 @@ Returns a list of allow statements.
 
 EXAMPLE:
 
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadAllowList();
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
 =cut
 
 BEGIN { $TYPEINFO{ReadAllowList} = ["function", ["list", "string"] ]; }
@@ -926,41 +1174,20 @@ sub ReadAllowList {
 }
 
 =item *
-C<$bool = AddAllow( $feature_string )>
-
-Adds an allow feature; if the specified feature is already activated, nothing happens.
-
-EXAMPLE:
-
-=cut
-
-BEGIN { $TYPEINFO{AddAllow} = ["function", "boolean", "string" ]; }
-sub AddAllow {
-    my $self = shift;
-}
-
-=item *
-C<$bool = DeleteAllow( $feature_string )>
-
-Removes a specific allow feature. 
-
-EXAMPLE:
-
-=cut
-
-BEGIN { $TYPEINFO{DeleteAllow} = ["function", "boolean", "string" ]; }
-sub DeleteAllow {
-    my $self = shift;
-    
-
-}
-
-=item *
-C<$bool = WriteAllowList( \@list ) >
+C<$bool = WriteAllowList(\@list)>
 
 Replaces the complete allow option with the specified feature list.
 
 EXAMPLE:
+
+ my @list = ( "bind_v2" );
+
+ $res = YaPI::LdapServer->WriteAllowList( \@list );
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
@@ -993,6 +1220,14 @@ Read the loglevel bitmask.
 
 EXAMPLE:
 
+ my $res = YaPI::LdapServer->ReadLoglevel();
+ if( not defined $res ) {
+
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
 =cut
 
 BEGIN { $TYPEINFO{ReadLoglevel} = ["function", "integer" ]; }
@@ -1004,7 +1239,7 @@ sub ReadLoglevel {
     if(! defined $global) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
-    if(exists $global->{loglevel} && defined $global->{loglevel}) {
+    if(exists $global->{loglevel} && defined $global->{loglevel} && $global->{loglevel} ne "" ) {
         
         $loglevel = $global->{loglevel};
         
@@ -1013,51 +1248,109 @@ sub ReadLoglevel {
 }
 
 =item *
-C<$bool = AddLoglevel( $bit )>
+C<$bool = AddLoglevel($bit)>
 
-Adds a loglevel bit to the current bitmask.
+Set the given loglevel bit to 1 in the current bitmask.
 
 EXAMPLE:
+
+ my $res = YaPI::LdapServer->AddLoglevel( 0x04 );
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
 BEGIN { $TYPEINFO{AddLoglevel} = ["function", "boolean", "integer" ]; }
 sub AddLoglevel {
     my $self = shift;
+    my $bit  = shift;
+ 
+    if(!defined $bit || $bit !~ /^\d+$/) {
+        return $self->SetError(summary => "Wrong parameter 'bit'",
+                               code => "PARAM_CHECK_FAILED");
+    }
     
-
+    my $loglevel = $self->ReadLoglevel();
+    return undef if(!defined $loglevel);
+    
+    $loglevel = $loglevel | $bit;
+    
+    my $ret = $self->WriteLoglevel($loglevel);
+    return undef if(!defined $loglevel);
+    
+    return 1;
 }
 
 =item *
-C<$bool = DeleteLoglevel( $bit )>
+C<$bool = DeleteLoglevel($bit)>
 
-Removes a loglevel bit from the bitmask.
+Set the given loglevel bit to 0 in the current bitmask.
 
 EXAMPLE:
+
+ my $res = YaPI::LdapServer->DeleteLoglevel( 0x04 );
+ if( not defined $res ) {
+
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
 BEGIN { $TYPEINFO{DeleteLoglevel} = ["function", "boolean", "integer" ]; }
 sub DeleteLoglevel {
     my $self = shift;
+    my $bit  = shift;
+ 
+    if(!defined $bit || $bit !~ /^\d+$/) {
+        return $self->SetError(summary => "Wrong parameter 'bit'",
+                               code => "PARAM_CHECK_FAILED");
+    }
     
-
+    my $loglevel = $self->ReadLoglevel();
+    return undef if(!defined $loglevel);
+    
+    $loglevel = ( $loglevel & (~ $bit) );
+    
+    my $ret = $self->WriteLoglevel($loglevel);
+    return undef if(!defined $loglevel);
+    
+    return 1;
 }
 
 =item *
-C<$bool = WriteLoglevel( $loglevel )>
+C<$bool = WriteLoglevel($loglevel)>
 
 Replaces the loglevel bitmask. 
 
 EXAMPLE:
+
+ my $res = YaPI::LdapServer->WriteLoglevel( 0x06 );
+ if( not defined $res ) {
+
+ } else {
+     print "OK: \n";
+ }
 
 =cut
 
 BEGIN { $TYPEINFO{WriteLoglevel} = ["function", "boolean", "integer" ]; }
 sub WriteLoglevel {
     my $self = shift;
-    
+    my $loglevel = shift;
 
+    if(!defined $loglevel || $loglevel !~ /^\d+$/) {
+        return $self->SetError(summary => "Wrong parameter 'loglevel'",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    if(! SCR->Write(".ldapserver.global", { loglevel => $loglevel } )) {
+        return $self->SetError(%{SCR->Error(".ldapserver")});
+    }
+    return 1;
 }
 
 =item *
