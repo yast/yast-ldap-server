@@ -1,0 +1,73 @@
+/**
+ * File:	clients/ldap-server.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Main file
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *
+ * $Id$
+ *
+ * Main file for ldap-server configuration. Uses all other files.
+ */
+
+{
+
+/***
+ * <h3>Configuration of ldap-server</h3>
+ */
+
+textdomain "ldap-server";
+
+/* The main () */
+y2milestone ("----------------------------------------");
+y2milestone ("LdapServer module started");
+
+import "Progress";
+import "Report";
+import "Summary";
+
+import "CommandLine";
+include "ldap-server/wizards.ycp";
+
+map cmdline_description = $[
+    "id" 	: "ldap-server",
+    /* Command line help text for the Xldap-server module */
+    "help"	: _("Configuration of ldap-server"),
+    "guihandler"        : LdapServerSequence,
+    "initialize"        : LdapServer::Read,
+    "finish"            : LdapServer::Write,
+    "actions"           : $[
+	// FIXME TODO: fill the functionality description here
+    ],
+    "options"		: $[
+	// FIXME TODO: fill the option descriptions here
+    ],
+    "mapping"		: $[
+	// FIXME TODO: fill the mappings of actions and options here
+    ]
+];
+
+/* is this proposal or not? */
+boolean propose = false;
+list args = WFM::Args();
+if(size(args) > 0) {
+    if(is(WFM::Args(0), path) && WFM::Args(0) == .propose) {
+        y2milestone("Using PROPOSE mode");
+        propose = true;
+    }
+}
+
+/* main ui function */
+any ret = nil;
+
+if(propose) ret = LdapServerAutoSequence();
+else ret = CommandLine::Run(cmdline_description);
+y2debug("ret=%1", ret);
+
+/* Finish */
+y2milestone("LdapServer module finished");
+y2milestone("----------------------------------------");
+
+return ret;
+
+/* EOF */
+}

@@ -1,0 +1,95 @@
+/**
+ * File:	include/ldap-server/dialogs.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Dialogs definitions
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ldap-server";
+
+import "Label";
+import "Wizard";
+import "LdapServer";
+
+include "ldap-server/helps.ycp";
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any Configure1Dialog () {
+
+    /* LdapServer configure1 dialog caption */
+    string caption = _("LdapServer Configuration");
+
+    /* LdapServer configure1 dialog contents */
+    term contents = `Label (_("First part of configuration of ldap-server"));
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Configure2 dialog
+ * @return dialog result
+ */
+any Configure2Dialog () {
+
+    /* LdapServer configure2 dialog caption */
+    string caption = _("LdapServer Configuration");
+
+    /* LdapServer configure2 dialog contents */
+    term contents = `Label (_("Second part of configuration of ldap-server"));
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/* EOF */
+}

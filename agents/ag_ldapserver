@@ -1,0 +1,572 @@
+#! /usr/bin/perl -wT
+
+package ag_ldapserver;
+use strict;
+use YaST::SCRAgent;
+use ycp;
+
+use Data::Dumper;
+
+our @ISA = ("YaST::SCRAgent" );
+
+use Digest::MD5 qw( md5_hex );
+
+## Globals
+
+#name of configfile
+my $slapdconf = "";
+
+#last executed command FIXME: remove debug stuff
+my $lastcommand = "";
+
+#md5sum of configfile
+my $md5sum = "";
+
+#command handlers
+my %command = (
+    Read  => {
+        backendlist     =>  \&readBackList,
+        databaselist    =>  \&readDBList,
+        global          =>  \&readUnparsedSection,
+        backend         =>  \&readUnparsedSection,
+        database        =>  \&readUnparsedSection,
+        debug           =>  \&doDebug
+    },
+    Write => {
+        rewrite     =>  \&debugWrite
+    }
+    
+);
+
+#internal representation of the config data
+my $data = {};
+
+#lookup hash to find the data points for a certain option 
+my $lookup = {};
+
+sub OtherCommand
+{
+    my ($self, $symbol, $config, @rest) = @_;
+
+    return $self->SetError(
+        summary => "first command has to be configfile, seen( $_ )",
+        code    => "SCR_INIT_ERR"
+    ) if( $symbol ne "LDAPCONFIG" );
+
+    $slapdconf = $config->{file} || "/etc/openldap/slapd.conf";
+}
+
+sub Read
+{
+    my $class = shift || return undef;
+
+    my $path = shift || return $class->SetError(
+        summary => "Missing path",
+        code    => "PARAM_CHECK_FAILED"
+    );
+    my @path = split( /\./, $path );
+    shift @path;
+    
+    #bail if wrong command was specified
+    return $class->SetError(
+        summary => "Wrong path '".$path."'",
+        code    => "SCR_WRONG_PATH"
+    ) if( !exists( $command{Read}->{$path[0]} ) );
+
+    $class->initData( $slapdconf ) || return undef;
+    
+    #call the command function according to passed path
+    my $cmdref = $command{Read}->{$path[0]};
+    my $ret = $cmdref->( $class, {
+        name    => shift,
+        command => $path[0],
+        option  => $path[1]
+        });
+
+    return $ret;
+}
+
+sub Write
+{
+    my $class = shift || return undef;
+    
+    my @path = split( /\./, shift );
+    shift @path;
+
+    #bail if wrong command was specified
+    return $class->SetError(
+        summary => "Illegal command '".$path[0]."'",
+        code    => "LDAPSERVER_CMD_ERR"
+    ) if( !exists( $command{Write}->{$path[0]} ) );
+
+    #open configfile handle
+    open( my $cfh, '+<', $slapdconf ) or return $class->SetError(
+        summary => "Failed to open file $slapdconf for reading!",
+        code    => "LDAPSERVER_OPEN_FAILED"
+    );
+    
+    my $cmdref = $command{Write}->{$path[0]};
+    my $ret = $cmdref->( $class, [@path], [@_] );
+    
+    return $ret;
+}
+
+sub debugWrite
+{
+    my $class = shift || undef;
+    my $path = shift || return $class->SetError(
+        summary => "Missing path in command handler debugWrite",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+    my $args = shift || return $class->SetError(
+        summary => "Missing parameters in command handler debugWrite",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+    y2error( Data::Dumper->Dump( [ $path, $args ] ) );
+    return 1;
+}
+
+#---------------------------------------------------------------------------#
+#
+#       read command handlers
+#
+# FIXME: comment is out of date
+#
+# single argument is a hashref with following structure
+#
+# $href = {
+#   handle  =>  'config_filehandle'
+#   name    =>  'block_identifier'
+#   option  =>  'option_name'
+# };
+#
+# 'handle' : already opened filehandle for reading the configfile
+#           required in all functions
+#
+# 'block_identifier': a string that identifies the wanted block.
+#           for backend sections it is the backend type, for database 
+#           sections it is the first suffix in the section.
+#           is ignored in readGlobalConf and read*List
+#
+# 'option' : the name of a specific option, if just one is wanted.
+#           ignored in read*List, optional in read*Conf
+#
+# the read*Conf functions return a hashref like
+# 
+# $ret = {
+#   option    =>  value
+#   ...
+#   option    =>  value
+# }
+#
+# where 'option' is the name of a slapd config option (like 'suffix' or
+# 'include' ) and 'value' is either a scalar string for options appearing
+# only once or a listref for values appearing more than once, in the order
+# they appear in the file
+#
+#---------------------------------------------------------------------------#
+
+sub doDebug
+{
+    my $class = shift || undef;
+    my $conf = shift || return $class->SetError(
+        summary => "Missing argv hash in command handler",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+    return [ $data ];
+}
+    
+##
+## sub readUnparsedSection( \%section )
+##
+## returns the unparsed option values of the specified section
+##
+## TODO: parameter checks
+sub readUnparsedSection
+{
+    my $class = shift || return undef;
+
+    my $conf = shift || return $class->SetError(
+        summary => "Missing argv hash in command handler",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+
+    my $section_name = $conf->{command};
+    $section_name .= " ".$conf->{name} if defined $conf->{name} && $conf->{command} ne 'global';
+    y2debug( "Retrieving section '$section_name'" );
+    my $section = $lookup->{$section_name};
+    my $ret = {};
+    while( my( $opt, $list ) = each %$section )
+    {
+        next if $opt eq 'comment';
+        foreach my $pos ( @$list )
+        {
+            my $option = $pos->{dataref}->{$pos->{datapos}};
+            
+            my $value = $option->{'content_string'};
+            $value =~ s/\s+/ /sg;
+            $value =~ s/\s+$//;
+
+            $ret->{$opt} = [] if( not exists( $ret->{$opt} ) );
+
+            push( @{$ret->{$opt}}, $value );
+        }
+    }
+    return $ret;    
+}
+
+
+##
+## readBackList
+##
+## return value:
+##  \@backlist - list of backend names of all backend sections in the 
+##               configuration file in the same order they appear in
+##               the file
+##
+sub readBackList
+{
+    my $class = shift || return undef;
+    my $conf = shift || return $class->SetError(
+        summary => "Missing argv hash in command handler",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+
+    my @backlist;
+    foreach( keys %$lookup )
+    {
+        push( @backlist, $1 ) if( /^backend (.+)$/ );
+    }
+    return [@backlist];
+}
+
+##
+## readDBList
+##
+## return value:
+##  \@dblist - list of rootdn values of all databases in the 
+##             same order they appear in the config file
+##
+sub readDBList
+{
+    my $class = shift || return undef;
+    my $conf = shift || return $class->SetError(
+        summary => "Missing argv hash in command handler",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+
+    my @dblist;
+    foreach( keys %$lookup )
+    {
+        push( @dblist, $1 ) if( /^database (.+)$/ );
+    }
+    return [@dblist];
+}
+
+#---------------------------------------------------------------------------#
+#
+#   parser functions
+#
+#---------------------------------------------------------------------------#
+
+##
+## sub initData( $fh )
+##
+## fills the data structure from opened filehandle $fh
+##
+## returns true on success, undef on error
+##
+sub initData
+{
+    my $class = shift || return undef;
+    my $filename = shift || return $class->SetError(
+        summary => "Missing filehandle in initData",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+
+    #check filename... this is done again in __init_rec, but there it would produce a
+    #possibly misleading error summary ('Include file location...')
+    if( $filename !~ /^\// )
+    {
+        return $class->SetError(
+            summary => "Config file location has to be absolute, seen '$filename'",
+            code    => "LDAPSERVER_ILLEGAL_FILENAME"
+        );
+    }
+
+    #create global lookup section 
+    $lookup->{'global'} = {};
+    
+    return $class->__init_rec( $filename, $data, $lookup->{'global'} );
+}
+
+##
+## sub __init_rec( $filename, $data, $section )
+##
+## reads configuration from $filename into datastructure $data and into lookup section $section
+## descending through include directives (that are rated as not being schema definitions)
+##
+sub __init_rec
+{
+    my $class = shift || return undef;
+    my $filename = shift || return $class->SetError(
+        command => "Missing filename in __init_rec",
+        code    => "SCR_MISSING_ARG"
+    );
+    
+    my $active_data = shift || return $class->SetError(
+        command => "Missing data reference in __init_rec",
+        code    => "SCR_MISSING_ARG"
+    );
+    
+    my $active_section = shift || return $class->SetError(
+        command => "Missing section reference in __init_rec",
+        code    => "SCR_MISSING_ARG"
+    );
+    
+    open( my $cfh, '<', $filename ) or return $class->SetError(
+        summary => "Failed to open file $filename for reading!",
+        code    => "LDAPSERVER_OPEN_FAILED"
+    );
+
+    #generate md5sum
+    binmode( $cfh );
+    my $md5sum_new = Digest::MD5->new->addfile( $cfh )->hexdigest || do {
+        close( $cfh );
+        return $class->SetError(
+            summary => "generation of MD5 checksum failed in __init_rec",
+            code    => "LDAPSERVER_INTERNAL"
+        );
+    };
+    binmode ( $cfh, ':perlio' );
+    seek( $cfh, 0, 0 );
+
+    if( exists( $active_data->{__internal} ) && $active_data->{__internal}{md5sum} eq $md5sum_new )
+    {
+        y2debug( "cached data from $filename is still up to date, skipping initialization" );
+        close( $cfh );
+        return 1;
+    }
+
+    $active_data->{__internal} = {};
+    $active_data->{__internal}{md5sum} = $md5sum_new;
+    $active_data->{__internal}{filename} = $filename;
+
+    y2debug( "reading data from file $filename" );
+   
+
+    #currently active option
+    my $last_opt = "";
+
+    #value of the currently active option
+    my $content = "";
+
+    #current position in data structure
+    my $datapos = 1;
+    
+    while( <$cfh> )
+    {    
+        if( /^\s+/ || /^$/ )
+        {
+            #FIXME: what happens if first line starts with whitespace?
+            $content .= $_;
+            next;
+        } elsif( /^#/ )
+        {
+            if( $last_opt ne 'comment' )
+            {
+                if( $last_opt ne "" )
+                {
+                    $class->addOptionData({
+                        data    =>  $active_data,
+                        section =>  $active_section,
+                        datapos =>  $datapos,
+                        name    =>  $last_opt,
+                        content =>  $content
+                    });
+                    $class->inc( \$datapos );
+                    $content = "";
+                }
+                $last_opt = 'comment';
+            }
+            $content .= $_;
+            next;
+        } elsif( /^([^\s#]+)\s+(.+)/ ) 
+        {
+            my $opt_name = $1;
+            my $rest = $2;
+            if( $last_opt ne "" ) {
+                $class->addOptionData({
+                    data    =>  $active_data,
+                    section =>  $active_section,
+                    datapos =>  $datapos,
+                    name    =>  $last_opt,
+                    content =>  $content
+                });
+                $class->inc( \$datapos );
+                $content = "";
+            }
+            if( $opt_name eq "include" )
+            {
+                #TODO: add schemafile check here
+                
+                #store current read position and close file
+                my $pos = tell( $cfh );
+                close( $cfh ) || return $class->SetError(
+                    summary => "failed to close file '$filename'",
+                    code    => "LDAPSERVER_CLOSE_FAILED"
+                );
+
+                #write the include option
+                my $option_data = $class->addOptionData({
+                    data    =>  $active_data,
+                    section =>  $active_section,
+                    datapos =>  $datapos,
+                    name    =>  $opt_name,
+                    content =>  $rest
+                });
+
+                $class->inc( \$datapos );
+                $last_opt = "";
+                $content = "";
+
+                #create the data structure for the included file
+                my $new_data = {};
+                $option_data->{parsed_file} = $new_data;
+
+                #trim filename
+                $rest =~ s/\s+$//;
+
+                #parse file
+                $class->__init_rec( $rest, $new_data, $active_section ) || return undef;
+
+                #reopen the own file
+                open( $cfh, '<', $filename ) or return $class->SetError(
+                    summary => "Failed to open file $filename for reading!",
+                    code    => "LDAPSERVER_OPEN_FAILED"
+                );
+
+                #restore saved file position
+                seek( $cfh, $pos, 0 );
+                next;
+                
+                
+            } elsif( $opt_name eq "backend" )
+            {
+                #start new backend section
+                $rest =~ /^(\S+)/;
+                $active_section = {};
+                $lookup->{"backend ".$1} = $active_section;
+            } elsif( $opt_name eq "database" )
+            {
+                #start new database section
+                my $suffix = $class->findFirstSuffix( $cfh );
+                $active_section = {};
+                $lookup->{"database ".$suffix} = $active_section;
+            }
+            $last_opt = $opt_name;
+            $content .= $rest;
+            next;
+        } 
+    }
+
+    #write last option
+    if( $last_opt ne "" ) {
+        $class->addOptionData({
+            data    =>  $active_data,
+            section =>  $active_section,
+            datapos =>  $datapos,
+            name    =>  $last_opt,
+            content =>  $content
+        });
+    }
+    
+    close $cfh or return $class->SetError(
+        summary => "Failed to close file $slapdconf",
+        code    => "LDAPSERVER_CLOSE_FAILED"
+    );
+
+    return 1;
+    
+}
+
+##
+## sub addOptionData( $name, $content, $datapos, \%section )
+##
+## stores an option in the internal data structure
+## returns the option's created data hash
+##
+## TODO: error checking
+##
+sub addOptionData
+{
+    my $class = shift;
+    my $config = shift;
+    my $data = $config->{data};
+    my $section = $config->{section};
+    my $datapos = $config->{datapos};
+    my $name = $config->{name};
+    my $content = $config->{content};
+
+    $data->{"$datapos"} = {
+        type            => $name,
+        content_string  => $content
+    };           
+    if( !exists( $section->{$name} ) )
+    {
+        $section->{$name} = [{datapos=>"$datapos",dataref=>$data}];
+    } else
+    {
+        push( @{$section->{$name}}, {datapos=>"$datapos",dataref=>$data} );
+    }
+    return $data->{"$datapos"};
+}
+
+##
+## sub findFirstSuffix( $fh )
+##
+## scans through the file behind filehandle $fh and returns the value of the first 
+## suffix line it finds. $fh is reset to the file position in had before the function
+## call. $fh has to be positioned at the beginning of the 'database'statement line.
+##
+## TODO: error when seeing database statement without seeing suffix before?
+##
+sub findFirstSuffix
+{
+    my $class = shift || return undef;
+    my $cfh = shift;
+
+    my $pos = tell( $cfh );
+
+    while( <$cfh> )
+    {
+        next if( !/^suffix\s+(.+)$/ );
+        my $suffix = $1;
+        $suffix =~ s/\s+$//;
+        seek( $cfh, $pos, 0 );
+        return $suffix;
+    }
+    seek( $cfh, $pos, 0 );
+    return undef;
+
+}
+
+##
+## sub inc( $datapos )
+##
+## increases the internal data index type by 1
+##
+sub inc
+{
+    my $class = shift || return undef;
+    my $num = shift || return $class->SetError(
+        summary => "Missing argument to function inc",
+        code    => "LDAPSERVER_MISSING_ARG"
+    );
+    my @a = split( /\./, $$num );
+    $a[$#a]++;
+    $$num = join( ",", @a );
+}
+
+package main;
+ag_ldapserver->Run;
