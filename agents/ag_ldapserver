@@ -4,8 +4,13 @@
 #
 # yast2 agent to read/write slapd.conf
 #
-# TODO: currently the order of option values is lost when more files are involved and some 
-#       of them have to be reread.
+# TODO: - currently the order of option values is lost when more files are involved and some 
+#         of them have to be reread. fix.
+#
+#       - implement reading of single options by giving the option name as second path part, e.g.
+#         SCR->Read( ".ldapserver.global.schemainclude" )
+#
+#       - check constraints when reading config files
 #
 package ag_ldapserver;
 use strict;
@@ -17,11 +22,15 @@ use Data::Dumper;
 our @ISA = ( "YaST::SCRAgent" );
 
 use Digest::MD5 qw( md5_hex );
+use Encode qw( encode_utf8 );
 
 ## Globals
 
 #name of configfile
 my $slapdconf = "";
+
+#debugsuffix
+my $debugsuffix = undef;
 
 #command handlers
 my %command = (
@@ -34,20 +43,77 @@ my %command = (
         debug           =>  \&doDebug
     },
     Write => {
-        rewrite     =>  \&debugWrite
+        rewrite     =>  \&debugWrite,
+        global      =>  '1'
     }
     
 );
 
+#information about relationships between options
+#TODO: write a function that computes dependance levels
+my $constraints = {
+    database    => {
+        database    => {
+            multi   => 0,
+            backend => { all => 1 }
+        },
+        suffix  => { 
+            after   => { database => 1 },
+            multi   => 1, 
+            backend => { all => 1 }
+        },
+        rootdn  => {
+            after   => { suffix => 1 },
+            multi   => 0,
+            backend => { all => 1 },
+            dlevel  => 2
+        },
+        rootpw  => {
+            after   => { rootdn => 1 },
+            multi   => 0,
+            backend => { all => 1 },
+            dlevel  => 3
+        },
+        index => {
+            after   => { database => 1 },
+            multi => 1,
+            backend => { all => 1 }
+        },
+        directory   => { 
+            after   => { database => 1 },
+            multi => 0,
+            backend => { bdb => 1, ldbm => 1 }
+        },
+        cachesize   => {
+            after   => { database => 1 },
+            multi => 0,
+            backend => { bdb => 1, ldbm => 1 }
+        },
+        checkpoint  => { 
+            after   => { database => 1 },
+            multi => 0,
+            backend => { bdb => 1 }
+        }
+    },
+    global      => {
+        schemainclude   => { multi => 1 },
+        include     => { multi => 1 },
+        allow       => { multi => 0 },
+        loglevel    => { multi => 0 }
+    }
+};
+
 #internal representation of the config data
+#TODO: write structure documentation
 my $data = {};
 
 #lookup hash to find the data points for a certain option 
+#TODO: write structure documentation
 my $lookup = {};
 
-#main repository for all files
+#main repository for all configuration files
 #structure is:
-# $files = { "filename" => datahash }
+# $files = { $filename => \%datahash }
 my $files = {};
 
 sub OtherCommand
@@ -104,32 +170,91 @@ sub Write
         summary => "Illegal command '".$path[0]."'",
         code    => "LDAPSERVER_CMD_ERR"
     ) if( !exists( $command{Write}->{$path[0]} ) );
-
+    
     #open configfile handle
     open( my $cfh, '+<', $slapdconf ) or return $class->SetError(
         summary => "Failed to open file $slapdconf for reading!",
         code    => "LDAPSERVER_OPEN_FAILED"
     );
     
-    my $cmdref = $command{Write}->{$path[0]};
-    my $ret = $cmdref->( $class, [@path], [@_] );
+    my $i = 0;
+
+    y2debug( $i++ );
     
-    return $ret;
+    if( $path[0] eq 'global' )
+    {
+        my $options = shift;
+        return $class->SetError(
+            summary => "argument to 'write .global' needs to be a map",
+            code    => "PARAM_CHECK_FAILED"
+        ) if( ref( $options ) ne "HASH" );
+
+        while( my ($opt_name, $opt_val) = each %$options )
+        {
+            $class->updateSingleOption( 'global', $opt_name, $opt_val ) || return undef;
+        }
+    } elsif( $path[0] eq 'backend' )
+    {
+        my $back_type = shift;
+        my $options = shift;
+        return $class->SetError(
+            summary => "argument to 'write .global' needs to be a map",
+            code    => "PARAM_CHECK_FAILED"
+        ) if( ref( $options ) ne "HASH" );
+
+        while( my ($opt_name, $opt_val) = each %$options )
+        {
+            $class->updateSingleOption( 'backend '.$back_type, $opt_name, $opt_val ) || return undef;
+        }
+    } elsif( $path[0] eq 'database' )
+    {
+        my $db_suffix = shift;
+        my $options = shift;
+        return $class->SetError(
+            summary => "argument to 'write .global' needs to be a map",
+            code    => "PARAM_CHECK_FAILED"
+        ) if( ref( $options ) ne "HASH" );
+
+        while( my ($opt_name, $opt_val) = each %$options )
+        {
+            $class->updateSingleOption( 'database '.$db_suffix, $opt_name, $opt_val ) || return undef;
+        }
+    }
+    return $class->rewriteChangedFiles();
+    #my $cmdref = $command{Write}->{$path[0]};
+    #my $ret = $cmdref->( $class, [@path], [@_] );
+    
+    #return $ret;
 }
 
-sub debugWrite
+sub Execute
 {
-    my $class = shift || undef;
-    my $path = shift || return $class->SetError(
-        summary => "Missing path in command handler debugWrite",
-        code    => "LDAPSERVER_INTERNAL"
-    );
-    my $args = shift || return $class->SetError(
-        summary => "Missing parameters in command handler debugWrite",
-        code    => "LDAPSERVER_INTERNAL"
-    );
-    #y2error( Data::Dumper->Dump( [ $path, $args ] ) );
-    return 1;
+    my $class = shift || return undef;
+    
+    my @path = split( /\./, shift );
+    shift @path;
+
+    if( $path[0] eq "setdebugsuffix" )
+    {
+        my $tmpsuffix = shift;
+        if( $tmpsuffix =~ /[^A-Za-z0-9]/s )
+        {
+            $debugsuffix = "y2save";
+            return $class->SetError(
+                summary => "debugsuffix may only contain alphanumeric characters (A-Z,a-z,0-9), setting default 'y2save'",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+        
+        $debugsuffix = $tmpsuffix;
+        return 1;
+    } else
+    {
+        return $class->SetError(
+            summary => "Wrong path ".join( ".", @path ),
+            code    => "SCR_WRONG_PATH"
+        );
+    }
 }
 
 #---------------------------------------------------------------------------#
@@ -179,7 +304,7 @@ sub doDebug
         summary => "Missing argv hash in command handler",
         code    => "LDAPSERVER_INTERNAL"
     );
-    return [ $files ];
+    return 1;#[ $files ];
 }
     
 ##
@@ -317,6 +442,8 @@ sub initData
 ## reads configuration from $filename into datastructure $data and into lookup section $section
 ## descending through include directives (that contain no schema definitions)
 ##
+## TODO: rewrite/split up
+##
 sub __init_rec
 {
     my $class = shift || return undef;
@@ -398,12 +525,16 @@ sub __init_rec
     #current position in data structure
     my $datapos = 1;
     
+    #whitespace between option name and content
+    my $opt_ws = '';
     while( <$cfh> )
     {    
         if( /^\s+/ || /^$/ )
         {
             #FIXME: what happens if first line starts with whitespace?
             $content .= $_;
+            #s/\n/\\n/;
+            #y2debug( "adding '$_' to <$last_opt> at position <$datapos>" );
             next;
         } elsif( /^#/ )
         {
@@ -416,30 +547,36 @@ sub __init_rec
                         section =>  $active_section,
                         datapos =>  $datapos,
                         name    =>  $last_opt,
-                        content =>  $content
+                        content =>  $content,
+                        ws      =>  $opt_ws
                     });
                     $class->inc( \$datapos );
                     $content = "";
                 }
                 $last_opt = 'comment';
+                $opt_ws = '';
             }
             $content .= $_;
             next;
-        } elsif( /^([^\s#]+)\s+(.+)/ ) 
+        } elsif( /^([^\s#]+)(\s+)(.+)/s ) 
         {
-            my $opt_name = $1;
-            my $opt_val = $2;
+            my $opt_name    = $1;
+            my $ws_tmp      = $2;
+            my $opt_val     = $3;
+            
             if( $last_opt ne "" ) {
                 $class->addOptionData({
                     data    =>  $active_data,
                     section =>  $active_section,
                     datapos =>  $datapos,
                     name    =>  $last_opt,
-                    content =>  $content
+                    content =>  $content,
+                    ws      =>  $opt_ws
                 });
                 $class->inc( \$datapos );
                 $content = "";
             }
+            $opt_ws      = $ws_tmp;
             if( $opt_name eq "include" )
             {
                 #FIXME: use a more intelligent way to detect schema includes
@@ -447,6 +584,8 @@ sub __init_rec
                 {
                     $last_opt = "schemainclude";
                     $content .= $opt_val;
+                    #$opt_val =~ s/\n/\\n/;
+                    #y2debug( "starting new <$last_opt> with value <$opt_val> at position <$datapos>" );
                     next;
                 }
                 
@@ -463,24 +602,25 @@ sub __init_rec
                     section =>  $active_section,
                     datapos =>  $datapos,
                     name    =>  $opt_name,
-                    content =>  $opt_val
+                    content =>  $opt_val,
+                    ws      =>  $opt_ws
                 });
 
                 $class->inc( \$datapos );
                 $last_opt = "";
                 $content = "";
 
+                my $newfilename = $opt_val;
+                $newfilename =~ s/\s+$//;
+
                 #register the file in the global file repository
-                $files->{$opt_val} = {} if( !defined( $files->{$opt_val} ) );
+                $files->{$newfilename} = {} if( !defined( $files->{$newfilename} ) );
 
                 #put a reference to the data structure in the include option hash
-                $option_data->{parsed_file} = $files->{$opt_val};
-
-                #trim filename
-                $opt_val =~ s/\s+$//;
+                $option_data->{parsed_file} = $files->{$newfilename};
 
                 #parse file
-                $class->__init_rec( $opt_val, $files->{$opt_val}, $active_section ) || return undef;
+                $class->__init_rec( $newfilename, $files->{$newfilename}, $active_section ) || return undef;
 
                 #reopen the own file
                 open( $cfh, '<', $filename ) or return $class->SetError(
@@ -508,6 +648,9 @@ sub __init_rec
             }
             $last_opt = $opt_name;
             $content .= $opt_val;
+            
+            #$opt_val =~ s/\n/\\n/;
+            #y2debug( "starting new <$last_opt> with value <$opt_val> at position <$datapos>" );
             next;
         } 
     }
@@ -519,7 +662,8 @@ sub __init_rec
             section =>  $active_section,
             datapos =>  $datapos,
             name    =>  $last_opt,
-            content =>  $content
+            content =>  $content,
+            ws      =>  $opt_ws
         });
     }
     
@@ -542,17 +686,20 @@ sub __init_rec
 ##
 sub addOptionData
 {
-    my $class = shift;
-    my $config = shift;
-    my $data = $config->{data};
+    my $class   = shift;
+    my $config  = shift;
+    my $data    = $config->{data};
     my $section = $config->{section};
     my $datapos = $config->{datapos};
-    my $name = $config->{name};
+    my $name    = $config->{name};
     my $content = $config->{content};
+    my $ws      = $config->{ws};
 
     $data->{"$datapos"} = {
         type            => $name,
-        content_string  => $content
+        content_string  => $content,
+        ws              => $ws,
+        md5             => $class->getOptionMD5( $content )
     };           
     if( !exists( $section->{$name} ) )
     {
@@ -594,6 +741,292 @@ sub findFirstSuffix
 }
 
 ##
+## sub updateSingleOption( $section_name, $option_name, ( \@valuelist | $single_value ) )
+##
+## updates the values of the given option
+##
+## this is the place where the decision is made at what position in which file 
+## some option will be written.
+##
+## i guess this could be optimized/enhanced indefinitely :)
+##
+## TODO: support multiple files
+## TODO: split up in smaller functions
+##
+sub updateSingleOption
+{
+    my $class = shift || return undef;
+
+    my ($section_name, $opt_name, $opt_val ) = @_;
+
+    my $section = $lookup->{$section_name};
+    $section_name =~ /^(\S+)/;
+    my $section_type = $1;
+
+    #get constraints for the option
+    my $constr = $class->getConstraints( $section_type, $opt_name ) || return $class->SetError(
+        summary => "writing option '$opt_name' in $section_type section is not supported",
+        code    => "PARAM_CHECK_FAILED"
+    );
+
+    my $reftype = ref( $opt_val ) || undef;
+    #only array references are allowed
+    if( defined $reftype && $reftype ne "ARRAY" ) {
+        return $class->SetError(
+            summary => "option value has to be list reference or scalar, seen [$reftype]",
+            code    => "PARAM_CHECK_FAILED"
+        );
+    }
+
+    #bail if option list is passed for single only option
+    if( !$constr->{multi} && $reftype ) {
+        return $class->SetError(
+            summary => "multiple '$opt_name' options are not allowed",
+            code    => "PARAM_CHECK_FAILED"
+        );
+    }
+
+    #bail if option is not supported by backend
+    if( $section_type eq "database" || $section_type eq "backend" )
+    {
+        my $back_type = $section->{$section_type}->{content_string};
+        $back_type =~ s/^(\S+).*$/$1/s;
+
+        if( !exists( $constr->{backend}->{$back_type} ) )
+        {
+            return $class->SetError(
+                summary => "option '$opt_name' is not supported from backend $back_type",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+    }
+
+    #bail if multiple options of the same type are distributed between different files
+    if( $constr->{multi} )
+    {
+        my $file = $section->{$opt_name}->[0]->{dataref}->{__internal}->{filename};
+        #print STDERR "file: $file\n";
+        foreach my $opt ( @{$section->{$opt_name}} )
+        {
+            my $tmpfile = $opt->{dataref}->{__internal}->{filename};
+            next if( $tmpfile eq $file );
+            return $class->SetError(
+                summary => "Multiple options of type $opt_name are spanned between 2 or more files. The current agent version cannot handle this.",
+                code    => "LDAPSERVER_INTERNAL"
+            );
+        }
+    }
+
+    #option exists already
+    if( exists $section->{$opt_name} )
+    {
+        if( !$constr->{multi} )
+        {
+            #single-only option - just replace the content_string
+            #print STDERR "no multi\n";
+            my $opt = $section->{$opt_name}->[0];
+            $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
+            $opt->{dataref}->{__internal}->{dirty} = 1;
+            return 1;
+        } else
+        {
+            #multi option
+            #TODO: has to be changed for multiple files support
+            #print STDERR "multi\n";
+
+            #check if all options of this are placed with no other option between
+            
+            my $optionlist = $class->sortOptionList( $section->{$opt_name} );
+            my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+
+            #print STDERR qd( \@dataposlist );
+            my $i = 1;
+            my $found = 0;
+            my $option_between = undef;
+            foreach my $pos ( @dataposlist )
+            {
+                if( not $found )
+                {
+                    next if( $pos ne $optionlist->[0]->{datapos} );
+                    $found = 1;
+                } else
+                {
+                    last if( $i == $#$optionlist );
+
+                    #print STDERR "checking global pos '$pos' and option pos '".$optionlist->[$i]->{datapos}."'\n";
+                    if( $pos ne $optionlist->[$i++]->{datapos} )
+                    {
+                        $option_between = $data->{$pos}->{type};
+                        last;
+                    }
+                }
+            } # foreach( @dataposlist )
+           
+            return $class->SetError(
+                summary => "while trying to write option '$opt_name', some other option ('".$option_between."') was found inbetween. This cannot be handled by the current agent version.",
+                code    => "LDAPSERVER_INTERNAL"
+            ) if defined $option_between;
+
+            #no option is between the options to write, so just remove the old ones and put the new ones
+            #at the same place
+            
+            
+            my $base_pos = $optionlist->[0]->{datapos};
+            
+            #preserve whitespace
+            my $opt_ws = $data->{$base_pos}->{ws};
+            
+            #first remove old ones
+            foreach( @$optionlist )
+            {
+                #print STDERR "deleting entry '".$_->{datapos}."'\n";
+                delete( $data->{$_->{datapos}} );
+            }
+
+            $section->{$opt_name} = [];
+            
+            #print STDERR join( ", ", sort( keys %$data ) )."\n";
+            
+            #print STDERR qd( $opt_val );
+            #now add new ones
+            if( ref( $opt_val ) )
+            {
+                for( my $i = 0; $i <= $#$opt_val; $i++ )
+                {
+                    #print STDERR "trying to update position $i\n";
+                    $class->addOptionData({
+                        data    =>  $data,
+                        section =>  $section,
+                        datapos =>  "$base_pos.".($i+1),
+                        name    =>  $opt_name,
+                        content =>  $opt_val->[$i],
+                        ws      =>  $opt_ws
+                    }) || return undef;
+                }
+            } else
+            {
+                $class->addOptionData({
+                    data    =>  $data,
+                    section =>  $section,
+                    datapos =>  $base_pos,
+                    name    =>  $opt_name,
+                    content =>  $opt_val,
+                    ws      =>  $opt_ws
+                });
+            }
+
+            #print STDERR join( ", ", sort { $class->keycompare( $a, $b ) } ( keys %$data ) )."\n";
+            
+            return 1;
+            
+        } # else( !$constr->{multi} )
+        
+    } else # !exists( $section->{$opt_name} )
+    {
+        return $class->SetError(
+            summary => "options that don't exist in the config file cannot be written atm.",
+            code    => "LDAPSERVER_INTERNAL"
+        );
+    } # else ( !exists( $section->{$opt_name} ) )
+    
+    return $class->SetError(
+        summary => "undefined error while trying to update option '$opt_name' in section '$section_name'",
+        code    => "LDAPSERVER_INTERNAL"
+    );
+}
+
+##
+## sub getConstraints( $section_type, $opt_name )
+##
+## returns the constraints hash for specified option or undef if option
+## is not supported in this section
+##
+## constraints are inherited from the previous section, so database inherits from backend,
+## backend inherits from global
+##
+## section_type is one of 'global', 'backend', 'database'
+##
+sub getConstraints
+{
+    my $class = shift || return undef;
+    my ($section_type, $opt_name ) = @_;
+    
+    my $c_hash = undef;
+    my $not_found = 0;
+    
+    SWITCH: for( $section_type )
+    {
+        /^database$/ && do
+            {
+                #y2debug( "entering database block" );
+                $c_hash = $constraints->{'database'}->{$opt_name};
+                $not_found = 1 if( !$c_hash );
+            };
+        ( /^backend$/ || $not_found ) && do
+            {
+                #y2debug( "entering backend block" );
+                $c_hash = $constraints->{'backend'}->{$opt_name};
+                $not_found = 1 if( !$c_hash );
+            };
+        ( /^global$/ || $not_found ) && do
+            {
+                #y2debug( "entering global block" );
+                $c_hash = $constraints->{'global'}->{$opt_name};
+            };
+        last SWITCH;
+    }
+    return $c_hash;
+}
+
+##
+## sub rewriteChangedFiles()
+##
+## writes all files that have changed to disk
+##
+sub rewriteChangedFiles
+{
+    my $class = shift || return undef;
+    while( my( $filename, $data ) = each %$files )
+    {
+        #next if !defined( $data->{__internal}->{dirty} );
+        my $__internal = delete $data->{__internal};
+        my @range = sort { $class->keycompare( $a, $b ) } keys %$data;
+        
+        my $file = "";
+        foreach my $key ( @range )
+        {
+            my $opt = $data->{"$key"};
+            if( $opt->{type} eq "comment" ){
+            } elsif( $opt->{type} eq "schemainclude" )
+            {
+                $file .= "include";
+            } else
+            {
+                $file .= $opt->{type};
+            }
+            $file .= $opt->{ws};
+            $file .= $opt->{content_string};
+            if( $opt->{content_string} !~ /\n$/ )
+            {
+                $file .= "\n";
+                y2debug( "adding \\n to <".$opt->{type}."> at position <$key>" );
+            };
+        }
+        
+        $filename .= ".".$debugsuffix if defined $debugsuffix;
+        open( my $fh, ">", $filename ) or return $class->SetError(
+            summary => "unable to open $filename for writing",
+            code    => "LDAPSERVER_OPEN_FAILED"
+        );
+
+        print $fh $file;
+
+        close( $fh );
+    }
+    return 1;
+}
+
+##
 ## sub inc( \$datapos )
 ##
 ## increases the internal data index type by 1
@@ -608,6 +1041,70 @@ sub inc
     my @a = split( /\./, $$num );
     $a[$#a]++;
     $$num = join( ",", @a );
+}
+
+##
+## sub computeOptionMD5( $option_string )
+##
+## computes a md5 for a option value
+## TODO: handle doubleticks (whatever they are called... -> " <- this char ;) )
+## TODO: parameter checks
+##
+sub getOptionMD5
+{
+    my $class = shift || return undef;
+    my $val = shift;
+
+    #chop whitespace
+    $val =~ s/\s+$//s;
+    #compress whitespace
+    $val =~ s/\s+/ /gs;
+
+    return md5_hex( encode_utf8( $val ) );
+}
+
+##
+## sub sortOptionList( \@list )
+##
+## sorts a list of options as contained in the lookup section
+##
+## TODO: support multiple files
+##
+sub sortOptionList
+{
+    my $class = shift || return undef;
+    my $list = shift;
+
+    my @newlist = sort { $class->keycompare( $a->{datapos}, $b->{datapos} ) } @$list;
+    local $Data::Dumper::Maxdepth = 2;
+
+    return \@newlist;
+}
+
+##
+## sub keycompare( $a, $b )
+##
+## comparison function to compare two internal data indices
+## use as custom comparison function to sort a list of internal data indices
+##
+## TODO: handle undefined values properly to get rid of 'no warnings'
+##
+sub keycompare
+{
+    my $class = shift;
+    no warnings;
+    my $a = ref( $_[0] ) ? $_[0] : [ split( /\./, $_[0] ) ];
+    my $b = ref( $_[0] ) ? $_[1] : [ split( /\./, $_[1] ) ];
+    
+    my $ax = shift( @$a );
+    my $bx = shift( @$b );
+    return $ax <=> $bx if $ax != $bx;
+    return $class->keycompare( $a, $b );
+}
+
+sub qd
+{
+    return Data::Dumper->Dump( [ shift ] );
 }
 
 package main;
