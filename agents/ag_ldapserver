@@ -58,6 +58,10 @@ my %command = (
 #IMPORTANT: don't use this hash directly, use the $class->getConstraints function
 my $constraints = {
     database    => {
+        database => {
+            multi   => 0,
+            backend => { all => 1 }
+        },
         suffix  => { 
             multi   => 1, 
             backend => { all => 1 }
