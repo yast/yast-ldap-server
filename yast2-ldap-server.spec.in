@@ -1,0 +1,30 @@
+@HEADER-COMMENT@
+# neededforbuild yast2-devel-packages
+
+@HEADER@
+Requires:	yast2
+
+BuildArchitectures:	noarch
+
+Summary:	Configuration of ldap-server
+
+%description
+-
+
+@PREP@
+
+@BUILD@
+
+@INSTALL@
+
+@CLEAN@
+
+%files
+%defattr(-,root,root)
+%dir @yncludedir@/ldap-server
+@yncludedir@/ldap-server/*
+@clientdir@/ldap-server.ycp
+@clientdir@/ldap-server_*.ycp
+@moduledir@/LdapServer.*
+@desktopdir@/ldap-server.desktop
+%doc @docdir@
