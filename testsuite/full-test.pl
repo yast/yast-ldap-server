@@ -31,6 +31,10 @@ T13_DeleteIndex();
 T14_RecreateIndex();
 T15_WriteSchemaIncludeList();
 T16_WriteAllowList();
+T17_AddLoglevel();
+T18_DeleteLoglevel();
+T19_WriteLoglevel();
+T20_ReadLoglevel();
 
 sub printError {
     my $err = shift;
@@ -124,7 +128,7 @@ sub T06_ReadIndex {
     print STDERR "------------------- T06_ReadIndex ---------------------\n";
     print "------------------- T06_ReadIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex('"dc=suse,dc=de"');
+    my $res = YaPI::LdapServer->ReadIndex('"o=SUSE,c=de"');
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -207,7 +211,7 @@ sub T10_EditDatabase {
               cryptmethod => "CRYPT"
             };
 
-    my $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -220,7 +224,7 @@ sub T10_EditDatabase {
               cachesize  => "20000",
             };
 
-    my $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -233,7 +237,7 @@ sub T10_EditDatabase {
               checkpoint  => "2048 10",
             };
     
-    my $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -304,14 +308,14 @@ sub T15_WriteSchemaIncludeList {
     print STDERR "------------------- T15_WriteSchemaIncludeList ---------------------\n";
     print "------------------- T15_WriteSchemaIncludeList ---------------------\n";
 
-    my $schemas = {
+    my $schemas = [
                    '/etc/openldap/schema/core.schema',
                    '/etc/openldap/schema/cosine.schema',
                    '/etc/openldap/schema/inetorgperson.schema',
                    '/etc/openldap/schema/rfc2307bis.schema',
                    '/etc/openldap/schema/yast2userconfig.schema',
                    '/etc/openldap/schema/samba3.schema'
-                  };
+                  ];
 
     my $res = YaPI::LdapServer->WriteSchemaIncludeList($schemas);
     if( not defined $res ) {
@@ -340,7 +344,64 @@ sub T16_WriteAllowList {
 
     push @list, "bind_v2";
 
-    my $res = YaPI::LdapServer->WriteAllowList( \@list );
+    $res = YaPI::LdapServer->WriteAllowList( \@list );
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T17_AddLoglevel {
+    print STDERR "------------------- T17_AddLoglevel ---------------------\n";
+    print "------------------- T17_AddLoglevel ---------------------\n";
+
+    my $res = YaPI::LdapServer->AddLoglevel( 0x04 );
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T18_DeleteLoglevel {
+    print STDERR "------------------- T18_DeleteLoglevel ---------------------\n";
+    print "------------------- T18_DeleteLoglevel ---------------------\n";
+
+    my $res = YaPI::LdapServer->DeleteLoglevel( 0x04 );
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+
+}
+
+sub T19_WriteLoglevel {
+    print STDERR "------------------- T19_WriteLoglevel ---------------------\n";
+    print "------------------- T19_WriteLoglevel ---------------------\n";
+
+    my $res = YaPI::LdapServer->WriteLoglevel( 0x06 );
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T20_ReadLoglevel {
+    print STDERR "------------------- T20_ReadLoglevel ---------------------\n";
+    print "------------------- T20_ReadLoglevel ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadLoglevel();
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
