@@ -59,7 +59,7 @@ if(size(args) > 0) {
 /* main ui function */
 any ret = nil;
 
-if(propose) ret = LdapServerAutoSequence();
+if(propose) ret = ProposalSequence();
 else ret = CommandLine::Run(cmdline_description);
 y2debug("ret=%1", ret);
 
