@@ -226,6 +226,8 @@ sub Execute
     my @path = split( /\./, shift );
     shift @path;
 
+    $class->initData( $slapdconf ) || return undef;
+
     if( $path[0] eq "setdebugsuffix" )
     {
         my $tmpsuffix = shift;
