@@ -24,8 +24,8 @@ T06_ReadIndex();
 T07_ReadSchemaIncludeList();
 T08_ReadAllowList();
 T21_ReadTLS();
-#T09_AddDatabase();
-#T10_EditDatabase();
+T09_AddDatabase();
+T10_EditDatabase();
 T11_AddIndex();
 T14_RecreateIndex();
 T23_ReadIndex2();
@@ -41,6 +41,13 @@ T18_DeleteLoglevel();
 T19_WriteLoglevel();
 T20_ReadLoglevel();
 T22_WriteTLS();
+
+T04_ReadDatabaseList();
+T35_ReadDatabase2();
+T36_ReadIndex2();
+T07_ReadSchemaIncludeList();
+T08_ReadAllowList();
+T21_ReadTLS();
 
 sub printError {
     my $err = shift;
@@ -148,7 +155,7 @@ sub T06_ReadIndex {
     print STDERR "------------------- T06_ReadIndex ---------------------\n";
     print "------------------- T06_ReadIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex('"o=SUSE,c=de"');
+    my $res = YaPI::LdapServer->ReadIndex('"dc=suse,dc=de"');
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -482,3 +489,32 @@ sub T23_ReadIndex2() {
         print STDERR Data::Dumper->Dump([$res])."\n";
     }
 }
+
+sub T35_ReadDatabase2 {
+    print STDERR "------------------- T35_ReadDatabase2 ---------------------\n";
+    print "------------------- T35_ReadDatabase2 ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadDatabase('dc=example,dc=com');
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T36_ReadIndex2 {
+    print STDERR "------------------- T36_ReadIndex2 ---------------------\n";
+    print "------------------- T36_ReadIndex2 ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadIndex('dc=example,dc=com"');
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
