@@ -195,11 +195,12 @@ sub T10_EditDatabase {
     print STDERR "------------------- T10_EditDatabase ---------------------\n";
     print "------------------- T10_EditDatabase ---------------------\n";
 
-    my $hash = { suffix  => "dc=example,dc=com",
-                 rootdn  => "cn=Administrator,dc=example,dc=com",
+    my $suffix = "dc=example,dc=com";
+    my $hash = {
+                rootdn  => "cn=Administrator,dc=example,dc=com",
                };
 
-    my $res = YaPI::LdapServer->EditDatabase($hash);
+    my $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -208,12 +209,12 @@ sub T10_EditDatabase {
         print STDERR Data::Dumper->Dump([$res])."\n";
     }
 
-    $hash = { suffix  => "dc=example,dc=com",
+    $hash = { 
               rootpw  => "tralla",
               cryptmethod => "CRYPT"
             };
 
-    $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -222,11 +223,11 @@ sub T10_EditDatabase {
         print STDERR Data::Dumper->Dump([$res])."\n";
     }
 
-    $hash = { suffix  => "dc=example,dc=com",
+    $hash = { 
               cachesize  => "20000",
             };
 
-    $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -235,11 +236,11 @@ sub T10_EditDatabase {
         print STDERR Data::Dumper->Dump([$res])."\n";
     }
 
-    $hash = { suffix  => "dc=example,dc=com",
+    $hash = { 
               checkpoint  => "2048 10",
             };
     
-    $res = YaPI::LdapServer->EditDatabase($hash);
+    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
