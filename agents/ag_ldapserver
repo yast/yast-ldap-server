@@ -295,7 +295,7 @@ sub initData
     }
 
     #create global lookup section 
-    $lookup->{'global'} = {};
+    $lookup->{'global'} = {} if not defined $lookup->{'global'};
     
     return $class->__init_rec( $filename, $data, $lookup->{'global'} );
 }
