@@ -219,6 +219,7 @@ sub AddDatabase {
     my $cachesize     = undef;
     my $checkpoint    = undef;
     my $hash = {};
+    my $addDBHash = {};
 
     ################
     # check database
@@ -235,7 +236,7 @@ sub AddDatabase {
                                                   $data->{database}),
                                code => "PARAM_CHECK_FAILED");
     }
-    $hash->{database} = $data->{database};
+    $addDBHash->{type} = $data->{database};
 
     ################
     # check suffix
@@ -289,15 +290,16 @@ sub AddDatabase {
                  }
     } elsif( lc($attr[0]) eq "dc") {
         $entry = {
-                  "objectClass" => [ "dcObject" ],
+                  "objectClass" => [ "organization", "dcObject" ],
                   "dc" => $val,
+                  "o"  => $val,
                  }
     } else {
                                # parameter check failed
         return $self->SetError(summary => _("First part of suffix must be c=, st=, l=, o=, ou= or dc="),
                                code => "PARAM_CHECK_FAILED");
     }
-    $hash->{suffix} = $data->{suffix};
+    $addDBHash->{suffix} = $data->{suffix};
 
     ##############
     # check rootdn
@@ -421,6 +423,10 @@ sub AddDatabase {
         $hash->{checkpoint} = $checkpoint;
     }
 
+    if(! defined SCR->Execute(".ldapserver.adddatabase", $addDBHash)) {
+        return $self->SetError(%{SCR->Error(".ldapserver")});
+    }
+
     if(! SCR->Write(".ldapserver.database", $data->{suffix}, $hash)) {
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
@@ -429,6 +435,8 @@ sub AddDatabase {
         return undef;
     }
     
+    sleep(2);
+
     if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
                                 "port"     => 389})) {
         return $self->SetError(summary => "LDAP init failed",
@@ -442,8 +450,8 @@ sub AddDatabase {
                                code => "SCR_INIT_FAILED",
                                description => $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
     }
-    
-    if (! SCR->Write(".ldap.add", { $data->{'suffix'} } , $entry)) {
+
+    if (! SCR->Write(".ldap.add", { dn => $data->{'suffix'} } , $entry)) {
         my $ldapERR = SCR->Read(".ldap.error");
         return $self->SetError(summary => "Can not add base entry.",
                                code => "LDAP_ADD_FAILED",
@@ -500,9 +508,15 @@ sub EditDatabase {
     my $data   = shift;
     my $cryptMethod = undef;
     my $passwd_string = undef;
-    
+    my $editHash = {};
+
     if(!defined $suffix || $suffix eq "") {
         return $self->SetError(summary => "Missing parameter 'suffix'",
+                               code => "PARAM_CHECK_FAILED");
+    }
+    
+    if(! defined $data || ref($data) ne "HASH") {
+        return $self->SetError(summary => "Missing 'data'",
                                code => "PARAM_CHECK_FAILED");
     }
 
@@ -519,13 +533,7 @@ sub EditDatabase {
             return $self->SetError(summary => _("'rootdn' must be below the 'suffix'"),
                                    code => "PARAM_CHECK_FAILED");
         } else {
-            # set new rootdn
-            if(! SCR->Write(".ldapserver.database", $suffix, { rootdn => $data->{rootdn} })) {
-                my $err = SCR->Error(".ldapserver");
-                $err->{description} = $err->{summary}."\n\n".$err->{description};
-                $err->{summary} = _("Editing 'rootdn' failed.");
-                return $self->SetError(%{$err});
-            }
+            $editHash->{rootdn} = $data->{rootdn};
         }
     }
 
@@ -583,12 +591,8 @@ sub EditDatabase {
             $passwd_string = $data->{passwd};
         }
         # set new rootpw
-        if(! SCR->Write(".ldapserver.database", $suffix, { rootpw => $passwd_string })) {
-            my $err = SCR->Error(".ldapserver");
-            $err->{description} = $err->{summary}."\n\n".$err->{description};
-            $err->{summary} = _("Editing 'password' failed.");
-            return $self->SetError(%{$err});
-        }
+        
+        $editHash->{rootpw} = $passwd_string;
     }
 
     ###################
@@ -596,12 +600,9 @@ sub EditDatabase {
     ###################
     if(exists $data->{cachesize} && !defined $data->{cachesize}) {
         # Delete cachesize option
-        if(! SCR->Write(".ldapserver.database", $suffix, { cachesize => undef })) {
-            my $err = SCR->Error(".ldapserver");
-            $err->{description} = $err->{summary}."\n\n".$err->{description};
-            $err->{summary} = _("Editing 'cachesize' failed.");
-            return $self->SetError(%{$err});
-        }
+
+        $editHash->{cachesize} = undef;
+
     } elsif(exists $data->{cachesize}) {
 
         if(defined $data->{cachesize} && $data->{cachesize} ne "") {
@@ -613,12 +614,9 @@ sub EditDatabase {
             }
             #$cachesize = $data->{cachesize};
             # set new cachesize
-            if(! SCR->Write(".ldapserver.database", $suffix, { cachesize => $data->{cachesize} })) {
-                my $err = SCR->Error(".ldapserver");
-                $err->{description} = $err->{summary}."\n\n".$err->{description};
-                $err->{summary} = _("Editing 'cachesize' failed.");
-                return $self->SetError(%{$err});
-            }
+
+            $editHash->{cachesize} = $data->{cachesize};
+
         } else {
             return $self->SetError(summary => _("Invalid cachesize value."),
                                    description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
@@ -633,12 +631,9 @@ sub EditDatabase {
 
         if(!defined $data->{checkpoint}) {
             # Delete checkpoint option
-            if(! SCR->Write(".ldapserver.database", $suffix, { checkpoint => undef })) {
-                my $err = SCR->Error(".ldapserver");
-                $err->{description} = $err->{summary}."\n\n".$err->{description};
-                $err->{summary} = _("Editing 'checkpoint' failed.");
-                return $self->SetError(%{$err});
-            }
+
+            $editHash->{checkpoint} = undef;
+
         } else {
 
             my $db = $self->ReadDatabase($suffix);
@@ -656,12 +651,9 @@ sub EditDatabase {
                     }
                     my $checkpoint = $cp[0]." ".$cp[1];
                     # set new checkpoint
-                    if(! SCR->Write(".ldapserver.database", $suffix, { checkpoint => $checkpoint })) {
-                        my $err = SCR->Error(".ldapserver");
-                        $err->{description} = $err->{summary}."\n\n".$err->{description};
-                        $err->{summary} = _("Editing 'checkpoint' failed.");
-                        return $self->SetError(%{$err});
-                    }
+
+                    $editHash->{checkpoint} = $checkpoint;
+
                 } else {
                     return $self->SetError(summary => _("Invalid checkpoint value."),
                                            description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
@@ -670,6 +662,14 @@ sub EditDatabase {
             }
         }
     }
+
+    if(! SCR->Write(".ldapserver.database", $suffix, $editHash)) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{description} = $err->{summary}."\n\n".$err->{description};
+        $err->{summary} = _("Edit database failed.");
+        return $self->SetError(%{$err});
+    }
+
     return 1;
 }
 
@@ -1023,6 +1023,12 @@ sub RecreateIndex {
 
     if(!defined $suffix || $suffix eq "") {
         return $self->SetError(summary => "Missing parameter 'suffix'",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    if(! defined X500::DN->ParseRFC2253($suffix)) {
+        return $self->SetError(summary => "Wrong parameter 'suffix'",
+                               description => "'$suffix' is no DN",
                                code => "PARAM_CHECK_FAILED");
     }
 
