@@ -545,7 +545,7 @@ define boolean cb_read_databases()
 ``{
     y2milestone( "calling databases read handler" );
     list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
-    string text = HTML::Para( HTML::Bold( "Available Databases:" ) )+HTML::Newline();
+    string text = HTML::Para( HTML::Bold( _("Available Databases:") ) )+HTML::Newline();
     foreach( string s, dblist, { text = text + s + HTML::Newline(); } );
     UI::ChangeWidget( `rt_databases, `Value, text );
     return true;
