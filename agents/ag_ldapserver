@@ -16,8 +16,6 @@
 #
 #       - IMPORTANT: handle doubleticks -> " <- in option values
 #
-#       - return single only option values as scalar, not as listref when reading
-#
 #       - return sensible error codes
 #
 #       - lots of those ugly direct data accesses (like $section->{$opt_name}->[0]{dataref}{__internal}{filename} )
@@ -53,7 +51,6 @@ my %command = (
         global          =>  \&readUnparsedSection,
         backend         =>  \&readUnparsedSection,
         database        =>  \&readUnparsedSection,
-        debug           =>  \&doDebug
     }
 ); 
 
@@ -343,60 +340,12 @@ sub Execute
     }
 }
 
-#---------------------------------------------------------------------------#
-#
-#       read command handlers
-#
-# FIXME: comment is out of date
-#
-# single argument is a hashref with following structure
-#
-# $href = {
-#   handle  =>  'config_filehandle'
-#   name    =>  'block_identifier'
-#   option  =>  'option_name'
-# };
-#
-# 'handle' : already opened filehandle for reading the configfile
-#           required in all functions
-#
-# 'block_identifier': a string that identifies the wanted block.
-#           for backend sections it is the backend type, for database 
-#           sections it is the first suffix in the section.
-#           is ignored in readGlobalConf and read*List
-#
-# 'option' : the name of a specific option, if just one is wanted.
-#           ignored in read*List, optional in read*Conf
-#
-# the read*Conf functions return a hashref like
-# 
-# $ret = {
-#   option    =>  value
-#   ...
-#   option    =>  value
-# }
-#
-# where 'option' is the name of a slapd config option (like 'suffix' or
-# 'include' ) and 'value' is either a scalar string for options appearing
-# only once or a listref for values appearing more than once, in the order
-# they appear in the file
-#
-#---------------------------------------------------------------------------#
-
-sub doDebug
-{
-    my $class = shift || undef;
-    my $conf = shift || return $class->SetError(
-        summary => "Missing argv hash in command handler",
-        code    => "LDAPSERVER_INTERNAL"
-    );
-    return 1;#[ $files ];
-}
-    
 ##
 ## sub readUnparsedSection( \%section )
 ##
 ## returns the unparsed option values of the specified section
+## values of single only options are returned as scalars, not listrefs
+## unknown options are not returned
 ##
 ## TODO: parameter checks
 sub readUnparsedSection
@@ -410,6 +359,8 @@ sub readUnparsedSection
 
     my $section_name = $conf->{command};
     $section_name .= " ".$conf->{name} if defined $conf->{name} && $conf->{command} ne 'global';
+    $section_name =~ /^(\S+)/;
+    my $section_type = $1;
     y2debug( "Retrieving section '$section_name'" );
     my $section = $lookup->{$section_name};
     y2debug( "Section has ".$#{[keys %$section]}." entries." );
@@ -417,17 +368,31 @@ sub readUnparsedSection
     while( my( $opt, $list ) = each %$section )
     {
         next if $opt eq 'comment';
-        foreach my $pos ( @$list )
+        my $constr = $class->getConstraints( $section_type, $opt );
+        next if not defined $constr;
+        if( $constr->{multi} )
         {
-            my $option = $pos->{dataref}->{$pos->{datapos}};
+            foreach my $pos ( @$list )
+            {
+                my $option = $pos->{dataref}->{$pos->{datapos}};
+                
+                my $value = $option->{'content_string'};
+                $value =~ s/\s+/ /sg;
+                $value =~ s/\s+$//;
+
+                $ret->{$opt} = [] if( not exists( $ret->{$opt} ) );
+
+                push( @{$ret->{$opt}}, $value );
+            }
+        } else
+        {
+            my $option = $list->[0]{dataref}{$list->[0]{datapos}};
+            my $value = $option->{content_string};
             
-            my $value = $option->{'content_string'};
             $value =~ s/\s+/ /sg;
             $value =~ s/\s+$//;
 
-            $ret->{$opt} = [] if( not exists( $ret->{$opt} ) );
-
-            push( @{$ret->{$opt}}, $value );
+            $ret->{$opt} = $value;
         }
     }
     return $ret;    
