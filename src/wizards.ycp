@@ -51,6 +51,16 @@ any MainSequence() {
 }
 
 any ProposalSequence() {
+    
+    /* Initialization dialog caption */
+    string caption = _("LDAP Server Configuration");
+    /* Initialization dialog contents */
+    term contents = `Label(_("Initializing..."));
+
+    Wizard::CreateDialog();
+    Wizard::SetContentsButtons(caption, contents, "",
+           Label::BackButton(), Label::NextButton());
+    
     map aliases = $[
         "propose"   : ``( ProposalDialog() )
     ];
@@ -70,6 +80,8 @@ any ProposalSequence() {
     any ret = Sequencer::Run(aliases, sequence);
 
     y2milestone( "--> ProposalSequence finished " );
+    
+    UI::CloseDialog();
 
     return ret;
 }
@@ -128,7 +140,7 @@ any LdapServerAutoSequence() {
     Wizard::SetContentsButtons(caption, contents, "",
 	    Label::BackButton(), Label::NextButton());
 
-    any ret = ProposalSequence();
+    any ret = MainSequence();
 
     UI::CloseDialog();
 
