@@ -23,6 +23,7 @@ T05_ReadDatabase();
 T06_ReadIndex();
 T07_ReadSchemaIncludeList();
 T08_ReadAllowList();
+T21_ReadTLS();
 T09_AddDatabase();
 T10_EditDatabase();
 T11_AddIndex();
@@ -35,6 +36,7 @@ T17_AddLoglevel();
 T18_DeleteLoglevel();
 T19_WriteLoglevel();
 T20_ReadLoglevel();
+T22_WriteTLS();
 
 sub printError {
     my $err = shift;
@@ -403,6 +405,43 @@ sub T20_ReadLoglevel {
 
     my $res = YaPI::LdapServer->ReadLoglevel();
     if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T21_ReadTLS {
+    print STDERR "------------------- T21_ReadTLS ---------------------\n";
+    print "------------------- T21_ReadTLS ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadTLS();
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T22_WriteTLS {
+    print STDERR "------------------- T22_WriteTLS ---------------------\n";
+    print "------------------- T22_WriteTLS ---------------------\n";
+
+    my $hash = {
+                TLSCipherSuite        => "HIGH:MEDIUM:+SSLv2",
+                TLSCertificateFile    => "/etc/ssl/server_crt.pem",
+                TLSCertificateKeyFile => "/etc/ssl/server_key.pem",
+                TLSCACertificateFile  => "/etc/ssl/ca.pem",
+                TLSVerifyClient       => "never"
+               };
+    
+    my $res = YaPI::LdapServer->WriteTLS($hash);
+    if( not defined $res ) {
+        # error
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
     } else {
