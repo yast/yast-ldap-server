@@ -97,7 +97,8 @@ boolean callHandler( string item, string handler )
                 return false;
             }
         } else {
-            y2error( "LdapServer Module: illegal handler '"+handler+"' for item '"+item+"'" );
+            y2error( sformat ("LdapServer Module: illegal handler '%1' for item '%2'",
+			      handler, item));
         }
     }
     return true;
