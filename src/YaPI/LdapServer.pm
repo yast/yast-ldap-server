@@ -1232,7 +1232,7 @@ sub WriteAllowList {
             return $self->SetError(%{SCR->Error(".ldapserver")});
         }
     } else {
-        if(!SCR->Write(".ldapserver.global", { allow => $allowList })) {
+        if(!SCR->Write(".ldapserver.global", { allow => join( " ", @$allowList ) })) {
             return $self->SetError(%{SCR->Error(".ldapserver")});
         }
     }
