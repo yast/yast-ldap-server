@@ -78,7 +78,7 @@ else if (func == "Read") {
 else if (func == "Write") {
     import "Progress";
     Progress::off();
-    LdapServer::write_only = true;
+    // LdapServer::write_only = true;
     ret = LdapServer::Write();
     Progress::on();
 }

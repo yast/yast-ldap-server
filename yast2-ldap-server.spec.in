@@ -2,11 +2,11 @@
 # neededforbuild yast2-devel-packages
 
 @HEADER@
-Requires:	yast2
+Requires:	yast2 perl perl-gettext yast2-perl-bindings perl-X500-DN perl-Digest-SHA1 net-tools
 
 BuildArchitectures:	noarch
 
-Summary:	Configuration of ldap-server
+Summary:	Configuration of the OpenLDAP server
 
 %description
 -
@@ -22,9 +22,14 @@ Summary:	Configuration of ldap-server
 %files
 %defattr(-,root,root)
 %dir @yncludedir@/ldap-server
+%dir @moduledir@/YaPI
 @yncludedir@/ldap-server/*
 @clientdir@/ldap-server.ycp
 @clientdir@/ldap-server_*.ycp
 @moduledir@/LdapServer.*
+@moduledir@/LdapServerConf.*
+@moduledir@/YaPI/LdapServer.pm
 @desktopdir@/ldap-server.desktop
+@scrconfdir@/*
+@agentdir@/*
 %doc @docdir@

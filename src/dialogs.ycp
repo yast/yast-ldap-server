@@ -14,80 +14,491 @@ textdomain "ldap-server";
 import "Label";
 import "Wizard";
 import "LdapServer";
+import "LdapServerConf";
+import "HTML";
+import "DNS";
+import "CaMgm";
+import "Report";
+import "YaPI::LdapServer";
 
 include "ldap-server/helps.ycp";
+include "ldap-server/tree_structure.ycp";
 
-/**
- * Configure1 dialog
- * @return dialog result
- */
-any Configure1Dialog () {
+string section_id = "";
 
-    /* LdapServer configure1 dialog caption */
-    string caption = _("LdapServer Configuration");
+                 /*heading for all dialogs*/
+string caption = _("LDAP Server Configuration");
 
-    /* LdapServer configure1 dialog contents */
-    term contents = `Label (_("First part of configuration of ldap-server"));
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
-	    Label::BackButton(), Label::NextButton());
+/**********************
+ ** helper functions **
+ **********************/
 
-    any ret = nil;
-    while(true) {
+string error_str = "";
 
-	ret = UI::UserInput();
+list<map> generateTreeRec( list<map> tree, string parent, list<string> children )
+{
+    y2milestone( "generating tree for item '%1', children are '%2'", parent, children );
+    foreach( string item, children, {
+        map<string,any> item_map = widget_map[item]:nil;
+        if( item_map == nil )
+        {
+            error_str = "item "+item+" does not exist but is referenced by '"+parent+"'!";
+            return nil;
+        }
+        y2debug( "adding tree item '%1'", item );
+        tree = Wizard::AddTreeItem( tree, parent, (string)item_map["name"]:"", item );
+        if( haskey( item_map, "children" ) )
+        {
+            list<string> childlist = (list<string>)item_map["children"]:[];
+            tree = generateTreeRec( tree, item, childlist );
+            if( tree == nil ) return nil;
+        }
+    } );
+    return tree;
+}
 
-	/* abort? */
-	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
-	    else continue;
-	}
-        else if(ret == `next || ret == `back) {
+list<map> generateTree()
+{
+    list<string> baselist = (list<string>)widget_map["base","children"]:[];
+    list<map> tree = [];
+    y2debug( "generating tree for 'base', children are '%1'", baselist );
+    foreach( string item, baselist, {
+        map<string,any> item_map = widget_map[item]:nil;
+        if( item_map == nil )
+        {
+            error_str = "item "+item+" does not exist but is referenced by 'base'!";
+            return nil;
+        }
+        y2debug( "adding tree item '%1'", item );
+        tree = Wizard::AddTreeItem( tree, "", (string)item_map["name"]:"", item );
+        if( haskey( item_map, "children" ) )
+        {
+            list<string> childlist = (list<string>)item_map["children"]:[];
+            tree = generateTreeRec( tree, item, childlist );
+            if( tree == nil ) return nil;
+        }
+    } );
+
+    //create dynamic tree items (databases)
+    return tree;
+}
+
+boolean callHandler( string item, string handler )
+{
+    if( haskey( widget_map[item]:$[], handler ) )
+    {
+        any function = widget_map[item,handler]:nil;
+        if( function != nil )
+        {
+            if( !(boolean)eval( function ) )
+            {
+                Report::Error( callback_error );
+                return false;
+            }
+        } else {
+            y2error( "LdapServer Module: illegal handler '"+handler+"' for item '"+item+"'" );
+        }
+    }
+    return true;
+}
+
+void showTreeDialog( string name, boolean focus_tree )
+{
+    //create new item
+    term widget = (term)widget_map[name,"widget"]:`Label( "Loading widget for item '"+name+"' failed." );
+
+    //get helps page
+    string help_page = (string)widget_map[name,"help_page"]:name;
+    string help_string = HELPS[help_page]:("help page for item <b>"+help_page+"</b> not available");
+
+    Wizard::SetContentsButtons( caption, widget, help_string,
+        Label::BackButton(), Label::FinishButton() );
+
+    Wizard::DisableBackButton();
+
+    if( focus_tree ) UI::SetFocus( `id( `wizardTree ) );
+}
+
+
+/**********************
+ ** dialog functions **
+ **********************/
+
+any EnableServiceDialog()
+{
+    term dlg_service_new = `VBox(
+                 /* radiobutton group headline */
+        `HSquash( `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
+            `VBox(
+                `Left( `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() ) ),
+                `VSpacing( 1 ),
+                `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ) ),
+                `VSpacing( 0.5 ),
+                `HBox(
+                    `HSpacing( 4 ),
+                    `HSquash( `VBox(
+                                                          /* button text */
+                        `PushButton( `id( `pb_configure ), `opt( `hstretch ), _("&Configure...") ),
+                        `VSpacing( 1 ),
+                        `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )
+                    ) ),
+                    `HSpacing( 1 )
+                ),
+                `VSpacing( 0.5 )
+            )
+        ) ) )
+    );
+
+    term dlg_service = `VBox(
+                 /* radiobutton group headline */
+        `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
+            `HBox(
+                                                             /* radiobutton text */
+                `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ),
+                                                             /* radiobutton text */
+                `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() )
+            )
+        ) ),
+                                          /* button text */
+        `PushButton( `id( `pb_configure ), _("&Configure...") ),
+        `VSpacing( 1 ),
+        `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )
+    );
+
+    Wizard::SetContentsButtons( caption, dlg_service_new, HELPS["service_dialog"]:"help not found",
+        Label::BackButton(), Label::FinishButton() );
+
+    if( !LdapServer::ReadServiceEnabled() )
+    {
+        UI::ChangeWidget( `pb_configure, `Enabled, false );
+        UI::ChangeWidget( `cb_register_slp, `Enabled, false );
+    }
+
+    symbol ret = nil;
+    while( true )
+    {
+        ret = (symbol)UI::UserInput();
+        y2debug( "EnableServiceDialog: seeing return value '%1'", ret );
+        if( ret == `back || ret == `abort ) break;
+        else if( ret == `next || ret == `finish )
+        {
+            LdapServer::WriteSLPEnabled( (boolean)UI::QueryWidget( `cb_register_slp, `Value ) );
             break;
         }
-        else {
-            y2error("unexpected retcode: %1", ret);
-            continue;
+        else if( ret == `pb_configure )
+        {
+            LdapServer::WriteSLPEnabled( (boolean)UI::QueryWidget( `cb_register_slp, `Value ) );
+            return `config;
+        } else if( ret == `rb_yes )
+        {
+            LdapServer::WriteServiceEnabled( true );
+            UI::ChangeWidget( `pb_configure, `Enabled, true );
+            UI::ChangeWidget( `cb_register_slp, `Enabled, true );
+        } else if( ret == `rb_no )
+        {
+            LdapServer::WriteServiceEnabled( false );
+            UI::ChangeWidget( `pb_configure, `Enabled, false );
+            UI::ChangeWidget( `cb_register_slp, `Enabled, false );
         }
     }
 
     return ret;
 }
 
-/**
- * Configure2 dialog
- * @return dialog result
- */
-any Configure2Dialog () {
+any ProposalDialog()
+{
+    string baseDN = LdapServerConf::baseDN;
+    string rootDN = LdapServerConf::rootDN;
+    string rootPW = LdapServerConf::rootPW;
+    string enctype = LdapServerConf::enctype;
+    boolean useCommonCA = LdapServerConf::useCommonCA;
+    boolean registerSLP = LdapServerConf::registerSLP;
+    boolean service_enabled = LdapServer::ReadServiceEnabled();
+    boolean common_ca_available = ( CaMgm::prop_selection == `def || CaMgm::prop_selection == `floppy || CaMgm::prop_selection == `expert );
 
-    /* LdapServer configure2 dialog caption */
-    string caption = _("LdapServer Configuration");
+    if( !common_ca_available )
+    {
+        LdapServerConf::useCommonCA = false;
+        useCommonCA = false;
+    }
 
-    /* LdapServer configure2 dialog contents */
-    term contents = `Label (_("Second part of configuration of ldap-server"));
+    boolean append_checked = true;
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
-	    Label::BackButton(), Label::NextButton());
-
-    any ret = nil;
-    while(true) {
-
-	ret = UI::UserInput();
-
-	/* abort? */
-	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
-	    else continue;
-	}
-        else if(ret == `next || ret == `back) {
-            break;
-        }
-        else {
-            y2error("unexpected retcode: %1", ret);
-            continue;
+    if( rootDN != "" )
+    {
+        integer pos = find( rootDN, baseDN );
+        if( pos > -1 )
+        {
+            rootDN = substring( rootDN, 0, pos-1 );
+        } else
+        {
+            append_checked = false;
         }
     }
 
+    list enc_types = [
+        `item( `id( "CRYPT"), "CRYPT", enctype == "CRYPT" ),
+        `item( `id( "SMD5" ), "SMD5", enctype == "SMD5" ),
+        `item( `id( "SHA" ), "SHA", enctype == "SHA" ),
+        `item( `id( "SSHA" ), "SSHA", enctype == "SSHA" ),
+        `item( `id( "PLAIN" ), "PLAIN", enctype == "PLAIN" )
+    ];
+
+    term dlg_propose =
+                         /* Headline */
+        `VBox( `Heading( _("OpenLDAP Server Settings") ),
+               `VSpacing( 0.5 ),
+               `RadioButtonGroup( `id( `rbg_service ), `HBox(
+                                                                   /* radiobutton text */
+                  `RadioButton( `id( `rb_enable ), `opt( `notify ), _("E&nable Server"), service_enabled ),
+                                                                   /* radiobutton text */
+                  `RadioButton( `id( `rb_disable ), `opt( `notify ), _("&Disable Server"), !service_enabled )
+               ) ),
+               `VSpacing( 1 ),
+                                            /* textentry description */
+               `TextEntry( `id( `te_basedn ), _("&Base DN"), baseDN ),
+               `VSpacing( `opt( `hstretch ), 1 ),
+                                            /* textentry description */
+               `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN"), rootDN ),
+                                            /*checkbox text*/
+                         `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("A&ppend Base DN"), append_checked ) ),
+                                `VSpacing( 0.3 )
+                               )
+               ) ),
+               `VSpacing( 1 ),
+                                            /* textentry description */
+               `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password"), rootPW ),
+                                            /* textentry description */
+                      `Password( `id( `te_valid_rootpw ), _("&Validate Password"), rootPW ),
+                                            /* combobox text */
+                      `ComboBox( `id( `cmb_cryptmethod ), _("&Encryption"), enc_types )
+               ),
+               `VSpacing( 1 ),
+                                            /* checkbox text */
+               `Left( `CheckBox( `id( `cb_use_common_ca ), _("Activate Start&TLS with Common Server Certificate"), useCommonCA ) ),
+               `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), registerSLP ) )
+             );
+
+    Wizard::SetContentsButtons( caption, dlg_propose, HELPS["propose"]:"<p><b>no proposal help text</b></p>",
+        Label::BackButton(), Label::NextButton() );
+
+    if( !LdapServerConf::proposal_changed )
+    {
+                /* notify message */
+        Popup::Notify( _("Changing anything in this dialog disables the automatic
+generation of base DN, root DN, and LDAP password.
+") );
+    }
+
+    if( !service_enabled )
+    {
+        UI::ChangeWidget( `id( `te_basedn ), `Enabled, false );
+        UI::ChangeWidget( `id( `te_rootdn ), `Enabled, false );
+        UI::ChangeWidget( `id( `cb_append_basedn ), `Enabled, false );
+        UI::ChangeWidget( `id( `te_rootpw ), `Enabled, false );
+        UI::ChangeWidget( `id( `te_valid_rootpw ), `Enabled, false );
+        UI::ChangeWidget( `id( `cmb_cryptmethod ), `Enabled, false );
+        UI::ChangeWidget( `id( `cb_use_common_ca ), `Enabled, false );
+        UI::ChangeWidget( `id( `cb_register_slp ), `Enabled, false );
+    }
+
+    if( !common_ca_available )
+    {
+        UI::ChangeWidget( `id( `cb_use_common_ca ), `Enabled, false );
+    }
+
+    any ret = nil;
+    while( true )
+    {
+        ret = UI::UserInput();
+        y2debug( "ProposeDialog: seeing return value %1", ret );
+        if( ret == `back || ret == `abort || ret == `cancel ) break;
+        else if( ret == `next )
+        {
+            //is server enabled?
+            LdapServerConf::proposal_changed = true;
+            symbol service_status = (symbol)UI::QueryWidget( `id( `rbg_service ), `CurrentButton );
+            if( service_status == `rb_disable )
+            {
+                LdapServer::WriteServiceEnabled( false );
+                break;
+            } else {
+                LdapServer::WriteServiceEnabled( true );
+            }
+            //validate/update rootpw
+            rootPW = (string)UI::QueryWidget( `id( `te_rootpw ), `Value );
+            if( rootPW != "" )
+            {
+                if( rootPW != UI::QueryWidget( `id( `te_valid_rootpw ), `Value ) )
+                {
+                                  /* error popup */
+                    Popup::Error( _("Password validation failed.") );
+                    continue;
+                }
+                //update root password
+                LdapServerConf::rootPW = rootPW;
+                LdapServer::WriteUseRootPW( false );
+
+                //be paranoid
+                rootPW = "";
+                UI::ChangeWidget( `id( `te_rootpw ), `Value, "" );
+            }
+            //update enctype
+            string enctype = (string)UI::QueryWidget( `id( `cmb_cryptmethod ), `Value );
+            y2debug( "changing enctype to %1", enctype );
+            LdapServerConf::enctype = enctype;
+
+            //update Base DN
+            baseDN = (string)UI::QueryWidget( `id( `te_basedn ), `Value );
+            y2debug( "changing baseDN to %1", baseDN );
+            LdapServerConf::baseDN = baseDN;
+
+            //update rootDN
+            rootDN = (string)UI::QueryWidget( `id( `te_rootdn ), `Value );
+            if( (boolean)UI::QueryWidget( `id( `cb_append_basedn ), `Value ) )
+            {
+                rootDN = rootDN + "," + baseDN;
+            }
+            y2debug( "changing rootDN to %1", rootDN );
+            LdapServerConf::rootDN = rootDN;
+
+            //update useCommonCA
+            useCommonCA = (boolean)UI::QueryWidget( `id( `cb_use_common_ca ), `Value );
+            y2debug( "changing useCommonCA to %1", useCommonCA );
+            LdapServerConf::useCommonCA = useCommonCA;
+
+            //update registerSLP
+            registerSLP = (boolean)UI::QueryWidget( `id( `cb_register_slp ), `Value );
+            y2debug( "changing registerSLP to %1", registerSLP );
+            LdapServerConf::registerSLP = registerSLP;
+
+            break;
+        } else if( ret == `rb_enable )
+        {
+            y2debug( "enable server clicked" );
+            //enable widgets
+            UI::ChangeWidget( `id( `te_basedn ), `Enabled, true );
+            UI::ChangeWidget( `id( `te_rootdn ), `Enabled, true );
+            UI::ChangeWidget( `id( `cb_append_basedn ), `Enabled, true );
+            UI::ChangeWidget( `id( `te_rootpw ), `Enabled, true );
+            UI::ChangeWidget( `id( `te_valid_rootpw ), `Enabled, true );
+            UI::ChangeWidget( `id( `cmb_cryptmethod ), `Enabled, true );
+            UI::ChangeWidget( `id( `cb_register_slp ), `Enabled, true );
+            if( common_ca_available ) {
+                UI::ChangeWidget( `id( `cb_use_common_ca ), `Enabled, true );
+            }
+        } else if ( ret == `rb_disable )
+        {
+            y2debug( "disable server clicked" );
+            //disable widgets
+            UI::ChangeWidget( `id( `te_basedn ), `Enabled, false );
+            UI::ChangeWidget( `id( `te_rootdn ), `Enabled, false );
+            UI::ChangeWidget( `id( `cb_append_basedn ), `Enabled, false );
+            UI::ChangeWidget( `id( `te_rootpw ), `Enabled, false );
+            UI::ChangeWidget( `id( `te_valid_rootpw ), `Enabled, false );
+            UI::ChangeWidget( `id( `cmb_cryptmethod ), `Enabled, false );
+            UI::ChangeWidget( `id( `cb_use_common_ca ), `Enabled, false );
+            UI::ChangeWidget( `id( `cb_register_slp ), `Enabled, false );
+        }
+    }
+    return ret;
+}
+
+any TreeDialog()
+{
+    //close service dialog
+    UI::CloseDialog();
+
+    //item selected at start
+    current_tree_item = "databases";
+
+    //trigger initial build of widget tree
+    rebuild_widget_tree = true;
+
+    any ret = nil;
+    while( true )
+    {
+        if( rebuild_widget_tree )
+        {
+            //generate tree
+            Wizard::CreateTreeDialog();
+            deleteDynamicTreeItems();
+            generateDynamicTreeItems();
+            widget_tree = generateTree();
+            if( widget_tree == nil )
+            {
+                y2error( "error when generating widget tree: %1", error_str );
+            }
+
+                /* tree widget headline */
+            Wizard::CreateTree( widget_tree, _("Configuration:") );
+
+            //select&show current item
+            Wizard::SelectTreeItem( current_tree_item );
+            showTreeDialog( current_tree_item, ( widget_tree == [] ) ? false : true );
+
+            //initialize current dialog
+            callHandler( current_tree_item, "cb_read" );
+
+            rebuild_widget_tree = false;
+        }
+        ret = UI::UserInput();
+        y2milestone( "TreeDialog: seeing return value %1", ret );
+        if( is( ret, string ) || ret == `wizardTree )
+        {
+            string new_item = Wizard::QueryTreeItem();
+
+            //check values of current tree item
+            y2milestone( "wizard-->current item is %1", current_tree_item );
+
+            if( !callHandler( current_tree_item, "cb_check" ) )
+            {
+                Wizard::SelectTreeItem( current_tree_item );
+                continue;
+            }
+
+            if( !callHandler( current_tree_item, "cb_write" ) )
+            {
+                Wizard::SelectTreeItem( current_tree_item );
+                continue;
+            }
+
+            current_tree_item = new_item;
+            showTreeDialog( new_item, (ret == `wizardTree) ? true : false );
+
+            callHandler( new_item, "cb_read" );
+
+        } else if( is( ret, symbol ) )
+        {
+            symbol sym_ret = (symbol)ret;
+            if( sym_ret == `back || sym_ret == `abort || sym_ret == `cancel || sym_ret == `reread ) break;
+            else if( sym_ret == `next )
+            {
+                if( !callHandler( current_tree_item, "cb_check" ) ) continue;
+                if( !callHandler( current_tree_item, "cb_write" ) ) continue;
+                break;
+            }
+            else if( haskey( widget_map[current_tree_item]:$[], "cb_input" ) )
+            {
+                //call input handler of current tree item
+                any function = widget_map[current_tree_item,"cb_input"]:nil;
+                if( function != nil )
+                {
+                    //############## input handler ################
+                    handler_cmd = sym_ret;
+                    if( !(boolean)eval( function ) )
+                    {
+                        Report::Error( callback_error );
+                        continue;
+                    }
+                } else
+                {
+                    Report::Error( "LdapServer Module: illegal input handler for item '"+current_tree_item+"'" );
+                }
+            }
+        }
+    }
     return ret;
 }
 

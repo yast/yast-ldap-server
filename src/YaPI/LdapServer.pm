@@ -90,6 +90,35 @@ $status = ReadService()
 
  Read out the state of the LDAP server runlevel script
 
+\%valueMap = ReadTLS()
+
+ Return the current TLS settings
+
+$bool = WriteTLS(\%valueMap)
+
+ Write the TLS options in the configuration file.
+
+$bool = CheckCommonServerCertificate()
+
+ Check, if a common server certificate is available.
+
+$bool = ConfigureCommonServerCertificate()
+
+ Configure the LDAP server to use the common server certificate.
+
+$bool = ImportCertificates(\%valueMap)
+
+ Import certificates and configure TLS for the LDAP Server.
+
+$bool = ReadSLPEnabled()
+
+ Read if SLP is enabled in /etc/sysconfig/openldap
+
+$bool = WriteSLPEnabled($bool)
+
+ Activate/Deactivate SLP Registering in /etc/sysconfig/openldap
+
+
 =head1 DESCRIPTION
 
 =over 2
@@ -107,15 +136,15 @@ our $VERSION="1.0.0";
 
 use strict;
 use vars qw(@ISA);
+no warnings qw( uninitialized );
 
 use YaST::YCP;
 use ycp;
 
-use Locale::gettext;
-use POSIX ();     # Needed for setlocale()
+#use Locale::gettext;
+#use POSIX ();     # Needed for setlocale()
 
-POSIX::setlocale(LC_MESSAGES, "");
-textdomain("ldap-server");
+#POSIX::setlocale(LC_MESSAGES, "");
 
 use Digest::MD5 qw(md5_hex);
 use Digest::SHA1 qw(sha1);
@@ -124,6 +153,8 @@ use X500::DN;
 
 use YaPI;
 @YaPI::LdapServer::ISA = qw( YaPI );
+
+textdomain("ldap-server");
 
 YaST::YCP::Import ("SCR");
 YaST::YCP::Import ("Ldap");
@@ -177,17 +208,20 @@ Supported keys in %valueMap are:
  
  * suffix: The suffix (required)
  
- * rootdn: The Root DN (required)
+ * directory: The Directory where the database files are(bdb/ldbm) (required)
+
+ * rootdn: The Root DN 
  
- * passwd: The plain Root Password (required)
+ * passwd: The plain Root Password (requires rootdn)
 
  * cryptmethod: The crypt method; allowed values are (CRYPT, SMD5, SHA, SSHA, PLAIN); default is 'SSHA'
- 
- * directory: The Directory where the database files are(bdb/ldbm) (required)
  
  * cachesize: The cachesize(bdb/ldbm) (optional; default 10000)
  
  * checkpoint: The checkpoint(bdb) (optional; default 1024 5)
+
+If no rootdn and passwd is set, the base object is not added to the
+LDAP server.
 
 EXAMPLE:
 
@@ -232,7 +266,7 @@ sub AddDatabase {
     if ( !grep( ($_ eq $data->{database}), ("bdb", "ldbm") ) ) {
         return $self->SetError(summary => sprintf(
                                    # error at paramter check
-                                 _("Database type '%s' is not supported. Allowed are 'bdb' and 'ldbm'"),
+                                 __("Database type '%s' is not supported. Allowed are 'bdb' and 'ldbm'."),
                                                   $data->{database}),
                                code => "PARAM_CHECK_FAILED");
     }
@@ -247,6 +281,14 @@ sub AddDatabase {
     }
 
     my $object = X500::DN->ParseRFC2253($data->{suffix});
+
+    if(! defined $object) {
+        # parameter check failed
+        return $self->SetError(summary => "Invalid parameter 'suffix'",
+                               description => "suffix '$data->{suffix}' is not allowed",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
     my @attr = $object->getRDN($object->getRDNs()-1)->getAttributeTypes();
     my $val = $object->getRDN($object->getRDNs()-1)->getAttributeValue($attr[0]);
     
@@ -270,7 +312,7 @@ sub AddDatabase {
     } elsif( lc($attr[0]) eq "c") {
         if($val !~ /^\w{2}$/) {
                                    # parameter check failed
-            return $self->SetError(summary => _("The countryName must be a ISO-3166 country 2-letter code"),
+            return $self->SetError(summary => __("The countryName must be an ISO-3166 country 2-letter code."),
                                    description => "Invalid value for 'c' ($val)",
                                    code => "PARAM_CHECK_FAILED");
         }
@@ -296,76 +338,98 @@ sub AddDatabase {
                  }
     } else {
                                # parameter check failed
-        return $self->SetError(summary => _("First part of suffix must be c=, st=, l=, o=, ou= or dc="),
+        return $self->SetError(summary => __("First part of suffix must be c=, st=, l=, o=, ou= or dc=."),
                                code => "PARAM_CHECK_FAILED");
     }
     $addDBHash->{suffix} = $data->{suffix};
-
+    
     ##############
     # check rootdn
     ##############
-    if(!defined $data->{rootdn} || $data->{rootdn} eq "") {
-                               # parameter check failed
-        return $self->SetError(summary => "Missing parameter 'rootdn'",
-                               code => "PARAM_CHECK_FAILED");
-    }
+    
+    if(exists $data->{rootdn}) {
+        if(!defined $data->{rootdn} || $data->{rootdn} eq "") {
+            # parameter check failed
+            return $self->SetError(summary => "Missing parameter 'rootdn'",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        
+        if(! defined X500::DN->ParseRFC2253($data->{rootdn})) {
+        # parameter check failed
+            return $self->SetError(summary => __("Invalid 'rootdn'."),
+                                   description => "rootdn '$data->{rootdn}' is not allowed.",
+                                   code => "PARAM_CHECK_FAILED");
+        }
 
-    if($data->{rootdn} !~ /$data->{suffix}$/) {
-                               # parameter check failed
-        return $self->SetError(summary => _("'rootdn' must be below the 'suffix'"),
-                               code => "PARAM_CHECK_FAILED");
+        if($data->{suffix} ne substr($data->{rootdn}, 
+                                     length($data->{rootdn}) - length($data->{suffix}))) {
+            
+            # parameter check failed
+            return $self->SetError(summary => __("'rootdn' must be below the 'suffix'."),
+                                   description => "'$data->{rootdn}' must be below the '$data->{suffix}'",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $hash->{rootdn} = $data->{rootdn};
     }
-    $hash->{rootdn} = $data->{rootdn};
-
+    
     ##############################
     # check passwd and cryptmethod
     ##############################
+       
+    if(exists $data->{passwd}) {
+        
+        if(!exists $hash->{rootdn} || $hash->{rootdn} eq "") {
+            # parameter check failed
+            return $self->SetError(summary => __("To set a password, you must define 'rootdn'."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        
+        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+            # parameter check failed
+            return $self->SetError(summary => __("Define 'passwd'."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+            # parameter check failed
+            return $self->SetError(summary => __("Define 'passwd'."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
 
-    if(!defined $data->{passwd} || $data->{passwd} eq "") {
-                               # parameter check failed
-        return $self->SetError(summary => _("You must define 'passwd'"),
-                               code => "PARAM_CHECK_FAILED");
+        if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
+            $cryptMethod = $data->{cryptmethod};
+        }
+        if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
+            return $self->SetError(summary => sprintf(
+                                                      # parameter check failed
+                                                      __("'%s' is an unsupported crypt method."),
+                                                      $cryptMethod),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        
+        if( $cryptMethod eq "CRYPT" ) {
+            my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
+            $passwd_string = crypt $data->{passwd},$salt;
+            $passwd_string = "{crypt}".$passwd_string;
+        } elsif( $cryptMethod eq "SMD5" ) {
+            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                             (int(rand 26)+65), (int(rand 26)+65));
+            my $ctx = new Digest::MD5();
+            $ctx->add($data->{passwd});
+            $ctx->add($salt);
+            $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
+        } elsif( $cryptMethod eq "SHA"){
+            my $digest = sha1($data->{passwd});
+            $passwd_string = "{sha}".encode_base64($digest, "");
+        } elsif( $cryptMethod eq "SSHA"){
+            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                             (int(rand 26)+65), (int(rand 26)+65));
+            my $digest = sha1($data->{passwd}.$salt);
+            $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
+        } else {
+            $passwd_string = $data->{passwd};
+        }
+        $hash->{rootpw} = $passwd_string;
     }
-    if(!defined $data->{passwd} || $data->{passwd} eq "") {
-                               # parameter check failed
-        return $self->SetError(summary => _("You must define 'passwd'"),
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
-        $cryptMethod = $data->{cryptmethod};
-    }
-    if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
-        return $self->SetError(summary => sprintf(
-                               # parameter check failed
-                                                  _("'%s' is an unsupported crypt method."),
-                                                  $cryptMethod),
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    if( $cryptMethod eq "CRYPT" ) {
-        my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
-        $passwd_string = crypt $data->{passwd},$salt;
-        $passwd_string = "{crypt}".$passwd_string;
-    } elsif( $cryptMethod eq "SMD5" ) {
-        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
-                         (int(rand 26)+65), (int(rand 26)+65));
-        my $ctx = new Digest::MD5();
-        $ctx->add($data->{passwd});
-        $ctx->add($salt);
-        $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
-    } elsif( $cryptMethod eq "SHA"){
-        my $digest = sha1($data->{passwd});
-        $passwd_string = "{sha}".encode_base64($digest, "");
-    } elsif( $cryptMethod eq "SSHA"){
-        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
-                         (int(rand 26)+65), (int(rand 26)+65));
-        my $digest = sha1($data->{passwd}.$salt);
-        $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
-    } else {
-        $passwd_string = $data->{passwd};
-    }
-    $hash->{rootpw} = $passwd_string;
     
     #################
     # check directory
@@ -373,12 +437,12 @@ sub AddDatabase {
     
     if(!defined $data->{directory} || $data->{directory} eq "") {
                                # parameter check failed
-        return $self->SetError(summary => _("You must define 'directory'"),
+        return $self->SetError(summary => __("Define 'directory'."),
                                code => "PARAM_CHECK_FAILED");
     }
     if( ! defined  SCR->Read(".target.dir", $data->{directory})) {
                                # parameter check failed
-        return $self->SetError(summary => _("The directory does not exist."),
+        return $self->SetError(summary => __("The directory does not exist."),
                                description => "The 'directory' (".$data->{directory}.") does not exist.",
                                code => "DIR_DOES_NOT_EXIST");
     }
@@ -390,7 +454,7 @@ sub AddDatabase {
     if(defined $data->{cachesize} && $data->{cachesize} ne "") {
 
         if($data->{cachesize} !~ /^\d+$/) {
-            return $self->SetError(summary => _("Invalid cachesize value."),
+            return $self->SetError(summary => __("Invalid cache size value."),
                                    description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
                                    code => "PARAM_CHECK_FAILED");
         }
@@ -410,7 +474,7 @@ sub AddDatabase {
             my @cp = split(/\s+/, $data->{checkpoint});
             if(!defined $cp[0] || !defined $cp[1] ||
                $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
-                return $self->SetError(summary => _("Invalid checkpoint value."),
+                return $self->SetError(summary => __("Invalid checkpoint value."),
                                        description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
                                        code => "PARAM_CHECK_FAILED");
             }
@@ -421,6 +485,16 @@ sub AddDatabase {
             $checkpoint = "1024 5";
         }
         $hash->{checkpoint} = $checkpoint;
+    }
+
+    if(SCR->Read(".target.size", $hash->{directory}."/DB_CONFIG") < 0) {
+        my $DB_CONFIG = "set_cachesize 0 15000000 1\n".
+                        "set_lg_bsize 2097152\n";
+
+        if(! SCR->Write(".target.string", $hash->{directory}."/DB_CONFIG", $DB_CONFIG)) {
+            return $self->SetError(summary => "Can not create DB_CONFIG file.",
+                                   code => "SCR_WRITE_FAILED");
+        }
     }
 
     if(! defined SCR->Execute(".ldapserver.adddatabase", $addDBHash)) {
@@ -434,28 +508,48 @@ sub AddDatabase {
     if(! $self->SwitchService(1)) {
         return undef;
     }
+
+    # do not add the base entry, if we have nothing to bind with.
+    if(exists $data->{rootdn} && exists $data->{passwd}) { 
     
-    sleep(2);
-
-    if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
-                                "port"     => 389})) {
-        return $self->SetError(summary => "LDAP init failed",
-                               code => "SCR_INIT_FAILED");
-    }
-
-    if (! SCR->Execute(".ldap.bind", {"bind_dn" => $data->{'rootdn'},
-                                      "bind_pw" => $data->{'passwd'}}) ) {
-        my $ldapERR = SCR->Read(".ldap.error");
-        return $self->SetError(summary => "LDAP bind failed",
-                               code => "SCR_INIT_FAILED",
-                               description => $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
-    }
-
-    if (! SCR->Write(".ldap.add", { dn => $data->{'suffix'} } , $entry)) {
-        my $ldapERR = SCR->Read(".ldap.error");
-        return $self->SetError(summary => "Can not add base entry.",
-                               code => "LDAP_ADD_FAILED",
-                               description => $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
+                                    "port"     => 389})) {
+            return $self->SetError(summary => "LDAP init failed",
+                                   code => "SCR_INIT_FAILED");
+        }
+        
+        my $success = 0;
+        my $ldapERR;
+        
+        for(my $i = 0; $i < 5; $i++) {
+            # after the LDAP server is started, it takes some time if
+            # a bind is possible. So try it 5 times with a sleep. 
+            
+            if (! SCR->Execute(".ldap.bind", {"bind_dn" => $data->{'rootdn'},
+                                              "bind_pw" => $data->{'passwd'}}) ) {
+                $ldapERR = SCR->Read(".ldap.error");
+            } else {
+                $success = 1;
+                last;
+            }
+            sleep(1);
+        }
+        
+        if(!$success) {
+            return $self->SetError(summary => "LDAP bind failed",
+                                   code => "SCR_INIT_FAILED",
+                                   description => $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        }
+        
+        if (! SCR->Write(".ldap.add", { dn => $data->{'suffix'} } , $entry)) {
+            my $ldapERR = SCR->Read(".ldap.error");
+            return $self->SetError(summary => "Can not add base entry.",
+                                   code => "LDAP_ADD_FAILED",
+                                   description => $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        }
+        y2debug("base entry added");
+    } else {
+        y2debug("no base entry added");
     }
     
     return 1;
@@ -464,8 +558,11 @@ sub AddDatabase {
 =item *
 C<$bool = EditDatabase($suffix,\%valueMap)>
 
-Edit the database section with the suffix B<$suffix> in the configuration file
-and restart the LDAP Server. Only save parameter are supported. 
+Edit the database section with the suffix B<$suffix> in the configuration file.
+Only save parameter are supported. 
+
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
 
 Supported keys in %valueMap are:
  
@@ -483,8 +580,9 @@ If the key is defined, but the value is 'undef' the option will be deleted.
 If a key is not defined, the option is not changed.
 If the key is defined and a value is specified, this value will be set.
 
-rootdn, passwd and cryptmethod can not be deleted.
+cryptmethod can not be deleted. It will be deleted if you delete passwd.
 
+If you delete rootdn, passwd is also deleted.
 
 EXAMPLE:
 
@@ -526,13 +624,23 @@ sub EditDatabase {
     # work on rootdn
     ###################
     if(exists $data->{rootdn} && ! defined $data->{rootdn}) {
-                               # parameter check failed
-        return $self->SetError(summary => _("'rootdn' is required. You can not delete it"),
-                               code => "PARAM_CHECK_FAILED");
+
+        $editHash->{rootdn} = undef;
+        $data->{passwd} = undef;        # delete also passwd
+
     } elsif(exists $data->{rootdn}) {
-        if($data->{rootdn} !~ /$suffix$/) {
+        if(! defined X500::DN->ParseRFC2253($data->{rootdn})) {
+        # parameter check failed
+            return $self->SetError(summary => __("Invalid 'rootdn'."),
+                                   description => "rootdn '$data->{rootdn}' is not allowed.",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        if($suffix ne substr($data->{rootdn}, 
+                             length($data->{rootdn}) - length($suffix))) {
+
             # parameter check failed
-            return $self->SetError(summary => _("'rootdn' must be below the 'suffix'"),
+            return $self->SetError(summary => __("'rootdn' must be below the 'suffix'."),
+                                   description => "'$data->{rootdn}' must be below the '$suffix'",
                                    code => "PARAM_CHECK_FAILED");
         } else {
             $editHash->{rootdn} = $data->{rootdn};
@@ -543,19 +651,19 @@ sub EditDatabase {
     # work on passwd
     ###################
     if(exists $data->{passwd} && ! defined $data->{passwd}) {
-                                           # parameter check failed
-        return $self->SetError(summary => _("'passwd' is required. You can not delete it"),
-                               code => "PARAM_CHECK_FAILED");
+        
+        $editHash->{rootpw} = undef;
+        
     } elsif(exists $data->{passwd}) {
 
         if(!defined $data->{passwd} || $data->{passwd} eq "") {
                                                # parameter check failed
-            return $self->SetError(summary => _("You must define 'passwd'"),
+            return $self->SetError(summary => __("Define 'passwd'."),
                                    code => "PARAM_CHECK_FAILED");
         }
         if(!defined $data->{passwd} || $data->{passwd} eq "") {
                                    # parameter check failed
-            return $self->SetError(summary => _("You must define 'passwd'"),
+            return $self->SetError(summary => __("Define 'passwd'."),
                                    code => "PARAM_CHECK_FAILED");
         }
 
@@ -565,7 +673,7 @@ sub EditDatabase {
         if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
             return $self->SetError(summary => sprintf(
                                                       # parameter check failed
-                                                      _("'%s' is an unsupported crypt method."),
+                                                      __("'%s' is an unsupported crypt method."),
                                                       $cryptMethod),
                                    code => "PARAM_CHECK_FAILED");
         }
@@ -610,7 +718,7 @@ sub EditDatabase {
         if(defined $data->{cachesize} && $data->{cachesize} ne "") {
 
             if($data->{cachesize} !~ /^\d+$/) {
-                return $self->SetError(summary => _("Invalid cachesize value."),
+                return $self->SetError(summary => __("Invalid cache size value."),
                                        description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
                                        code => "PARAM_CHECK_FAILED");
             }
@@ -619,7 +727,7 @@ sub EditDatabase {
             $editHash->{cachesize} = $data->{cachesize};
 
         } else {
-            return $self->SetError(summary => _("Invalid cachesize value."),
+            return $self->SetError(summary => __("Invalid cache size value."),
                                    description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
                                    code => "PARAM_CHECK_FAILED");
         }
@@ -647,7 +755,7 @@ sub EditDatabase {
                     if(!defined $cp[0] || !defined $cp[1] ||
                        $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
 
-                        return $self->SetError(summary => _("Invalid checkpoint value."),
+                        return $self->SetError(summary => __("Invalid checkpoint value."),
                                                description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
                                                code => "PARAM_CHECK_FAILED");
                     }
@@ -657,7 +765,7 @@ sub EditDatabase {
                     $editHash->{checkpoint} = $checkpoint;
 
                 } else {
-                    return $self->SetError(summary => _("Invalid checkpoint value."),
+                    return $self->SetError(summary => __("Invalid checkpoint value."),
                                            description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
                                            code => "PARAM_CHECK_FAILED");
                 }
@@ -668,12 +776,8 @@ sub EditDatabase {
     if(! SCR->Write(".ldapserver.database", $suffix, $editHash)) {
         my $err = SCR->Error(".ldapserver");
         $err->{description} = $err->{summary}."\n\n".$err->{description};
-        $err->{summary} = _("Edit database failed.");
+        $err->{summary} = __("Database edit failed.");
         return $self->SetError(%{$err});
-    }
-
-    if(! $self->SwitchService(1)) {
-        return undef;
     }
 
     return 1;
@@ -723,7 +827,7 @@ sub ReadDatabase {
 
     if(! defined $suffix || $suffix eq "") {
                                           # error message at parameter check
-        return $self->SetError(summary => _("Missing Parameter 'suffix'."),
+        return $self->SetError(summary => __("Missing parameter 'suffix'."),
                                code => "PARAM_CHECK_FAILED");
     }
     my $dbHash = SCR->Read( ".ldapserver.database", $suffix );
@@ -770,7 +874,7 @@ sub ReadIndex {
 
     if(! defined $suffix || $suffix eq "") {
                                           # error message at parameter check
-        return $self->SetError(summary => _("Missing Parameter 'suffix'."),
+        return $self->SetError(summary => __("Missing parameter 'suffix'."),
                                code => "PARAM_CHECK_FAILED");
     }
     my $dbHash = SCR->Read( ".ldapserver.database", $suffix );
@@ -1038,7 +1142,8 @@ sub RecreateIndex {
                                code => "PARAM_CHECK_FAILED");
     }
 
-    if(! defined X500::DN->ParseRFC2253($suffix)) {
+    my $object = X500::DN->ParseRFC2253($suffix);
+    if(! defined $object) {
         return $self->SetError(summary => "Wrong parameter 'suffix'",
                                description => "'$suffix' is no DN",
                                code => "PARAM_CHECK_FAILED");
@@ -1048,10 +1153,12 @@ sub RecreateIndex {
         return undef;
     }
 
-    if(0 != SCR->Execute(".target.bash", "slapindex -b $suffix") ) {
+    $suffix = $object->getRFC2253String();
+    
+    if(0 != SCR->Execute(".target.bash", "slapindex -b '$suffix'") ) {
         $err = 1;
     }
-
+    
     if(! $self->SwitchService(1)) {
         return undef;
     }
@@ -1101,6 +1208,9 @@ sub ReadSchemaIncludeList {
 C<$bool = WriteSchemaIncludeList(\@list)>
 
 Writes all schema includes preserving order.
+
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
 
 EXAMPLE:
 
@@ -1192,6 +1302,9 @@ C<$bool = WriteAllowList(\@list)>
 
 Replaces the complete allow option with the specified feature list.
 
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
+
 EXAMPLE:
 
  my @list = ( "bind_v2" );
@@ -1266,6 +1379,9 @@ C<$bool = AddLoglevel($bit)>
 
 Set the given loglevel bit to 1 in the current bitmask.
 
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
+
 EXAMPLE:
 
  my $res = YaPI::LdapServer->AddLoglevel( 0x04 );
@@ -1303,6 +1419,9 @@ C<$bool = DeleteLoglevel($bit)>
 
 Set the given loglevel bit to 0 in the current bitmask.
 
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
+
 EXAMPLE:
 
  my $res = YaPI::LdapServer->DeleteLoglevel( 0x04 );
@@ -1339,6 +1458,9 @@ sub DeleteLoglevel {
 C<$bool = WriteLoglevel($loglevel)>
 
 Replaces the loglevel bitmask. 
+
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
 
 EXAMPLE:
 
@@ -1415,14 +1537,14 @@ sub SwitchService {
     if( $enable ) {
         $ret = Service->RunInitScript( "ldap", "restart");
         if(! defined $ret || $ret != 0) {
-            return $self->SetError(summary => _("Can not restart the service"),
+            return $self->SetError(summary => __("Cannot restart the service."),
                                    description => "LDAP restart failed ($ret)",
                                    code => "SERVICE_RESTART_FAILED");
         }
     } else {
         $ret = Service->RunInitScript( "ldap", "stop" );
         if(! defined $ret || $ret != 0) {
-            return $self->SetError(summary => _("Can not stop the service"),
+            return $self->SetError(summary => __("Cannot stop the service."),
                                    description => "LDAP stop failed ($ret)",
                                    code => "SERVICE_STOP_FAILED");
         }
@@ -1517,6 +1639,9 @@ C<$bool = WriteTLS(\%valueMap)>
 
 Edit the TLS options in the configuration file.
 
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
+
 Supported keys in %valueMap are:
  
  * TLSCipherSuite: cipher suite parameter
@@ -1582,7 +1707,7 @@ sub WriteTLS {
                 $hash->{TLSCACertificateFile} = $data->{TLSCACertificateFile};
             } else {
                 # error message
-                return $self->SetError(summary => _("CA Certificate File does not exist"),
+                return $self->SetError(summary => __("CA certificate file does not exist."),
                                        code => "PARAM_CHECK_FAILED");
             }
         }
@@ -1598,7 +1723,7 @@ sub WriteTLS {
                 $hash->{TLSCACertificatePath} = $data->{TLSCACertificatePath};
             } else {
                 # error message
-                return $self->SetError(summary => _("CA Certificate Path does not exist"),
+                return $self->SetError(summary => __("CA certificate path does not exist."),
                                        code => "PARAM_CHECK_FAILED");
             }
         }
@@ -1614,7 +1739,7 @@ sub WriteTLS {
                 $hash->{TLSCertificateFile} = $data->{TLSCertificateFile};
             } else {
                 # error message
-                return $self->SetError(summary => _("Certificate File does not exist"),
+                return $self->SetError(summary => __("Certificate file does not exist."),
                                        code => "PARAM_CHECK_FAILED");
             }
         }
@@ -1631,7 +1756,7 @@ sub WriteTLS {
                 $hash->{TLSCertificateKeyFile} = $data->{TLSCertificateKeyFile};
             } else {
                 # error message
-                return $self->SetError(summary => _("Certificate Key File does not exist"),
+                return $self->SetError(summary => __("Certificate key file does not exist."),
                                        code => "PARAM_CHECK_FAILED");
             }
         }
@@ -1649,7 +1774,7 @@ sub WriteTLS {
                 $hash->{TLSVerifyClient} = $data->{TLSVerifyClient};
             } else {
                 # error message
-                return $self->SetError(summary => _("Wrong value for 'TLSVerifyClient'"),
+                return $self->SetError(summary => __("Invalid value for 'TLSVerifyClient'."),
                                        code => "PARAM_CHECK_FAILED");
             }
         }
@@ -1658,9 +1783,347 @@ sub WriteTLS {
     if(! SCR->Write(".ldapserver.global", $hash )) {
         my $err = SCR->Error(".ldapserver");
         $err->{description} = $err->{summary}."\n\n".$err->{description};
-        $err->{summary} = _("Writing failed.");
+        $err->{summary} = __("Writing failed.");
         return $self->SetError(%{$err});
     }
     
     return 1;
 }
+
+=item *
+C<$bool = CheckCommonServerCertificate()>
+
+Check, if a server certificate is available which can be used
+for more then one service. Such common certificate is saved at
+'/etc/ssl/servercerts/servercert.pem'.
+
+This function returns 'true' if such a certificate is available
+and 'false' if not.
+
+EXAMPLE:
+
+ my $res = YaPI::LdapServer->CheckCommonServerCertificate();
+ if( not defined $res ) {
+     # error
+ } else {
+     print "Available \n" if($res);
+     print "Not Avalable \n" if(!res);
+ }
+
+=cut
+
+BEGIN { $TYPEINFO{CheckCommonServerCertificate} = ["function", "boolean"]; }
+sub CheckCommonServerCertificate {
+    my $self  = shift;
+
+    my $size = SCR->Read(".target.size", '/etc/ssl/servercerts/servercert.pem');
+    if ($size <= 0) {
+        return 0;
+    }
+    $size = SCR->Read(".target.size", '/etc/ssl/servercerts/serverkey.pem');
+    if ($size <= 0) {
+        return 0;
+    }
+    return 1;
+}
+
+=item *
+C<$bool = ConfigureCommonServerCertificate()>
+
+Configure the LDAP server to use the common server certificate.
+
+At first this function try to set read permissions for user ldap
+on the common private key via filesystem acls. After that it 
+modifies the slapd.conf and add/edit the TLS pararamter.
+
+You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
+to activate these changes. 
+
+EXAMPLE:
+
+ my $res = YaPI::LdapServer->ConfigureCommonServerCertificate();
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
+
+=cut
+
+BEGIN { $TYPEINFO{ConfigureCommonServerCertificate} = ["function", "boolean"]; }
+sub ConfigureCommonServerCertificate {
+    my $self  = shift;
+
+    my $size = SCR->Read(".target.size", '/etc/ssl/servercerts/servercert.pem');
+    if ($size <= 0) {
+        return $self->SetError(summary => "Common server certificate not found.",
+                               code => "PARAM_CHECK_FAILED");
+    }
+    $size = SCR->Read(".target.size", '/etc/ssl/servercerts/serverkey.pem');
+    if ($size <= 0) {
+        return $self->SetError(summary => "Common private key not found.",
+                               code => "PARAM_CHECK_FAILED");
+    }
+
+    my $tlsHash = $self->ReadTLS();
+    return undef if(! defined $tlsHash);
+
+    $tlsHash->{TLSCertificateFile}    = '/etc/ssl/servercerts/servercert.pem';
+    $tlsHash->{TLSCertificateKeyFile} = '/etc/ssl/servercerts/serverkey.pem';
+
+    if(SCR->Read(".target.size", '/etc/ssl/certs/YaST-CA.pem') > 0) {
+        $tlsHash->{TLSCACertificatePath} = '/etc/ssl/certs/';
+        $tlsHash->{TLSCACertificateFile} = undef;
+    }
+    
+    # try to set read acl on the keyfile for user ldap
+    my $ret = SCR->Execute(".target.bash", 
+                           "/usr/bin/setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem");
+    if($ret != 0) {
+        return $self->SetError(summary => "Can not set a filesystem acl on the private key",
+                               description => "setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem failed.\n".
+                               "Do you have filesystem acl support disabled?",
+                               code => "SCR_EXECUTE_ERROR");
+    }
+
+    # configure TLS
+    if(! defined $self->WriteTLS($tlsHash)) {
+        return undef;
+    }
+    
+    return 1;
+}
+
+=item *
+C<$bool = ImportCertificates(\%valueMap)>
+
+Import certificates and configure TLS for the LDAP Server.
+
+The following Keys are possible in %valueMap:
+
+* ServerCertificateFile (required)
+
+* ServerKeyFile (required)
+
+* CACertificatesFile (optional)
+
+The file format must be PEM.
+
+Alternative you can send the PEM data direct via:
+
+* ServerCertificateData (required)
+
+* ServerKeyData (required)
+
+* CACertificatesData (optional)
+
+The return value is 'true' on success and 'undef' on an error.
+
+EXAMPLE:
+
+ my $hash = {
+              ServerCertificateFile => '/path/to/the/certificate.pem',
+              ServerKeyFile         => '/path/to/the/key.pem',
+              CACertificatesFile    => '/path/to/the/CAcertificate.pem',
+            }
+
+ my $res = YaPI::LdapServer->ImportCertificates($hash);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
+
+=cut
+
+BEGIN { $TYPEINFO{ImportCertificates} = ["function", "boolean", ["map", "string", "string"]]; }
+sub ImportCertificates {
+    my $self = shift;
+    my $data = shift;
+    my $cert = "";
+    my $key  = "";
+    my $CA   = undef;
+
+    # check ServerCertificateFile/Data
+    if(exists $data->{ServerCertificateFile}) {
+
+        if(! defined $data->{ServerCertificateFile} || $data->{ServerCertificateFile} eq "") {
+            return $self->SetError(summary => __("Missing 'ServerCertificateFile' parameter."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+
+        $cert = SCR->Read(".target.string", $data->{ServerCertificateFile});
+        if(not defined $cert || !$cert) {
+            return $self->SetError(summary => __("Cannot read certificate file."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+    } else {
+        if(! defined $data->{ServerCertificateData} || $data->{ServerCertificateData} eq "") {
+            return $self->SetError(summary => __("Missing 'ServerCertificateData' parameter."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $cert = $data->{ServerCertificateData};
+    }
+
+    if($cert !~ /BEGIN CERTIFICATE/ ) {
+        return $self->SetError( summary => __("Corrupt PEM data."), code => 'CERT_ERROR' );
+    }
+
+    # check ServerKeyFile
+    if(exists $data->{ServerKeyFile}) {
+
+        if(! defined $data->{ServerKeyFile} || $data->{ServerKeyFile} eq "") {
+            return $self->SetError(summary => __("Missing 'ServerKeyFile' parameter."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+
+        $key = SCR->Read(".target.string", $data->{ServerKeyFile});
+        if(not defined $key || !$key) {
+            return $self->SetError(summary => __("Cannot read key file."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+    } else {
+        if(! defined $data->{ServerKeyData} || $data->{ServerKeyData} eq "") {
+            return $self->SetError(summary => __("Missing 'ServerKeyData' parameter."),
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $key = $data->{ServerKeyData};
+    }
+    
+    if($key !~ /PRIVATE KEY/ ) {
+        return $self->SetError( summary => __("Corrupt PEM data."), code => 'CERT_ERROR' );
+    }
+
+
+    if(exists $data->{CACertificatesFile} && 
+       defined $data->{CACertificatesFile} && 
+       $data->{CACertificatesFile} ne "") 
+      {
+       
+          $CA = SCR->Read(".target.string", $data->{CACertificatesFile});
+          if(not defined $CA || !$CA) {
+              return $self->SetError(summary => __("Cannot read CA certificate file."),
+                                     code => "PARAM_CHECK_FAILED");
+          }
+          
+          if($CA !~ /BEGIN CERTIFICATE/ ) {
+              return $self->SetError( summary => __("Corrupt PEM data."), code => 'CERT_ERROR' );
+          }
+      } elsif(exists $data->{CACertificatesData} && 
+              defined $data->{CACertificatesData} && 
+              $data->{CACertificatesData} ne "") 
+        {
+            $CA = $data->{CACertificatesData};
+            
+            if($CA !~ /BEGIN CERTIFICATE/ ) {
+                return $self->SetError( summary => __("Corrupt PEM data."), code => 'CERT_ERROR' );
+            }
+        }
+    
+
+    my $tlsHash = $self->ReadTLS();
+    return undef if(! defined $tlsHash);
+    
+    if(! SCR->Write('.target.string', '/etc/openldap/servercert.pem', $cert)) {
+        return $self->SetError(summary => __("Cannot write certificate file."),
+                               code => "SCR_WRITE_FAILED");
+    }
+    $tlsHash->{TLSCertificateFile}    = '/etc/openldap/servercert.pem';
+
+    if(!SCR->Write('.target.string', '/etc/openldap/serverkey.pem', $key)) {
+        return $self->SetError(summary => __("Cannot write key file."),
+                               code => "SCR_WRITE_FAILED");
+    }
+    my $ret = SCR->Execute(".target.bash", 
+                           "chmod 0600 /etc/openldap/serverkey.pem");
+    if($ret != 0) {
+        return $self->SetError(summary => "Can not chmod to '/etc/openldap/serverkey.pem'",
+                               code => "SCR_EXECUTE_FAILED");
+    }
+    $ret = SCR->Execute(".target.bash", 
+                           "chown ldap.root /etc/openldap/serverkey.pem");
+    if($ret != 0) {
+        return $self->SetError(summary => "Can not chown to '/etc/openldap/serverkey.pem'",
+                               code => "SCR_EXECUTE_FAILED");
+    }
+    $tlsHash->{TLSCertificateKeyFile} = '/etc/openldap/serverkey.pem';
+        
+    if(defined $CA) {
+        if(!SCR->Write('.target.string', '/etc/openldap/cacert.pem', $CA)) {
+            return $self->SetError(summary => __("Cannot write CA certificate file."),
+                                   code => "SCR_WRITE_FAILED");
+        }
+        $tlsHash->{TLSCACertificateFile} = '/etc/openldap/cacert.pem';
+    }
+
+    # configure TLS
+    if(! defined $self->WriteTLS($tlsHash)) {
+        return undef;
+    }
+}
+
+
+=item *
+C<$bool = ReadSLPEnabled()>
+
+This function reads the OPENLDAP_REGISTER_SLP entry in /etc/sysconfig/openldap.
+It returns 'true' if it reads 'yes' and 'false' if it reads 'no'.
+
+EXAMPLE
+
+ print "SLP registering is ".( (ReadSLPEnabled())?('activated'):('deactivated') )."\n";
+
+=cut
+BEGIN { $TYPEINFO{ReadSLPEnabled} = ["function", "boolean"]; }
+sub ReadSLPEnabled
+{
+    my $self = shift;
+    my $slp_enabled = SCR->Read( ".sysconfig.openldap.OPENLDAP_REGISTER_SLP" );
+
+    if( !$slp_enabled )
+    {
+        return $self->SetError( summary => "Failed to read .sysconfig.openldap.OPENLDAP_REGISTER_SLP",
+                                code    => "SCR_READ_FAILED" );
+    }
+    
+    return 1 if( lc( $slp_enabled ) eq "yes" );
+    return 0;
+}
+
+=item *
+C<$bool = WriteSLPEnabled( $bool )>
+
+This function sets OPENLDAP_REGISTER_SLP in /etc/sysconfig/openldap.
+The entry is set to 'yes' if the argument is true or 'no' if the argument is false.
+
+The return value is true on success, undef on error.
+
+EXAMPLE
+
+  WriteSLPEnabled( 1 );
+
+=cut
+BEGIN { $TYPEINFO{WriteSLPEnabled} = ["function", "boolean", "boolean"]; }
+sub WriteSLPEnabled
+{
+    my $self = shift;
+    my $activate_slp = shift;
+    
+    my $scr_string = "";
+    if( $activate_slp )
+    {
+        $scr_string = "yes";
+    } else 
+    {
+        $scr_string = "no";
+    }
+
+    if( !SCR->Write( ".sysconfig.openldap.OPENLDAP_REGISTER_SLP", $scr_string ) )
+    {
+        return $self->SetError( summary => "Failed to write .sysconfig.openldap.OPENLDAP_REGISTER_SLP",
+                                code    => "SCR_WRITE_FAILED" );
+    }
+    return 1;
+}
+
+1;

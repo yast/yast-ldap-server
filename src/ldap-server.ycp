@@ -31,7 +31,7 @@ include "ldap-server/wizards.ycp";
 map cmdline_description = $[
     "id" 	: "ldap-server",
     /* Command line help text for the Xldap-server module */
-    "help"	: _("Configuration of ldap-server"),
+    "help"	: _("Configuration of LDAP server"),
     "guihandler"        : LdapServerSequence,
     "initialize"        : LdapServer::Read,
     "finish"            : LdapServer::Write,

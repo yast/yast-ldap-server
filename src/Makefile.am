@@ -13,14 +13,15 @@ ynclude_DATA =			\
 	helps.ycp		\
 	wizards.ycp		\
 	dialogs.ycp		\
-	complex.ycp
+	complex.ycp 		\
+	tree_structure.ycp
 
 desktop_DATA =			\
 	ldap-server.desktop
 
 module_DATA =			\
-	LdapServer.ycp		\
-	LdapServer.pm
+	LdapServer.pm       \
+    	LdapServerConf.ycp
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
 
