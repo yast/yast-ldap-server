@@ -162,11 +162,7 @@ sub Write
     my @path = split( /\./, shift );
     shift @path;
 
-    #open configfile handle
-    open( my $cfh, '+<', $slapdconf ) or return $class->SetError(
-        summary => "Failed to open file $slapdconf for reading!",
-        code    => "LDAPSERVER_OPEN_FAILED"
-    );
+    $class->initData( $slapdconf ) || return undef;
     
     if( $path[0] eq 'global' )
     {
@@ -301,15 +297,15 @@ sub Execute
         my $section = {};
         $lookup->{$section_name} = $section;
        
-        $class->addOptionData({
-            data    =>  $data,
-            section =>  $section,
-            datapos =>  $datapos,
-            name    =>  'comment',
-            content =>  "#created automatically by ag_ldapserver\n",
-            ws      =>  ''
-        });
-        $class->inc( \$datapos );
+        #$class->addOptionData({
+        #    data    =>  $data,
+        #    section =>  $section,
+        #    datapos =>  $datapos,
+        #    name    =>  'comment',
+        #    content =>  "#created automatically by ag_ldapserver\n",
+        #    ws      =>  ''
+        #});
+        #$class->inc( \$datapos );
         $class->addOptionData({
             data    =>  $data,
             section =>  $section,
