@@ -54,6 +54,15 @@ sub Modified {
     return $modified;
 }
 
+##
+ # Data was modified
+ #
+BEGIN { $TYPEINFO {SetModified} = ["function", "void", "boolean"]; }
+sub SetModified {
+    $modified = shift;
+    y2debug ("modified=$modified");
+}
+
 # Settings: Define all variables needed for configuration of ldap-server
 # TODO FIXME: Define all the variables necessary to hold
 # TODO FIXME: the configuration here (with the appropriate

@@ -82,6 +82,23 @@ else if (func == "Write") {
     ret = LdapServer::Write();
     Progress::on();
 }
+/**
+ * Return if configuration  was changed
+ * return boolean
+ */
+else if (func == "GetModified") {
+    ret = LdapServer::Modified ();
+}
+
+/**
+ * Set modified flag
+ * return boolean
+ */
+else if (func == "SetModified") {
+    LdapServer::SetModified (true);
+    ret = true;
+}
+
 /* Unknown function */
 else {
     y2error("Unknown function: %1", func);
