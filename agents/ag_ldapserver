@@ -96,7 +96,13 @@ my $constraints = {
         schemainclude   => { multi => 1 },
         include     => { multi => 1 },
         allow       => { multi => 0 },
-        loglevel    => { multi => 0 }
+        loglevel    => { multi => 0 },
+        TLSCipherSuite => { multi => 0 },
+        TLSCACertificateFile => { multi => 0 },
+        TLSCACertificatePath => { multi => 0 },
+        TLSCertificateFile => { multi => 0 },
+        TLSCertificateKeyFile => { multi => 0 },
+        TLSVerifyClient => { multi => 0 ,}
     }
 };
 
@@ -172,7 +178,7 @@ sub Write
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
-        my @sorted_keys = $class->sortByConstraints( 'global', keys %$options );
+        my @sorted_keys = $class->sortByConstraints( 'global', [ keys %$options ] );
 
         foreach my $opt_name ( @sorted_keys )
         {
