@@ -24,3 +24,4 @@ Name=LDAP Server
 GenericName=Configure LDAP Server
 Name[de]=LDAP-Server
 GenericName[de]=LDAP-Server konfigurieren
+X-KDE-SubstituteUID=true
