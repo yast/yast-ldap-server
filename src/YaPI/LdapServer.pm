@@ -1432,3 +1432,221 @@ sub ReadService {
     my $self = shift;
     return Service->Enabled('ldap');
 }
+
+=item *
+C<\%valueMap = ReadTLS()>
+
+Return the current TLS settings
+
+Supported keys in %valueMap are:
+ 
+ * TLSCipherSuite: cipher suite parameter
+ 
+ * TLSCACertificateFile: Specifies the file that contains certificates for all of the Certificate Authorities that slapd will recognize.
+
+ * TLSCACertificatePath: Specifies  the path of a directory that contains Certificate Authority certificates in separate individual files. Usually only one of this or the TLSCACertificateFile is used.
+
+ * TLSCertificateFile: Specifies the file that contains the slapd server certificate.
+
+ * TLSCertificateKeyFile: Specifies the file that contains the slapd server private key.
+
+ * TLSVerifyClient: Specifies what checks to perform on client certificates in an incoming TLS session.
+
+EXAMPLE:
+
+ use Data::Dumper;
+
+ my $res = YaPI::LdapServer->ReadTLS();
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+     print STDERR Data::Dumper->Dump([$res])."\n";
+ }
+
+=cut
+
+BEGIN { $TYPEINFO{ReadTLS} = ["function", ["map", "string", "any"]]; }
+sub ReadTLS {
+    my $self  = shift;
+    my $ret   = {};
+
+    my $global = SCR->Read( ".ldapserver.global" );
+    if(! defined $global) {
+        return $self->SetError(%{SCR->Error(".ldapserver")});
+    }
+    if(exists $global->{TLSCipherSuite} && defined $global->{TLSCipherSuite}) {
+        $ret->{TLSCipherSuite} = $global->{TLSCipherSuite};
+    }
+    if(exists $global->{TLSCACertificateFile} && defined $global->{TLSCACertificateFile}) {
+        $ret->{TLSCACertificateFile} = $global->{TLSCACertificateFile};
+    }
+    if(exists $global->{TLSCACertificatePath} && defined $global->{TLSCACertificatePath}) {
+        $ret->{TLSCACertificatePath} = $global->{TLSCACertificatePath};
+    }
+    if(exists $global->{TLSCertificateFile} && defined $global->{TLSCertificateFile}) {
+        $ret->{TLSCertificateFile} = $global->{TLSCertificateFile};
+    }
+    if(exists $global->{TLSCertificateKeyFile} && defined $global->{TLSCertificateKeyFile}) {
+        $ret->{TLSCertificateKeyFile} = $global->{TLSCertificateKeyFile};
+    }
+    if(exists $global->{TLSVerifyClient} && defined $global->{TLSVerifyClient}) {
+        $ret->{TLSVerifyClient} = $global->{TLSVerifyClient};
+    }
+
+    return $ret;
+}
+
+
+=item *
+C<$bool = WriteTLS(\%valueMap)>
+
+Edit the TLS options in the configuration file.
+
+Supported keys in %valueMap are:
+ 
+ * TLSCipherSuite: cipher suite parameter
+ 
+ * TLSCACertificateFile: Specifies the file that contains certificates for all of the Certificate Authorities that slapd will recognize.
+
+ * TLSCACertificatePath: Specifies  the path of a directory that contains Certificate Authority certificates in separate individual files. Usually only one of this or the TLSCACertificateFile is used.
+
+ * TLSCertificateFile: Specifies the file that contains the slapd server certificate.
+
+ * TLSCertificateKeyFile: Specifies the file that contains the slapd server private key.
+
+ * TLSVerifyClient: Specifies what checks to perform on client certificates in an incoming TLS session.
+
+
+If the key is defined, but the value is 'undef' the option will be deleted.
+If a key is not defined, the option is not changed.
+If the key is defined and a value is specified, this value will be set.
+
+EXAMPLE:
+
+ my $hash = {
+             TLSCipherSuite        => "HIGH:MEDIUM:+SSLv2",
+             TLSCertificateFile    => "/etc/ssl/server_crt.pem",
+             TLSCertificateKeyFile => "/etc/ssl/server_key.pem",
+             TLSCACertificateFile  => "/etc/ssl/ca.pem",
+             TLSVerifyClient       => "never"
+            };
+
+ my $res = YaPI::LdapServer->WriteTLS($hash);
+ if( not defined $res ) {
+     # error
+ } else {
+     print "OK: \n";
+ }
+
+=cut
+
+BEGIN { $TYPEINFO{WriteTLS} = ["function", "boolean", ["map", "string", "any"]]; }
+sub WriteTLS {
+    my $self  = shift;
+    my $data  = shift;
+    my $hash  = {};
+
+    if(exists $data->{TLSCipherSuite}) {
+        if(!defined $data->{TLSCipherSuite}) {
+            
+            $hash->{TLSCipherSuite} = undef;
+            
+        } else {
+
+            $hash->{TLSCipherSuite} = $data->{TLSCipherSuite};
+
+        }
+    }
+
+    if(exists $data->{TLSCACertificateFile}) {
+
+        if(!defined $data->{TLSCACertificateFile}) {
+            $hash->{TLSCACertificateFile} = undef;
+        } else {
+            if(-e  $data->{TLSCACertificateFile}) {
+                $hash->{TLSCACertificateFile} = $data->{TLSCACertificateFile};
+            } else {
+                # error message
+                return $self->SetError(summary => _("CA Certificate File does not exist"),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+        }
+    }
+    
+    if(exists $data->{TLSCACertificatePath}) {
+        if(!defined $data->{TLSCACertificatePath}) {
+            
+            $hash->{TLSCACertificatePath} = undef;
+            
+        } else {
+            if(-d  $data->{TLSCACertificatePath}) {
+                $hash->{TLSCACertificatePath} = $data->{TLSCACertificatePath};
+            } else {
+                # error message
+                return $self->SetError(summary => _("CA Certificate Path does not exist"),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+        }
+    }
+
+    if(exists $data->{TLSCertificateFile}) {
+        if(!defined $data->{TLSCertificateFile}) {
+
+            $hash->{TLSCertificateFile} = undef;
+
+        } else {
+            if(-e  $data->{TLSCertificateFile}) {
+                $hash->{TLSCertificateFile} = $data->{TLSCertificateFile};
+            } else {
+                # error message
+                return $self->SetError(summary => _("Certificate File does not exist"),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+        }
+    }
+
+
+    if(exists $data->{TLSCertificateKeyFile}) {
+        if(!defined $data->{TLSCertificateKeyFile}) {
+
+            $hash->{TLSCertificateKeyFile} = undef;
+
+        } else {
+            if(-e  $data->{TLSCertificateFile}) {
+                $hash->{TLSCertificateKeyFile} = $data->{TLSCertificateKeyFile};
+            } else {
+                # error message
+                return $self->SetError(summary => _("Certificate Key File does not exist"),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+        }
+    }
+    
+    if(exists $data->{TLSVerifyClient}) {
+        if(!defined $data->{TLSVerifyClient}) {
+
+            $hash->{TLSVerifyClient} = undef;
+
+        } else {
+            if( grep( ($_ eq $data->{TLSVerifyClient}), ("never", "allow", "try",
+                                                         "demand","hard", "true")))
+            {
+                $hash->{TLSVerifyClient} = $data->{TLSVerifyClient};
+            } else {
+                # error message
+                return $self->SetError(summary => _("Wrong value for 'TLSVerifyClient'"),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+        }
+    }
+
+    if(! SCR->Write(".ldapserver.global", $hash )) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{description} = $err->{summary}."\n\n".$err->{description};
+        $err->{summary} = _("Writing failed.");
+        return $self->SetError(%{$err});
+    }
+    
+    return 1;
+}
