@@ -16,6 +16,7 @@ import "Popup";
 import "Wizard";
 import "Wizard_hw";
 import "LdapServer";
+import "Require";
 
 include "ldap-server/helps.ycp";
 
@@ -41,6 +42,28 @@ boolean PollAbort() {
  */
 symbol ReadDialog() {
     Wizard::RestoreHelp(HELPS["read"]:"");
+    
+    /* ensure openldap2 package is installed */
+    if( !Require::RequireAndConflictTarget( ["openldap2"], [], 
+					    // notification about package needed 1/2
+					    _("<p>To configure the LDAP server, the <b>%1</b> package must be installed.</p>") +
+					    // notification about package needed 2/2
+					    _("<p>Do you want to install it now?</p>")) )
+    {
+	if( !Require::IsPackageAvailable( "openldap2" ) ) {
+	    // translators: error popup before aborting the module
+	    Popup::Error( sformat( _("The package '%1' is not available.
+YaST2 cannot continue the configuration
+without installing the package."), "openldap2" ) );
+	}
+	else
+	{
+	    // translators: error popup before aborting the module
+	    Popup::Error( sformat( _("YaST2 cannot continue the configuration
+without installing the required packages."), "openldap2" ) );
+	}
+	return `abort;
+    }    
     // LdapServer::AbortFunction = PollAbort;
     boolean ret = LdapServer::Read();
     return ret ? `next : `abort;
@@ -64,7 +87,7 @@ symbol WriteDialog() {
 any SummaryDialog() {
 
     /* LdapServer summary dialog caption */
-    string caption = _("LdapServer Configuration");
+    string caption = _("LDAP Server Configuration");
 
     /* FIXME */
     list summary = LdapServer::Summary();
@@ -72,7 +95,7 @@ any SummaryDialog() {
     string configured = summary[0]:"";
 
     /* Frame label */
-    term contents = Wizard_hw::DetectedContent(_("LdapServer to Configure"),
+    term contents = Wizard_hw::DetectedContent(_("LDAP Server to Configure"),
 	    unconfigured, false, configured);
 
     Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
@@ -124,14 +147,14 @@ any SummaryDialog() {
 any OverviewDialog() {
 
     /* LdapServer overview dialog caption */
-    string caption = _("LdapServer Overview");
+    string caption = _("LDAP Server Overview");
 
     list overview = LdapServer::Overview();
 
     /* FIXME table header */
     term contents = Wizard_hw::ConfiguredContent(
 	/* Table header */
-	`header(_("Number"), _("LdapServer")),
+	`header(_("Number"), _("LDAP Server")),
 	overview, nil, nil, nil, nil );
 
     contents = Wizard_hw::SpacingAround(contents, 1.5, 1.5, 1.0, 1.0);

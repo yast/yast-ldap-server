@@ -1,0 +1,1097 @@
+/**
+ * File:	include/ldap-server/tree_structure.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Widget Tree structure
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *
+ * $Id$
+ */
+{
+textdomain "ldap-server";
+
+import "LdapServer";
+import "Report";
+import "Label";
+import "HTML";
+import "String";
+
+/* forward declaration of the widget tree
+*/
+define map<string,map<string,any> > widget_map = nil;
+
+/* error string, all callbacks return false and set this to an error description
+ */
+define string callback_error = "";
+
+define list<map> widget_tree = nil;
+/* this is set to true when the widget tree must be rebuilt, that is, when dynamic tree
+ * items are added/removed
+ */
+define boolean rebuild_widget_tree = true;
+
+/* command for input handlers, is set in the main UserInput loop in dialogs.ycp
+ * --> pseudo function argument for input callbacks
+ */
+define symbol handler_cmd = nil;
+
+/* current_tree_item, is set in main UserInput loop. The widget_map key of the currently
+ * active tree item. Used by callbacks of dynamic items.
+ * --> pseudo function argument for dynamic callbacks
+ */
+define string current_tree_item = "";
+
+/* list of valid encoding methods for password inputs, used by add database and edit database
+ * dialogs
+ */
+list enc_types = [
+    `item( `id( "CRYPT" ), "CRYPT" ),
+    `item( `id( "SMD5" ), "SMD5" ),
+    `item( `id( "SHA" ), "SHA" ),
+    `item( `id( "SSHA" ), "SSHA", true ),
+    `item( `id( "PLAIN" ), "PLAIN" )
+];
+
+define void addDatabaseWidgetMap( string suffix, boolean new_db );
+
+/*********************************
+ **     callback handlers       **
+ *********************************/
+
+/*****************************
+ ** default handlers
+ *****************************/
+
+define boolean cb_check_default()
+``{
+    y2milestone( "calling default check handler" );
+    return true;
+}
+
+define boolean cb_read_default()
+``{
+    y2milestone( "calling default read handler" );
+    return true;
+}
+
+define boolean cb_write_default()
+``{
+    y2milestone( "calling default write handler" );
+    return true;
+}
+
+/*****************************
+ ** global schema handlers
+ *****************************/
+
+void show_new_schemalist( list<string> l, string select_item )
+{
+    if( l == nil ) l = [];
+    widget_map["g_schema","inclist"] = l;
+        /* schema file selection box title */
+    UI::ReplaceWidget( `rp_schemalist, `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), l ) );
+    if( select_item != nil )
+    {
+        UI::ChangeWidget( `sb_schemalist, `CurrentItem, select_item );
+    }
+}
+
+define boolean cb_read_schema()
+``{
+    y2milestone( "calling schema read handler" );
+    list<string> inclist = LdapServer::ReadSchemaIncludeList();
+    //store current include list for later order changes
+    show_new_schemalist( inclist, nil );
+    return true;
+}
+
+define boolean cb_check_schema()
+``{
+    y2milestone( "calling schema check handler" );
+    //dummy check strings
+        /* error popup */
+    string invalid_schema = sformat( _("The file '%1' is not a schema file."), "dummy" );
+    return true;
+}
+
+define boolean cb_write_schema()
+``{
+    y2milestone( "calling schema write handler" );
+    LdapServer::WriteSchemaIncludeList( (list<string>)widget_map["g_schema","inclist"]:[] );
+    return true;
+}
+
+integer find_pos( list<string> l, string s )
+{
+    y2debug( "-------------- starting find_pos ----------------" );
+    y2debug( "searching in list '%1'", l );
+    y2debug( "for string '%1'", s );
+    y2debug( "size( l ) is '%1'", size( l ) );
+    if( size( l ) == 0 ) return -1;
+    integer i = 0;
+    integer ret = -1;
+    foreach( string str, l, {
+        y2debug( "comparing str '%1' with s '%2'", str, s );
+        y2debug( "current position is '%1'", i );
+        if( str == s ) ret = i;
+        i = i + 1;
+    } );
+    return ret;
+}
+
+define boolean cb_input_schema()
+``{
+    y2milestone( "calling schema input handler" );
+
+    list<string> inclist = (list<string>)widget_map["g_schema","inclist"]:[];
+    string current_item = (string)UI::QueryWidget( `sb_schemalist, `CurrentItem );
+    y2milestone( "current_item is '%1'", current_item );
+
+    if( handler_cmd == `pb_up || handler_cmd == `pb_down )
+    {
+        if( current_item == nil ) return true;
+
+        y2milestone( "inclist is '%1'", inclist );
+        if( inclist == [] ) return true;
+        integer pos = find_pos( inclist, current_item );
+        y2milestone( "pos is '%1'", pos );
+        if( pos == -1 ) return true;
+
+        list<string> new_inclist = [];
+
+        if( handler_cmd == `pb_up )
+        {
+            //move the current item up
+
+            if( pos == 0 ) return true;
+
+            //exchange the items at pos and pos-1
+            integer i = 0;
+            while( i < size( inclist ) )
+            {
+                if( i == pos-1 )
+                {
+                    new_inclist = add( new_inclist, inclist[i+1]:"" );
+                } else if( i == pos )
+                {
+                    new_inclist = add( new_inclist, inclist[i-1]:"" );
+                } else
+                {
+                    new_inclist = add( new_inclist, inclist[i]:"" );
+                }
+                i = i + 1;
+            }
+        } else if( handler_cmd == `pb_down )
+        {
+            //move the current item down
+
+            if( pos == size(inclist)-1 ) return true;
+
+            //exchange the items at pos and pos+1
+            integer i = 0;
+            while( i < size( inclist ) )
+            {
+                if( i == pos+1 )
+                {
+                    new_inclist = add( new_inclist, inclist[i-1]:"" );
+                } else if( i == pos )
+                {
+                    new_inclist = add( new_inclist, inclist[i+1]:"" );
+                } else
+                {
+                    new_inclist = add( new_inclist, inclist[i]:"" );
+                }
+                i = i + 1;
+            }
+        }
+        show_new_schemalist( new_inclist, current_item );
+    } else if( handler_cmd == `pb_add )
+    {
+        //add a new file to the list
+                /* file dialog heading */
+        string new_item = UI::AskForExistingFile( "/etc/openldap/schema/", "*.schema *", _("Select New Schema File") );
+
+        if( new_item == nil ) return true;
+
+        if( contains( inclist, new_item ) )
+        {
+                /* error popup */
+            callback_error = _("The schema file is already in the list.");
+            return false;
+        }
+
+        inclist = add( inclist, new_item );
+        show_new_schemalist( inclist, new_item );
+
+    } else if( handler_cmd == `pb_delete )
+    {
+        if( current_item == nil ) return true;
+        inclist = remove( inclist, find_pos( inclist, current_item ) );
+        show_new_schemalist( inclist, nil );
+    }
+    return true;
+}
+
+/*****************************
+ ** global loglevel handlers
+ *****************************/
+
+define boolean cb_check_loglevel()
+``{
+    return true;
+}
+
+define boolean cb_read_loglevel()
+``{
+    y2milestone( "calling loglevel read handler" );
+
+    integer loglevel = LdapServer::ReadLoglevel();
+    list<integer> idlist = [];
+    foreach( integer i, [1,2,4,8,16,32,64,128,256,512,1024,2048], {
+        if( ( loglevel & i ) > 0 )
+        {
+            idlist = add( idlist, i );
+        }
+    } );
+
+    UI::ChangeWidget( `msb_loglevel, `SelectedItems, idlist );
+    return true;
+}
+
+define boolean cb_write_loglevel()
+``{
+    y2milestone( "calling loglevel write handler" );
+    list<integer> idlist = (list<integer>)UI::QueryWidget( `msb_loglevel, `SelectedItems );
+    integer loglevel = 0;
+    foreach( integer i, idlist, {
+        loglevel = loglevel + i;
+    } );
+
+    y2milestone( "writing loglevel: '%1'", loglevel );
+    LdapServer::WriteLoglevel( loglevel );
+    return true;
+}
+
+/*****************************
+ ** global allow handlers
+ *****************************/
+
+define boolean cb_check_allow()
+``{
+    return true;
+}
+
+define boolean cb_read_allow()
+``{
+    y2milestone( "calling allow read handler" );
+    list<string> allowlist = LdapServer::ReadAllowList();
+    UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
+    return true;
+}
+
+define boolean cb_write_allow()
+``{
+    y2milestone( "calling allow write handler" );
+    list<string> allowlist = [];
+    allowlist = (list<string>)UI::QueryWidget( `msb_allow, `SelectedItems );
+
+    y2milestone( "writing allowlist: '%1'", allowlist );
+    LdapServer::WriteAllowList( allowlist );
+    return true;
+}
+
+/*****************************
+ ** tls handlers
+ *****************************/
+
+define boolean cb_check_tls()
+``{
+    y2milestone( "calling tls check handler" );
+
+    map<string,string> importPaths = LdapServer::ReadImportCertificates();
+    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
+    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
+
+    if( (boolean)UI::QueryWidget( `rb_yes, `Value ) && !(
+            haskey( importPaths, "ServerCertificateFile" ) ||
+            use_common_ca ||
+            ( haskey( tlsSettings, "TLSCertificateFile" ) && haskey( tlsSettings, "TLSCertificateKeyFile" ) ) )
+       )
+    {
+            /*error popup*/
+        callback_error = _("Choose a certificate if you want to activate TLS.");
+        return false;
+    }
+
+    return true;
+}
+
+define boolean cb_read_tls()
+``{
+    y2milestone( "calling tls read handler" );
+    map<string,string> importPaths = LdapServer::ReadImportCertificates();
+    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
+    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
+
+        /* tls configuration info text 1/4 */
+    string info = HTML::Bold( _("Current Configuration:") )+HTML::Newline()+HTML::ListStart();
+    foreach( string key, string val, tlsSettings, {
+        info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+    } );
+    info = info + HTML::ListEnd() + HTML::Newline();
+        /* tls configuration info text 2/4 */
+    info = info + HTML::Bold( _("The following changes will be made:") )+HTML::Newline() + HTML::Newline();
+
+    if( use_common_ca )
+    {
+        /* tls configuration info text 3/4 */
+        info = info + _("Configuring Common Server Certificate") + HTML::Newline();
+    } else if( haskey( importPaths, "ServerCertificateFile" ) )
+    {
+        /* tls configuration info text 4/4 */
+        info = info + _("Importing the Following Certificates:") + HTML::Newline() + HTML::ListStart();
+        foreach( string key, string val, importPaths, {
+            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+        } );
+
+        info = info + HTML::ListEnd();
+    }
+
+    UI::ChangeWidget( `rt_tls_info, `Value, info );
+
+    if(     use_common_ca
+         || haskey( importPaths, "ServerCertificateFile" )
+         || ( haskey( tlsSettings, "TLSCertificateFile" ) && haskey( tlsSettings, "TLSCertificateKeyFile" ) )
+      )
+    {
+        UI::ChangeWidget( `rb_yes, `Value, true );
+    } else
+    {
+        UI::ChangeWidget( `rb_no, `Value, true );
+        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
+        UI::ChangeWidget( `pb_edit, `Enabled, false );
+    }
+    return true;
+}
+
+define boolean cb_write_tls()
+``{
+    y2milestone( "calling tls write handler" );
+    symbol tls_active = (symbol)UI::QueryWidget( `rbg_tls, `CurrentButton );
+    if( tls_active == `rb_no )
+    {
+        LdapServer::WriteConfigureCommonServerCertificate( false );
+        LdapServer::WriteImportCertificates( $[] );
+        map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
+        y2debug( "tlsSettings: '%1'", tlsSettings );
+        tlsSettings = filter( string key, string val, tlsSettings, {
+            return( key != "TLSCertificateKeyFile" && key != "TLSCertificateFile" );
+        } );
+        y2debug( "tlsSettings after filter: '%1'", tlsSettings );
+        LdapServer::WriteTlsSettings( tlsSettings );
+    }
+    return true;
+}
+
+define boolean cb_input_tls()
+``{
+    y2milestone( "calling tls input handler" );
+
+    boolean common_ca_available = LdapServer::ReadCommonServerCertificateAvailable();
+
+    if( handler_cmd == `rb_yes )
+    {
+        UI::ChangeWidget( `rt_tls_info, `Enabled, true );
+        UI::ChangeWidget( `pb_edit, `Enabled, true );
+    } else if( handler_cmd == `rb_no )
+    {
+        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
+        UI::ChangeWidget( `pb_edit, `Enabled, false );
+    } else if( handler_cmd == `pb_edit )
+    {
+        //show edit popup
+        any ret = nil;
+        string dlg_name = common_ca_available ? "type" : "import";
+        term dlg = (term)widget_map["g_tls","dialogs",dlg_name]:nil;
+        if( dlg == nil )
+        {
+            callback_error = _("An internal error occurred. View the log file.");
+            y2error( "cb_input_tls: type dialog is not in widget map" );
+            return false;
+        }
+
+        UI::OpenDialog( dlg );
+
+        map<string,string> importPaths = LdapServer::ReadImportCertificates();
+        if( dlg_name == "input" )
+        {
+            UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
+            UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
+            UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
+        }
+
+        if( dlg_name == "type" && haskey( importPaths, "ServerCertificateFile" ) )
+        {
+            UI::ChangeWidget( `rb_common, `Value, false );
+            UI::ChangeWidget( `rb_import, `Value, true );
+        }
+
+        y2milestone( ">>>> entering cb_input_tls input loop..." );
+        while( true )
+        {
+            ret = UI::UserInput();
+            y2milestone( "cb_input_tls: dialog returns '%1'", ret );
+
+            if( dlg_name == "type" )
+            {
+                if( ret == `cancel ) break;
+                else if( ret == `ok )
+                {
+                    any do_what = UI::QueryWidget( `rbg_type, `CurrentButton );
+                    y2milestone( "cb_input_tls: do_what is '%1'", do_what );
+                    if( do_what == `rb_common )
+                    {
+                        //TODO: use common ca
+                        y2milestone( "cb_input_tls: using common server certificate" );
+                        LdapServer::WriteConfigureCommonServerCertificate( true );
+                        LdapServer::WriteImportCertificates( $[] );
+                        break;
+                    } else if( do_what == `rb_import )
+                    {
+                        UI::CloseDialog();
+                        dlg_name = "import";
+                        UI::OpenDialog( (term)widget_map["g_tls","dialogs","import"]:`Label( "dialog not found" ) );
+
+                        //fill textentries
+                        UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
+                        UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
+                        UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
+                        continue;
+                    }
+                }
+            } else if( dlg_name == "import" )
+            {
+                if( ret == `cancel ) break;
+                else if( ret == `pb_ca_file )
+                {
+                                                            /* file selection headline */
+                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select CA Certificate File") );
+                    if( name != nil ) UI::ChangeWidget( `te_ca_file, `Value, name );
+                    continue;
+                } else if( ret == `pb_cert_file )
+                {
+                                                            /* file selection headline */
+                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate File") );
+                    if( name != nil ) UI::ChangeWidget( `te_cert_file, `Value, name );
+                    continue;
+                } else if( ret == `pb_key_file )
+                {
+                                                            /* file selection headline */
+                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate Key File") );
+                    if( name != nil ) UI::ChangeWidget( `te_key_file, `Value, name );
+                    continue;
+                } else if( ret == `ok )
+                {
+                    //TODO: import ca
+                    //read values
+                    string cert_file = String::CutBlanks( (string)UI::QueryWidget( `te_cert_file, `Value ) );
+                    string key_file = String::CutBlanks( (string)UI::QueryWidget( `te_key_file, `Value ) );
+                    string ca_file = String::CutBlanks( (string)UI::QueryWidget( `te_ca_file, `Value ) );
+
+                    if( cert_file == "" )
+                    {
+                            /* Error Popup */
+                        Popup::Error( _("Server certificate file is required.") );
+                        continue;
+                    }
+
+                    if( key_file == "" )
+                    {
+                            /* Error Popup */
+                        Popup::Error( _("Server key file is required.") );
+                        continue;
+                    }
+
+                    importPaths["ServerCertificateFile"] = cert_file;
+                    importPaths["ServerKeyFile"] = key_file;
+                    if( ca_file != "" ) importPaths["CACertificatesFile"] = ca_file;
+
+                    y2milestone( "importing certificates" );
+                    LdapServer::WriteImportCertificates( importPaths );
+                    LdapServer::WriteConfigureCommonServerCertificate( false );
+
+                    break;
+                }
+            }
+        }
+        y2milestone( "<<<< leaving cb_input_tls input loop..." );
+
+        UI::CloseDialog();
+        eval( cb_read_tls() );
+    }
+    //reread tls page
+    return true;
+}
+
+/*****************************************
+ ** handlers for database parent widget
+ *****************************************/
+
+define boolean cb_check_databases()
+``{
+    return true;
+}
+
+define boolean cb_read_databases()
+``{
+    y2milestone( "calling databases read handler" );
+    list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
+    string text = HTML::Para( HTML::Bold( "Available Databases:" ) )+HTML::Newline();
+    foreach( string s, dblist, { text = text + s + HTML::Newline(); } );
+    UI::ChangeWidget( `rt_databases, `Value, text );
+    return true;
+}
+
+define boolean cb_write_databases()
+``{
+    return true;
+}
+
+define boolean cb_input_databases()
+``{
+    y2milestone( "calling databases input handler" );
+    if( handler_cmd == `pb_add )
+    {
+        any ret = nil;
+
+        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label( "dialog not found" ) );
+
+        while( true )
+        {
+            ret = UI::UserInput();
+            y2milestone( "cb_input_databases: dialog returns '%1'", ret );
+            if( ret == `cancel ) break;
+            else if( ret == `pb_directory )
+            {
+                    /*directory selection dialog heading*/
+                string name = UI::AskForExistingDirectory( "/var/lib", _("Select Database Directory") );
+                if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
+                continue;
+            }
+            else if( ret == `ok )
+            {
+                //TODO: add database
+                string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+                string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
+                string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+                string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
+                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+
+                //check values
+                if( suffix == "" )
+                {
+                        /*error popup*/
+                    Popup::Error( _("Base DN must be set.") );
+                    continue;
+                }
+
+                list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
+                if( contains( dblist, suffix ) )
+                {
+                    /* Error Popup */
+                    Popup::Error( _("A database with that Base DN already exists.") );
+                    continue;
+                }
+                if( rootpw != "" && rootdn == "" )
+                {
+                    /* Error Popup */
+                    Popup::Error( _("Root DN must be set if a password is given.") );
+                    continue;
+                }
+                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
+                {
+                    /* Error Popup */
+                    Popup::Error( _("Password validation failed.") );
+                    continue;
+                }
+                if( directory == "" )
+                {
+                    /* Error Popup */
+                    Popup::Error( _("A directory must be specified.") );
+                    continue;
+                }
+
+                //create new database
+                map<string,any> db = $[
+                    "suffix"    : suffix,
+                    "directory" : directory,
+                    "database"  : "bdb"
+                ];
+                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+                {
+                    rootdn = rootdn+","+suffix;
+                }
+                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
+                if( rootpw != "" )
+                {
+                    db = add( db, "passwd", rootpw );
+                    db = add( db, "cryptmethod", cryptmethod );
+                }
+                if( LdapServer::AddDatabase( db ) )
+                {
+                    y2milestone( "adding database was successful, now trying to add widget tree item" );
+                    rebuild_widget_tree = true;
+                }
+
+                break;
+            }
+        }
+
+        UI::CloseDialog();
+    }
+
+    return true;
+}
+
+/*****************************
+ ** database handlers
+ *****************************/
+
+define boolean cb_check_db()
+``{
+    string suffix =(string)widget_map[current_tree_item,"name"]:nil;
+    y2milestone( "calling db check handler for suffix '%1'", suffix );
+
+    string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+    if( rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
+    {
+            /* Error Popup */
+        callback_error = _("Password validation failed.");
+        return false;
+    }
+
+    return true;
+}
+
+define boolean cb_write_db()
+``{
+    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
+    if( suffix == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to write settings for the current database.");
+        y2error( "'name' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
+
+    y2milestone( "calling db write handler for suffix '%1'", suffix );
+
+    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
+    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
+    if( is_new_db == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to write settings for the current database.");
+        y2error( "'new_db' key for item '%1' is nil", suffix );
+        return false;
+    }
+    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
+    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
+
+    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
+    if( db == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to write settings for the current database.");
+        y2error( "database is not in dbmap returned by ReadDatabase" );
+        y2debug( "trying to read database '%1', dbmap is: '%2'", suffix, dbmap );
+        return false;
+    }
+
+    db = $[];
+
+    string rootdn = "";
+    rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
+    if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+    {
+        rootdn = rootdn + "," + suffix;
+    }
+    db["rootdn"] = rootdn;
+
+    string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+    if( rootpw != "" ) {
+        db["passwd"] = rootpw;
+        db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+    }
+
+    //write changes
+    dbmap[suffix] = db;
+    if( is_new_db )
+    {
+        LdapServer::WriteDatabaseNEW( dbmap );
+    } else
+    {
+        LdapServer::WriteDatabase( dbmap );
+    }
+
+    return true;
+}
+
+define boolean cb_read_db()
+``{
+    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
+    if( suffix == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to read settings for the current database.");
+        y2error( "'name' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
+    y2milestone( "calling db read handler for suffix '%1'", suffix );
+
+    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
+    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
+    if( is_new_db == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to read settings for the current database.");
+        y2error( "'new_db' key for item '%1' is nil", current_tree_item );
+        return false;
+    }
+    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
+    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
+
+    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
+    if( db == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to read settings for the current database.");
+        y2error( "Reading settings for database '%1' failed", suffix );
+        return false;
+    }
+
+    UI::ChangeWidget( `te_basedn, `Value, suffix );
+
+    string rootdn = (string)db["rootdn"]:"";
+    boolean append_checked = false;
+    integer pos = find( rootdn, suffix );
+    if( pos > -1 )
+    {
+        rootdn = substring( rootdn, 0, pos-1 );
+        append_checked = true;
+    }
+    UI::ChangeWidget( `te_rootdn, `Value, rootdn );
+    UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
+    UI::ChangeWidget( `te_rootpw, `Value, db["passwd"]:"" );
+    UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
+    UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
+
+    return true;
+}
+
+define boolean cb_input_db()
+``{
+    string suffix = current_tree_item;
+    y2milestone( "calling db input handler for suffix '%1'", suffix );
+    return true;
+}
+
+/*****************************************
+ **     tree structure definition       **
+ *****************************************/
+
+widget_map = $[
+    "base"  : $[
+        "children"  : [ "global", "databases" ]
+    ],
+    "global" : $[
+        "children"  : [ "g_schema", "g_loglevel", "g_allow", "g_tls" ],
+                    /* Tree item */
+        "name"      : _("Global Settings"),
+        "widget"    : `Empty()
+    ],
+    "g_schema" : $[
+                    /* Tree item */
+        "name"      : _("Schema Files"),
+        "widget"    :
+            `HBox(
+              `VBox(
+                `ReplacePoint( `id( `rp_schemalist ), `Empty() ),
+                `Left( `HBox(
+                  `PushButton( `id( `pb_add ), Label::AddButton() ),
+                  `HSpacing( 0.5 ),
+                  `PushButton( `id( `pb_delete ), Label::DeleteButton() )
+                ) ),
+                `VSpacing( 1 )
+              ),
+              `HSpacing( 0.5 ),
+              `VBox(
+                `PushButton( `id( `pb_up ), Label::UpButton() ),
+                `PushButton( `id( `pb_down ), Label::DownButton() )
+              )
+            ),
+        "inclist"   : [],
+        "cb_check"  : ``( cb_check_schema() ),
+        "cb_read"   : ``( cb_read_schema() ),
+        "cb_write"  : ``( cb_write_schema() ),
+        "cb_input"  : ``( cb_input_schema() )
+    ],
+    "g_loglevel" : $[
+                    /* Tree item */
+        "name"      : _("Log Level Settings"),
+        "widget"    :
+                                                         /* Multi select box header */
+            `MultiSelectionBox( `id( `msb_loglevel ), _("Select &Log Level Flags:"), [
+                               /* Multi select box item 1/12 */
+                `item( `id( 1 ), _("Trace Function Calls") ),
+                               /* Multi select box item 2/12 */
+                `item( `id( 2 ), _("Debug Packet Handling") ),
+                               /* Multi select box item 3/12 */
+                `item( `id( 4 ), _("Heavy Trace Debugging") ),
+                               /* Multi select box item 4/12 */
+                `item( `id( 8 ), _("Connection Management") ),
+                               /* Multi select box item 5/12 */
+                `item( `id( 16 ), _("Print Packets Sent and Received") ),
+                               /* Multi select box item 6/12 */
+                `item( `id( 32 ), _("Search Filter Processing") ),
+                               /* Multi select box item 7/12 */
+                `item( `id( 64 ), _("Configuration File Processing") ),
+                               /* Multi select box item 8/12 */
+                `item( `id( 128 ), _("Access Control List Processing") ),
+                               /* Multi select box item 9/12 */
+                `item( `id( 256 ), _("Log Connections, Operations, and Result") ),
+                               /* Multi select box item 10/12 */
+                `item( `id( 512 ), _("Log Entries Sent") ),
+                               /* Multi select box item 11/12 */
+                `item( `id( 1024 ), _("Print Communication with Shell Back-Ends") ),
+                               /* Multi select box item 12/12 */
+                `item( `id( 2048 ), _("Entry Parsing") )
+             ] ),
+        "cb_check"  : ``( cb_check_loglevel() ),
+        "cb_read"   : ``( cb_read_loglevel() ),
+        "cb_write"  : ``( cb_write_loglevel() )
+    ],
+    "g_allow" : $[
+                    /* Tree item */
+        "name"      : _("Allow Settings"),
+        "widget"    :
+                                                     /* Multi select box header(allow flags) */
+            `MultiSelectionBox( `id( `msb_allow ), _("Select &Allow Flags:"), [
+                                       /* Multi select box item (allow flags) 1/4*/
+                `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
+                                       /* Multi select box item (allow flags) 2/4*/
+                `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
+                                       /* Multi select box item (allow flags) 3/4*/
+                `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
+                                       /* Multi select box item (allow flags) 4/4*/
+                `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
+             ] ),
+        "cb_check"  : ``( cb_check_allow() ),
+        "cb_read"   : ``( cb_read_allow() ),
+        "cb_write"  : ``( cb_write_allow() )
+    ],
+    "g_tls" : $[
+                    /* Tree item */
+        "name"      : _("TLS Settings"),
+        "widget"    : `VBox(
+                     /* TLS Dialog Headline */
+            `Heading( _("TLS Settings") ),
+                   /* radiobutton group text */
+            `Frame( _("TLS Active"), `RadioButtonGroup( `id( `rbg_tls ), `HBox(
+                `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton() ),
+                `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton() )
+            ) ) ),
+            `RichText( `id( `rt_tls_info ), "" ),
+                                           /* Button Text */
+            `PushButton( `id( `pb_edit ), _("&Select Certificate...") )
+        ),
+        "dialogs"   : $[
+            "type"  : `VBox(
+                         /* certificate type selection dialog Headline */
+                `Heading( _("Select Type") ),
+                `VSpacing( 1 ),
+                `RadioButtonGroup( `id( `rbg_type ), `VBox (
+                                                     /* Radiobutton text */
+                    `Left( `RadioButton( `id( `rb_import ), _("&Import Certificates") ) ),
+                                                     /* Radiobutton text */
+                    `Left( `RadioButton( `id( `rb_common ), _("Use C&ommon Server Certificate"), true ) )
+                ) ),
+                `VSpacing( 1 ),
+                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
+                       `PushButton( `id( `cancel ), Label::CancelButton() )
+                )
+            ),
+            "import": `VBox(
+                         /* Dialog Headline */
+                `Heading( _("Import Certificate") ),
+                `VSpacing( 1 ),
+                                                        /* text entry description */
+                `VSquash( `HBox( `TextEntry( `id( `te_cert_file ), _("Certificate &File (PEM Format)") ),
+                                 `HSpacing( 0.5 ),
+                                                        /* Button Text */
+                                 `Bottom( `PushButton( `id( `pb_cert_file ), _("&Browse...") ) )
+                ) ),
+                `VSpacing( 0.5 ),
+                                                        /* text entry description */
+                `VSquash( `HBox( `TextEntry( `id( `te_key_file ), _("Certificate &Key File (PEM Format -- Unencrypted)")+"  " ),
+                                 `HSpacing( 0.5 ),
+                                                        /* Button Text */
+                                 `Bottom( `PushButton( `id( `pb_key_file ), _("B&rowse...") ) )
+                ) ),
+                `VSpacing( 0.5 ),
+                                                        /* text entry description */
+                `VSquash( `HBox( `TextEntry( `id( `te_ca_file ), _("C&A Certificate File (PEM Format)") ),
+                                 `HSpacing( 0.5 ),
+                                                        /* Button Text */
+                                 `Bottom( `PushButton( `id( `pb_ca_file ), _("Bro&wse...") ) )
+                ) ),
+                `VSpacing( 1 ),
+                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
+                       `PushButton( `id( `cancel ), Label::CancelButton() )
+                )
+            )
+        ],
+        "cb_check"  : ``( cb_check_tls() ),
+        "cb_read"   : ``( cb_read_tls() ),
+        "cb_write"  : ``( cb_write_tls() ),
+        "cb_input"  : ``( cb_input_tls() )
+    ],
+    "databases": $[
+                    /* Tree item */
+        "name"      : _("Databases"),
+        "widget"    : `VBox(
+            `RichText( `id( `rt_databases ), "" ),
+                                         /* Button Text */
+            `PushButton( `id( `pb_add ), _("A&dd Database...") )
+        ),
+        "dialogs"   : $[
+            "adddb" : `VBox(
+                          /* Dialog Headline */
+                `Heading( _("Add Database") ),
+                `VSpacing( 1 ),
+                                               /* Textentry description */
+                `TextEntry( `id( `te_basedn ), _("&Base DN") ),
+                `VSpacing( 0.5 ),
+                                               /* Textentry description */
+                `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                                 `HSpacing( 0.5 ),
+                                                           /* checkbox description */
+                                 `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true ) ),
+                                        `VSpacing( 0.3 )
+                                 )
+                ) ),
+                `VSpacing( 0.5 ),
+                                               /* Textentry description */
+                `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                       `HSpacing( 0.5 ),
+                                               /* Textentry description */
+                       `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                       `HSpacing( 0.5 ),
+                                                          /* Combobox description */
+                       `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                ),
+                `VSpacing( 0.5 ),
+                                                         /* Textentry description */
+                `VSquash( `HBox( `TextEntry( `id( `te_directory ), _("&Database Directory") ),
+                                 `HSpacing( 0.5 ),
+                                                         /* Button text */
+                                 `Bottom( `PushButton( `id( `pb_directory ), _("&Browse...") ) )
+                ) ),
+                `VSpacing( 1 ),
+                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
+                       `PushButton( `id( `cancel ), Label::CancelButton() )
+                )
+            )
+        ],
+        "cb_check"  : ``( cb_check_databases() ),
+        "cb_read"   : ``( cb_read_databases() ),
+        "cb_write"  : ``( cb_write_databases() ),
+        "cb_input"  : ``( cb_input_databases() )
+    ]
+];
+
+/*****************************************
+ *      tree generation functions       **
+ *****************************************/
+
+void addDatabaseWidgetMap( string suffix, boolean new_db )
+{
+    if( haskey( widget_map, suffix ) ) return;
+    term dlg_database =
+                         /* Dialog Headline */
+        `VBox( `Heading( _("Edit Database") ),
+               `VSpacing( 1 ),
+                                                                  /* textentry description */
+               `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
+               `VSpacing( 0.5 ),
+                                                 /* textentry description */
+               `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                                `HSpacing( 0.5 ),
+                                                           /* checkbox text */
+                                `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") ) ),
+                                       `VSpacing( 0.3 )
+                                )
+               ) ),
+               `VSpacing( 0.5 ),
+                                                    /* textentry description */
+               `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                      `HSpacing( 0.5 ),
+                                                    /* textentry description */
+                      `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                      `HSpacing( 0.5 ),
+                                                       /* combobox text */
+                      `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+               )
+             );
+
+    map<string,any> item_map = $[
+        "name"      : suffix,
+        "widget"    : dlg_database,
+        "new_db"    : new_db,
+        "dynamic"   : true,
+        "help_page" : "database_detail",
+        "cb_check"  : ``( cb_check_db() ),
+        "cb_read"   : ``( cb_read_db() ),
+        "cb_write"  : ``( cb_write_db() ),
+        "cb_input"  : ``( cb_input_db() )
+    ];
+    y2debug( "adding database item '%1'", suffix );
+    y2debug( "adding crypted database item '%1'", cryptmd5(suffix) );
+    string crypted_suffix = cryptmd5( suffix );
+    widget_map[crypted_suffix] = item_map;
+    widget_map["databases","children"] = add( widget_map["databases","children"]:[], crypted_suffix );
+}
+
+void generateDynamicTreeItems()
+{
+    y2debug( "generating database tree items" );
+    //generate database entries
+
+
+    list<string> dblist = LdapServer::ReadDbList();
+    y2debug( "ycp: dblist is '%1'", dblist );
+
+    foreach( string suffix, dblist, {
+        addDatabaseWidgetMap( suffix, false );
+    } );
+
+    list<string> dblistNEW = LdapServer::ReadDbListNEW();
+    y2debug( "ycp: dblistNEW is '%1'", dblistNEW );
+
+    foreach( string suffix, dblistNEW, {
+        addDatabaseWidgetMap( suffix, true );
+    } );
+
+    y2debug( "databases map is '%1'", (map<string,any>)widget_map["databases"]:$[] );
+}
+
+void deleteDynamicTreeItems()
+{
+    y2milestone( "deleting dynamic tree items" );
+    widget_map = filter( string key, map<string,any> val, widget_map, {
+        return( !(boolean)val["dynamic"]:false );
+    } );
+
+    widget_map["databases","children"] = [];
+}
+
+}

@@ -1,4 +1,4 @@
-#! /usr/bin/perl -wT
+#! /usr/bin/perl -w
 #
 # ag_ldapserver
 #
@@ -21,10 +21,13 @@
 #       - lots of those ugly direct data accesses (like $section->{$opt_name}->[0]{dataref}{__internal}{filename} )
 #         could be hidden in subs, which would increase readability and stability
 #
+# $Id$
+#
 package ag_ldapserver;
 use strict;
 use YaST::SCRAgent;
-use ycp;
+use YaST::YCP qw(:LOGGING);
+#use ycp;
 
 use Data::Dumper;
 
@@ -60,11 +63,11 @@ my $constraints = {
     database    => {
         database => {
             multi   => 0,
-            backend => { all => 1 }
+            backend => { all => 1 },
         },
         suffix  => { 
             multi   => 1, 
-            backend => { all => 1 }
+            backend => { all => 1 },
         },
         rootdn  => {
             after   => { suffix => 1 },
@@ -78,23 +81,23 @@ my $constraints = {
         },
         index => {
             multi => 1,
-            backend => { all => 1 }
+            backend => { all => 1 },
         },
         directory   => { 
             multi => 0,
-            backend => { bdb => 1, ldbm => 1 }
+            backend => { bdb => 1, ldbm => 1 },
         },
         cachesize   => {
             multi => 0,
-            backend => { bdb => 1, ldbm => 1 }
+            backend => { bdb => 1, ldbm => 1 },
         },
         checkpoint  => { 
             multi => 0,
-            backend => { bdb => 1 }
+            backend => { bdb => 1 },
         }
     },
     global      => {
-        schemainclude   => { multi => 1 },
+        schemainclude   => { multi => 1, before => { access => 1} },
         include     => { multi => 1 },
         allow       => { multi => 0 },
         loglevel    => { multi => 0 },
@@ -103,9 +106,15 @@ my $constraints = {
         TLSCACertificatePath => { multi => 0 },
         TLSCertificateFile => { multi => 0 },
         TLSCertificateKeyFile => { multi => 0 },
-        TLSVerifyClient => { multi => 0 ,}
+        TLSVerifyClient => { multi => 0 }
     }
 };
+
+my $quote = {
+             suffix => 1,
+             rootdn => 1,
+             rootpw => 1
+            };
 
 #internal representation of the config data
 #TODO: write structure documentation
@@ -165,12 +174,25 @@ sub Read
 sub Write
 {
     my $class = shift || return undef;
-    
-    my @path = split( /\./, shift );
+
+    my @path = split( /\./, shift ); # FIXME: what about path parts that contain dots?
     shift @path;
+    my @args = @_;
+
+    # !!! will be fixed with real ACL support later !!!
+    # !!! better skip this while reading the code - ug@suse.de !!!
+    if( $path[0] eq 'sambaACLHack' ) {
+        my $dn = $args[0];
+        return $class->SetError(
+            summary => "DN missing in sambaACLHack",
+            code    => "PARAM_CHECK_FAILED"
+        ) unless( $dn );
+        return $class->sambaACLHack( $dn );
+    }
+    # !!! okay, you can open your eyes now !!!
 
     $class->initData( $slapdconf ) || return undef;
-    
+
     if( $path[0] eq 'global' )
     {
         my $options = shift;
@@ -445,6 +467,10 @@ sub readDBList
     {
         push( @dblist, $1 ) if( /^database (.+)$/ ) && $#{[keys %{$lookup->{$_}}]} > -1;
     }
+
+    @dblist = sort {
+        keycompare( $lookup->{"database ".$a}{database}[0]{datapos}, $lookup->{"database ".$b}{database}[0]{datapos} );
+    } @dblist;
     return [@dblist];
 }
 
@@ -488,7 +514,45 @@ sub initData
     #create global lookup section
     $lookup->{'global'} = {} if not defined $lookup->{'global'};
     
-    return $class->__init_rec( $filename, $data, $lookup->{'global'} );
+    my $ret = $class->__init_rec( $filename, $data, $lookup->{'global'} );
+
+    #check if the dummy database (default of openldap2.rpm) exists
+    my @dblist = grep { /^database / } keys %$lookup;
+    if( scalar @dblist == 1 && defined $ret )
+    {
+        my $opt = $lookup->{$dblist[0]}{directory};
+        my $opt_val = $opt->[0]{dataref}{$opt->[0]{datapos}}{content_string} if defined $opt;
+        if( defined $opt_val && $opt_val =~ /^\/var\/lib\/ldap/ )
+        {
+            #print STDERR "clean_dummy: seen the right directory value: $opt_val\n";
+            #check if directory contains files
+            my $database_exists = 0;
+            opendir( my $dir, "/var/lib/ldap" ) || ( my $dir_not_there = 1 );
+            if( not defined  $dir_not_there )
+            {
+                while( defined( my $file = readdir( $dir ) ) )
+                {
+                    next if $file =~ /^\.\.?$/;
+                    if( $file eq "id2entry.bdb" || $file eq "id2entry.dbb" )
+                    {
+                        #print STDERR "file is $file, -> database is valid\n";
+                        $database_exists = 1;
+                        last;
+                    }
+                }
+
+                
+                if( not $database_exists )
+                {
+                    #delete database
+                    #print STDERR "clean_dummy: directory is empty, deleting database\n";
+                    $class->deleteSection( $dblist[0] );
+                }
+            }
+        }
+    }
+
+    return $ret;
 }
 
 ##
@@ -749,13 +813,26 @@ sub addOptionData
     my $name    = $config->{name};
     my $content = $config->{content};
     my $ws      = $config->{ws};
-
+    
     $data->{"$datapos"} = {
         type            => $name,
         content_string  => $content,
         ws              => $ws,
         md5             => $class->getOptionMD5( $content )
     };           
+
+    if($class->__mayQuote($name)) {
+        if($content =~ /^"/) {
+            y2debug("addOptionData: dequote '$content'");
+            $content =~ s/^"//;
+            $content =~ s/"(\s*)$/$1/;
+            $content =~ s/\\"/"/g;
+            $content =~ s/\\\\/\\/g;
+            $data->{"$datapos"}->{content_string} = $content;
+            y2debug("addOptionData: finish dequote '$content'");
+        }
+    }
+
     if( !exists( $section->{$name} ) )
     {
         $section->{$name} = [{datapos=>"$datapos",dataref=>$data}];
@@ -787,6 +864,18 @@ sub findFirstSuffix
         next if( !/^suffix\s+(.+)$/ );
         my $suffix = $1;
         $suffix =~ s/\s+$//;
+
+        if($class->__mayQuote("suffix")) {
+            if($suffix =~ /^"/) {
+                y2debug("findFirstSuffix: do dequote '$suffix'");
+                $suffix =~ s/^"//;
+                $suffix =~ s/"(\s*)$/$1/;
+                $suffix =~ s/\\"/"/g;
+                $suffix =~ s/\\\\/\\/g;
+                y2debug("findFirstSuffix: finish dequote '$suffix'");
+            }
+        }
+
         seek( $cfh, $pos, 0 );
         return $suffix;
     }
@@ -818,11 +907,19 @@ sub updateSingleOption
     $section_name =~ /^(\S+)/;
     my $section_type = $1;
 
+    #return successfully if a non-existing option is tried to delete
+    if( !exists( $section->{$opt_name} ) && !defined $opt_val )
+    {
+        y2debug( "updateSingleOption: trying to delete non-existing option '$opt_name' from section '$section_name', skipping function" );
+        return 1;
+    }
+    
     #get constraints for the option
     my $constr = $class->getConstraints( $section_type, $opt_name ) || return $class->SetError(
         summary => "writing option '$opt_name' in $section_type section is not supported",
         code    => "PARAM_CHECK_FAILED"
     );
+
 
     my $reftype = ref( $opt_val ) || undef;
     #only array references are allowed
@@ -882,6 +979,7 @@ sub updateSingleOption
     #TODO: some of this could be sourced out into a sub (getWritePosition or similar)
     if( !exists( $section->{$opt_name} ) )
     {
+        y2debug( "updateSingleOption: generating dummy option for option '$opt_name' in section '$section_name'" );
         #check if option depends on something
         foreach my $deps_on ( keys %{$constr->{after}} )
         {
@@ -910,60 +1008,76 @@ sub updateSingleOption
         #    }
         #}
 
-        #get last datapos of section
-        
-        #FIXME: this has to be changed for multiple files support
-        my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
-        shift @dataposlist;
+        my $insert_pos = undef;
 
-        my $section_start = undef;
-        $section_start = $dataposlist[0] if $section_type eq 'global';
-        $section_start = $section->{$section_type}[0]{datapos} if not defined $section_start;
-        my $in_section = 0;
-        my $last_pos = undef;
-        #print STDERR "starting to find end position of section '$section_name'\n";
-        #print STDERR "section_start is: $section_start\n";
-        foreach my $dp ( @dataposlist )
+        #special handling for the schema includes: insert at beginning of file (bug #40331)
+        #TODO: solve with 'before' constraint
+        if( $opt_name eq "schemainclude" )
         {
-            my $cp = $class->keycompare( $dp, $section_start );
-            #print STDERR "----------------------------------------\n";
-            #print STDERR "dp: $dp\tcp: $cp\n";
-            if( $cp == -1 )
+            #get first position in list
+            my @dataposlist = $class->sortDataposList( keys %$data );
+            $insert_pos = $dataposlist[0];
+            $class->dec( \$insert_pos );
+        }
+        
+        #check the 'before' constraint
+        #if( !defined $insert_pos && exists( $constr->{before} ) )
+        #{
+        #}
+
+        if( !defined $insert_pos )
+        {
+            y2debug( "searching to last datapos of section '$section_name'" );
+            #FIXME: this has to be changed for multiple files support
+            my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+            shift @dataposlist;
+
+            my $section_start = undef;
+            $section_start = $dataposlist[0] if $section_type eq 'global';
+            $section_start = $section->{$section_type}[0]{datapos} if not defined $section_start;
+            my $in_section = 0;
+            y2debug( "starting to find end position of section '$section_name'" );
+            y2debug( "section_start is: $section_start" );
+            foreach my $dp ( @dataposlist )
             {
-                next;
-            } elsif( $cp == 0 )
-            {
-                $in_section = 1;
-                next;
-            } elsif( $cp == 1 )
-            {
-                my $type = $data->{$dp}{type};
-                #print STDERR "type: $type\n";
-                $in_section = 0 if( $type eq 'backend' || $type eq 'database' );
-                if( $in_section )
-                {
-                    $last_pos = $dp;
+                my $cp = $class->keycompare( $dp, $section_start );
+                #y2debug( "----------------------------------------" );
+                #y2debug( "dp: $dp" );
+                if( $cp == -1 ) {
                     next;
+                } elsif( $cp == 0 ) {
+                    $in_section = 1;
+                    next;
+                } elsif( $cp == 1 )  {
+                    my $type = $data->{$dp}{type};
+                    #y2debug( "type: $type" );
+                    $in_section = 0 if( $type eq 'backend' || $type eq 'database' );
+                    if( $in_section )
+                    {
+                        $insert_pos = $dp;
+                        next;
+                    } else
+                    {
+                        last;
+                    }
                 } else
                 {
-                    last;
+                    return $class->SetError(
+                        summary => "some strange undefinable error occured while comparing two datapositions",
+                        code    => "LDAPSERVER_INTERNAL"
+                    );
                 }
-            } else
-            {
-                return $class->SetError(
-                    summary => "some strange undefinable error occured while comparing two datapositions",
-                    code    => "LDAPSERVER_INTERNAL"
-                );
-            }
-        }
+            } #foreach ( @dataposlist )
+            $insert_pos .= ".1";
+        } #if( !defined $insert_pos )
 
-        #print STDERR "found last position at $last_pos\n";
+        y2debug( "updateSingleOption: found insert position for '$opt_name' at <$insert_pos>" );
 
         #create the dummy option
         $class->addOptionData({
             data    =>  $data,
             section =>  $section,
-            datapos =>  $last_pos.".1",
+            datapos =>  $insert_pos,
             name    =>  $opt_name,
             content =>  "DUMMY",
             ws      =>  ' '
@@ -1043,7 +1157,7 @@ sub updateSingleOption
         
         if( ref( $opt_val ) )
         {
-            for( my $i = 0; $i <= $#$opt_val; $i++ )
+            for( $i = 0; $i <= $#$opt_val; $i++ )
             {
                 $class->addOptionData({
                     data    =>  $data,
@@ -1069,7 +1183,7 @@ sub updateSingleOption
             delete $section->{$opt_name};
         }
         #local $Data::Dumper::Maxdepth = 1;
-        #print STDERR "Section for '$opt_name': \n".qd( $section->{$opt_name} );
+        y2debug( "Section for '$opt_name': " );
         $data->{__internal}{dirty} = 1;
         return 1;
         
@@ -1137,17 +1251,19 @@ sub rewriteChangedFiles
 {
     my $class = shift || return undef;
     #return 1 if $delaywrite;
+
     while( my( $filename, $data ) = each %$files )
     {
         next if !defined( $data->{__internal}->{dirty} );
         delete $data->{__internal}{dirty};
         my @range = sort { $class->keycompare( $a, $b ) } keys %$data;
-        
+      
         my $file = "";
         foreach my $key ( @range )
         {
             next if $key eq "__internal";
             my $opt = $data->{"$key"};
+
             if( $opt->{type} eq "comment" ){
             } elsif( $opt->{type} eq "schemainclude" )
             {
@@ -1157,8 +1273,24 @@ sub rewriteChangedFiles
                 $file .= $opt->{type};
             }
             $file .= $opt->{ws};
-            $file .= $opt->{content_string};
-            if( $opt->{content_string} !~ /\n$/ )
+
+            if($class->__mayQuote($opt->{type})) {
+                my $content = $opt->{content_string};
+
+                y2debug("rewriteChangedFiles: quote '$content'");
+
+                $content =~ s/\\/\\\\/g;
+                $content =~ s/"/\\"/g;
+                $content =~ s/(\S)(\s*)$/$1"$2/;
+                $content =~ s/^/"/;
+
+                y2debug("rewriteChangedFiles: finish quote '$content'");
+
+                $file .= $content;
+            } else {
+                $file .= $opt->{content_string};
+            }
+            if( $file !~ /\n$/ )
             {
                 $file .= "\n";
                 y2debug( "adding \\n to <".$opt->{type}."> at position <$key>" );
@@ -1179,6 +1311,36 @@ sub rewriteChangedFiles
 }
 
 ##
+## sub deleteSection( $section_name )
+##
+## deletes specified section from configuration
+## returns 1 on success and undef on error
+##
+## TODO: change for multiple file support
+## TODO: parameter checking
+##
+sub deleteSection
+{
+    my $class = shift;
+    my $s_name = shift || return undef;
+
+    return 1 if not exists $lookup->{$s_name};
+
+    y2debug( "deleting section '$s_name'" );
+    
+    my $section = $lookup->{$s_name};
+    while( my ($opt_name, $optlist) = each %$section )
+    {
+        foreach my $opt ( @$optlist )
+        {
+            delete $opt->{dataref}{$opt->{datapos}};
+        }
+    }
+    delete $lookup->{$s_name};
+    return 1;
+}
+
+##
 ## sub inc( \$datapos )
 ##
 ## increases the internal data index type by 1
@@ -1192,7 +1354,182 @@ sub inc
     );
     my @a = split( /\./, $$num );
     $a[$#a]++;
-    $$num = join( ",", @a );
+    $$num = join( ".", @a );
+}
+
+##
+## sub dec( \$datapos )
+##
+## decreases internal data index type by 1
+##
+sub dec
+{
+    my $class = shift || return undef;
+    my $num = shift || return undef;
+
+    my @a = split( /\./, $$num );
+    $a[$#a]--;
+    $$num = join( ".", @a );
+}
+
+##
+## sub computeOptionMD5( $option_string )
+##
+## computes a md5 for a option value
+## TODO: handle doubleticks (whatever they are called... -> " <- this char ;) )
+## TODO: parameter checks
+##
+sub getOptionMD5
+{
+    my $class = shift || return undef;
+    my $val = shift;
+
+    #chop whitespace
+    $val =~ s/\s+$//s;
+    #compress whitespace
+    $val =~ s/\s+/ /gs;
+
+    return md5_hex( encode_utf8( $val ) );
+}
+
+sub sortDataposList
+{
+    my $class = shift || return undef;
+    my @list = @_ || return undef;
+    return undef if( ref($list[0]) eq "LIST" );
+
+    my @newlist = sort { $class->keycompare( $a, $b ) } @list;
+    return \@newlist;
+}
+
+##
+## sub sortOptionList( \@list )
+##
+## sorts a list of options as contained in the lookup section
+##
+## TODO: support multiple files
+##
+sub sortOptionList
+{
+    my $class = shift || return undef;
+    my $list = shift;
+
+    my @newlist = sort { $class->keycompare( $a->{datapos}, $b->{datapos} ) } @$list;
+    local $Data::Dumper::Maxdepth = 2;
+
+    return \@newlist;
+}
+
+## sub sortByConstraints( $section_type, \@option_names )
+##
+## sorts a list of option names according to constraints
+## after sorting, the options depending on less other options are before the 
+## options depending on more.
+##
+## TODO: parameter checks
+##
+sub sortByConstraints
+{
+    my $class = shift;
+    my $s = shift;
+    my $list = shift;
+    return sort {
+        #print STDERR "comparing $a <-> $b\n";
+        my $tmp = $class->getConstraints( $s, $a ) || return 0;
+        my $dep_a = $tmp->{after} || return 0;
+        $tmp = $class->getConstraints( $s, $b ) || return 0;
+        my $dep_b = $tmp->{after} || return 0;
+        #print STDERR "-------------------------------------\n$a comes after:\n".qd( $dep_a );
+        #print STDERR "-------------------------------------\n$b comes after:\n".qd( $dep_b );
+
+        return 1 if exists( $dep_a->{$b} );
+        return -1 if exists( $dep_b->{$a} );
+        return 0;
+    } @$list;
+}
+
+##
+## sub keycompare( $a, $b )
+##
+## comparison function to compare two internal data indices
+## use as custom comparison function to sort a list of internal data indices
+##
+## TODO: handle undefined values properly to get rid of 'no warnings'
+##
+sub keycompare
+{
+    no warnings qw( uninitialized );
+    my $class = shift;
+    return 0 if $_[0] eq $_[1];
+    my $a = ref( $_[0] ) ? $_[0] : [ split( /\./, $_[0] ) ];
+    my $b = ref( $_[0] ) ? $_[1] : [ split( /\./, $_[1] ) ];
+    
+    my $ax = shift( @$a );
+    my $bx = shift( @$b );
+    return $ax <=> $bx if $ax != $bx;
+    return $class->keycompare( $a, $b );
+}
+
+sub __mayQuote {
+    my $class = shift;
+    my $key = shift;
+
+    if(exists $quote->{$key}) {
+        return $quote->{$key};
+    }
+    return 0;
+}
+
+sub qd
+{
+    return Data::Dumper->Dump( [ @_ ] );
+}
+
+sub sambaACLHack {
+    my $class = shift;
+    my $dn = shift;
+    my $file = '/etc/openldap/slapd.conf';
+    my $acl = "## Yast2 samba hack ACL\n";
+    $acl   .= "## allow the \"ldap admin dn\" access, but deny everyone else\n";
+    $acl   .= "access to attrs=SambaLMPassword,SambaNTPassword\n";
+    $acl   .= "    by dn=\"$dn\" write\n";
+    $acl   .= "    by * none\n";
+    $acl   .= "## Yast2 samba hack ACL done\n";
+
+    open( SLAPD, "< $file" ) or return $class->SetError(
+            summary => "unable to open $file for reading",
+            code    => "LDAPSERVER_OPEN_FAILED"
+    );
+    my @slapd = <SLAPD>;
+    close(SLAPD);
+
+    # kick out old samba hack ACLs
+    for( my $i=0; $i<@slapd; $i++ ) {
+        next unless( $slapd[$i] =~ /^## Yast2 samba hack ACL/ );
+        do {
+            $slapd[$i] = '';
+        } while( $slapd[++$i] !~ /^## Yast2 samba hack ACL done/ );
+        $slapd[$i] = '';
+    }
+
+    for( my $i=0; $i<@slapd; $i++ ) {
+        # make sure the include is there and our ACL is inserted later
+        next unless( $slapd[$i] =~ /^include.*samba3.schema/ );
+
+        # search for first ACL or backend oder database section and put the
+        # ALC in front of that.
+        while( $slapd[$i] !~ /^(access|database|backend)/ and ++$i<@slapd) {}
+        $slapd[$i-1] .= "$acl";
+        last;
+    }
+
+    open( SLAPD, "> $file" ) or return $class->SetError(
+            summary => "unable to open $file for writing",
+            code    => "LDAPSERVER_OPEN_FAILED"
+    );
+    print SLAPD @slapd;
+    close(SLAPD);
+    return 1;
 }
 
 ##

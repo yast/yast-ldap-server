@@ -14,7 +14,15 @@ my $pwd = $ENV{'PWD'};
 print "$pwd\n";
 exit 1 if (!defined $pwd || $pwd eq "");
 
+my $new_database = 'o=Müller GmbH & Co/KG,c=com';
+
 init_testsetup();
+
+T39_ReadSLPEnabled();
+T40_WriteSLPEnabled();
+
+exit;
+
 T01_Interface();
 T02_Version();
 T03_Capabilities();
@@ -49,6 +57,13 @@ T07_ReadSchemaIncludeList();
 T08_ReadAllowList();
 T21_ReadTLS();
 
+T37_CheckCommonServerCertificate();
+T38_ConfigureCommonServerCertificate();
+T21_ReadTLS();
+
+T39_ReadSLPEnabled();
+T40_WriteSLPEnabled();
+   
 sub printError {
     my $err = shift;
     foreach my $k (keys %$err) {
@@ -199,8 +214,8 @@ sub T09_AddDatabase {
 
     my $hash = {
                 database    => 'bdb',
-                suffix      => 'dc=example,dc=com',
-                rootdn      => "cn=Admin,dc=example,dc=com",
+                suffix      => "$new_database",
+                rootdn      => 'cn=Admin,'."$new_database",
                 passwd      => "system",
                 cryptmethod => 'SMD5',
                 directory   => "/var/lib/ldap/SuSE_Test_DB",
@@ -220,9 +235,9 @@ sub T10_EditDatabase {
     print STDERR "------------------- T10_EditDatabase ---------------------\n";
     print "------------------- T10_EditDatabase ---------------------\n";
 
-    my $suffix = "dc=example,dc=com";
+    my $suffix = "$new_database";
     my $hash = {
-                rootdn  => "cn=Administrator,dc=example,dc=com",
+                rootdn  => 'cn=Administrator,'."$new_database",
                };
 
     my $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
@@ -279,7 +294,7 @@ sub T11_AddIndex {
     print STDERR "------------------- T11_AddIndex ---------------------\n";
     print "------------------- T11_AddIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->AddIndex("dc=example,dc=com", { attr => "uid,cn", param => "eq"});
+    my $res = YaPI::LdapServer->AddIndex("$new_database", { attr => "uid,cn", param => "eq"});
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -293,7 +308,7 @@ sub T12_EditIndex {
     print STDERR "------------------- T12_EditIndex ---------------------\n";
     print "------------------- T12_EditIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", "2de23a0b16b428bf1e175cba305d9563",
+    my $res = YaPI::LdapServer->EditIndex("$new_database", "2de23a0b16b428bf1e175cba305d9563",
                                           { attr => "uid,cn,gidnumber", param => "eq"});
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
@@ -308,7 +323,7 @@ sub T13_DeleteIndex {
     print STDERR "------------------- T13_DeleteIndex ---------------------\n";
     print "------------------- T13_DeleteIndex ---------------------\n";
     
-    my $res = YaPI::LdapServer->DeleteIndex("dc=example,dc=com", "590775aeaa1fce858a7a214faa21ca07");
+    my $res = YaPI::LdapServer->DeleteIndex("$new_database", "590775aeaa1fce858a7a214faa21ca07");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -322,7 +337,7 @@ sub T14_RecreateIndex {
     print STDERR "------------------- T14_RecreateIndex ---------------------\n";
     print "------------------- T14_RecreateIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->RecreateIndex("dc=example,dc=com");
+    my $res = YaPI::LdapServer->RecreateIndex("$new_database");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -480,7 +495,7 @@ sub T23_ReadIndex2() {
     print STDERR "------------------- T23_ReadIndex2 ---------------------\n";
     print "------------------- T23_ReadIndex2 ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex('dc=example,dc=com');
+    my $res = YaPI::LdapServer->ReadIndex("$new_database");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -494,7 +509,7 @@ sub T35_ReadDatabase2 {
     print STDERR "------------------- T35_ReadDatabase2 ---------------------\n";
     print "------------------- T35_ReadDatabase2 ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadDatabase('dc=example,dc=com');
+    my $res = YaPI::LdapServer->ReadDatabase("$new_database");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -508,7 +523,65 @@ sub T36_ReadIndex2 {
     print STDERR "------------------- T36_ReadIndex2 ---------------------\n";
     print "------------------- T36_ReadIndex2 ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex('dc=example,dc=com"');
+    my $res = YaPI::LdapServer->ReadIndex("$new_database");
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T37_CheckCommonServerCertificate {
+    print STDERR "------------------- T37_CheckCommonServerCertificate ---------------------\n";
+    print "------------------- T37_CheckCommonServerCertificate ---------------------\n";
+
+    my $res = YaPI::LdapServer->CheckCommonServerCertificate();
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T38_ConfigureCommonServerCertificate {
+    print STDERR "------------------- T38_ConfigureCommonServerCertificate ---------------------\n";
+    print "------------------- T38_ConfigureCommonServerCertificate ---------------------\n";
+
+    my $res = YaPI::LdapServer->ConfigureCommonServerCertificate();
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T39_ReadSLPEnabled
+{
+    print STDERR "------------------- T39_ReadSLPEnabled ---------------------\n";
+    print "------------------- T39_ReadSLPEnabled ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadSLPEnabled();
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
+
+sub T40_WriteSLPEnabled
+{
+    print STDERR "------------------- T40_WriteSLPEnabled ---------------------\n";
+    print "------------------- T40_WriteSLPEnabled ---------------------\n";
+
+    my $res = YaPI::LdapServer->WriteSLPEnabled( 1 );
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);

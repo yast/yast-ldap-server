@@ -1,0 +1,25 @@
+/**
+ * File:	modules/LdapServerConf.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Global variables for ldap-server proposal.
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *
+ * $Id$
+ *
+ * Representation of the configuration of the Ldapserver database
+ * that is generated during installation.
+ */
+
+{
+    module "LdapServerConf";
+    textdomain "ldap-server";
+
+    global string baseDN = "";
+    global string rootDN = "";
+    global string rootPW = "";
+    global string enctype = "SSHA";
+    global boolean useCommonCA = true;
+    global boolean registerSLP = true;
+    global boolean proposal_changed = false;
+    global boolean wroteDatabase = false;
+}
