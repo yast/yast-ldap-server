@@ -22,6 +22,7 @@ T04_ReadDatabaseList();
 T05_ReadDatabase();
 T06_ReadIndex();
 T07_ReadSchemaIncludeList();
+T08_ReadAllowList();
 
 sub printError {
     my $err = shift;
@@ -139,3 +140,16 @@ sub T07_ReadSchemaIncludeList {
     }
 }
 
+sub T08_ReadAllowList {
+    print STDERR "------------------- T08_ReadAllowList ---------------------\n";
+    print "------------------- T08_ReadAllowList ---------------------\n";
+
+    my $res = YaPI::LdapServer->ReadAllowList();
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+}
