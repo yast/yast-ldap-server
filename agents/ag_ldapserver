@@ -32,6 +32,8 @@ my $slapdconf = "";
 #debugsuffix
 my $debugsuffix = undef;
 
+my $delaywrite = undef;
+
 #command handlers
 my %command = (
     Read  => {
@@ -41,13 +43,7 @@ my %command = (
         backend         =>  \&readUnparsedSection,
         database        =>  \&readUnparsedSection,
         debug           =>  \&doDebug
-    },
-    Write => {
-        global      =>  '1'
-        database    =>  '1'
-        backend     =>  '1'
     }
-    
 );
 
 #information about relationships between options
@@ -166,21 +162,11 @@ sub Write
     my @path = split( /\./, shift );
     shift @path;
 
-    #bail if wrong command was specified
-    return $class->SetError(
-        summary => "Illegal command '".$path[0]."'",
-        code    => "LDAPSERVER_CMD_ERR"
-    ) if( !exists( $command{Write}->{$path[0]} ) );
-    
     #open configfile handle
     open( my $cfh, '+<', $slapdconf ) or return $class->SetError(
         summary => "Failed to open file $slapdconf for reading!",
         code    => "LDAPSERVER_OPEN_FAILED"
     );
-    
-    my $i = 0;
-
-    y2debug( $i++ );
     
     if( $path[0] eq 'global' )
     {
@@ -189,6 +175,8 @@ sub Write
             summary => "argument to 'write .global' needs to be a map",
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
+
+        #my @sorted_keys = $class->sortByConstraints( keys %$options );
 
         while( my ($opt_name, $opt_val) = each %$options )
         {
@@ -220,12 +208,14 @@ sub Write
         {
             $class->updateSingleOption( 'database '.$db_suffix, $opt_name, $opt_val ) || return undef;
         }
+    } else
+    {
+        return $class->SetError(
+            summary => "Illegal path '.".join( ".", @path )."'",
+            code    => "SCR_WRONG_PATH"
+        );
     }
     return $class->rewriteChangedFiles();
-    #my $cmdref = $command{Write}->{$path[0]};
-    #my $ret = $cmdref->( $class, [@path], [@_] );
-    
-    #return $ret;
 }
 
 sub Execute
@@ -790,10 +780,15 @@ sub updateSingleOption
     #bail if option is not supported by backend
     if( $section_type eq "database" || $section_type eq "backend" )
     {
-        my $back_type = $section->{$section_type}->{content_string};
+        my $back_opt = $section->{$section_type}->[0];
+        my $back_type = $back_opt->{dataref}->{$back_opt->{datapos}}->{content_string};
+        
+        local $Data::Dumper::Maxdepth = 2;
+        print STDERR "Constraints hash for option '$opt_name':\n".qd( $constr );
+        
         $back_type =~ s/^(\S+).*$/$1/s;
 
-        if( !exists( $constr->{backend}->{$back_type} ) )
+        if( !exists( $constr->{backend}->{$back_type} ) && !exists( $constr->{backend}->{all} ) )
         {
             return $class->SetError(
                 summary => "option '$opt_name' is not supported from backend $back_type",
@@ -826,7 +821,14 @@ sub updateSingleOption
             #single-only option - just replace the content_string
             #print STDERR "no multi\n";
             my $opt = $section->{$opt_name}->[0];
-            $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
+            if( defined $opt_val )
+            {
+                $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
+            } else
+            {
+                delete( $opt->{dataref}->{$opt->{datapos}} );
+                delete( $section->{$opt_name} );
+            }
             $opt->{dataref}->{__internal}->{dirty} = 1;
             return 1;
         } else
@@ -904,7 +906,7 @@ sub updateSingleOption
                         ws      =>  $opt_ws
                     }) || return undef;
                 }
-            } else
+            } elsif( defined( $opt_val ) )
             {
                 $class->addOptionData({
                     data    =>  $data,
@@ -914,6 +916,9 @@ sub updateSingleOption
                     content =>  $opt_val,
                     ws      =>  $opt_ws
                 });
+            } else
+            {
+                delete $section->{$opt_name};;
             }
 
             #print STDERR join( ", ", sort { $class->keycompare( $a, $b ) } ( keys %$data ) )."\n";
@@ -973,6 +978,7 @@ sub getConstraints
             {
                 #y2debug( "entering global block" );
                 $c_hash = $constraints->{'global'}->{$opt_name};
+                $c_hash->{backend} = { all => 1 } if defined $c_hash && $_ ne "global";
             };
         last SWITCH;
     }
@@ -989,7 +995,7 @@ sub rewriteChangedFiles
     my $class = shift || return undef;
     while( my( $filename, $data ) = each %$files )
     {
-        #next if !defined( $data->{__internal}->{dirty} );
+        next if !defined( $data->{__internal}->{dirty} );
         my $__internal = delete $data->{__internal};
         my @range = sort { $class->keycompare( $a, $b ) } keys %$data;
         
@@ -1080,6 +1086,14 @@ sub sortOptionList
     local $Data::Dumper::Maxdepth = 2;
 
     return \@newlist;
+}
+
+## sub sortByConstraints
+##
+## sorts a list of option names according to constraints
+## after sorting, 
+sub sortByConstraints
+{
 }
 
 ##
