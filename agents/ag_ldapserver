@@ -43,8 +43,9 @@ my %command = (
         debug           =>  \&doDebug
     },
     Write => {
-        rewrite     =>  \&debugWrite,
         global      =>  '1'
+        database    =>  '1'
+        backend     =>  '1'
     }
     
 );
