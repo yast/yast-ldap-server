@@ -12,6 +12,17 @@
 #
 #       - check constraints when reading config files
 #
+#       - IMPORTANT: check constraints before deleting a option (e.g. deleting rootdn when rootpw is still set)
+#
+#       - IMPORTANT: handle doubleticks -> " <- in option values
+#
+#       - return single only option values as scalar, not as listref when reading
+#
+#       - return sensible error codes
+#
+#       - lots of those ugly direct data accesses (like $section->{$opt_name}->[0]{dataref}{__internal}{filename} )
+#         could be hidden in subs, which would increase readability and stability
+#
 package ag_ldapserver;
 use strict;
 use YaST::SCRAgent;
@@ -32,7 +43,7 @@ my $slapdconf = "";
 #debugsuffix
 my $debugsuffix = undef;
 
-my $delaywrite = undef;
+my $delaywrite = 0;
 
 #command handlers
 my %command = (
@@ -47,15 +58,10 @@ my %command = (
 ); 
 
 #information about relationships between options
-#TODO: write a function that computes dependance levels
+#IMPORTANT: don't use this hash directly, use the $class->getConstraints function
 my $constraints = {
     database    => {
-        database    => {
-            multi   => 0,
-            backend => { all => 1 }
-        },
         suffix  => { 
-            after   => { database => 1 },
             multi   => 1, 
             backend => { all => 1 }
         },
@@ -63,31 +69,25 @@ my $constraints = {
             after   => { suffix => 1 },
             multi   => 0,
             backend => { all => 1 },
-            dlevel  => 2
         },
         rootpw  => {
             after   => { rootdn => 1 },
             multi   => 0,
             backend => { all => 1 },
-            dlevel  => 3
         },
         index => {
-            after   => { database => 1 },
             multi => 1,
             backend => { all => 1 }
         },
         directory   => { 
-            after   => { database => 1 },
             multi => 0,
             backend => { bdb => 1, ldbm => 1 }
         },
         cachesize   => {
-            after   => { database => 1 },
             multi => 0,
             backend => { bdb => 1, ldbm => 1 }
         },
         checkpoint  => { 
-            after   => { database => 1 },
             multi => 0,
             backend => { bdb => 1 }
         }
@@ -176,24 +176,26 @@ sub Write
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
-        #my @sorted_keys = $class->sortByConstraints( keys %$options );
+        my @sorted_keys = $class->sortByConstraints( 'global', keys %$options );
 
-        while( my ($opt_name, $opt_val) = each %$options )
+        foreach my $opt_name ( @sorted_keys )
         {
-            $class->updateSingleOption( 'global', $opt_name, $opt_val ) || return undef;
+            $class->updateSingleOption( 'global', $opt_name, $options->{$opt_name} ) || return undef;
         }
     } elsif( $path[0] eq 'backend' )
     {
         my $back_type = shift;
         my $options = shift;
         return $class->SetError(
-            summary => "argument to 'write .global' needs to be a map",
+            summary => "argument to 'write .backend' needs to be a map",
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
-        while( my ($opt_name, $opt_val) = each %$options )
+        my @sorted_keys = $class->sortByConstraints( 'backend', [ keys %$options ] );
+        
+        foreach my $opt_name ( @sorted_keys )
         {
-            $class->updateSingleOption( 'backend '.$back_type, $opt_name, $opt_val ) || return undef;
+            $class->updateSingleOption( 'backend '.$back_type, $opt_name, $options->{$opt_name} ) || return undef;
         }
     } elsif( $path[0] eq 'database' )
     {
@@ -204,9 +206,12 @@ sub Write
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
-        while( my ($opt_name, $opt_val) = each %$options )
+        #print STDERR join( ", ", $class->sortByConstraints( 'database', [ keys %$options ] ) )."\n";
+        my @sorted_keys = $class->sortByConstraints( 'database', [ keys %$options ] );
+        
+        foreach my $opt_name ( @sorted_keys )
         {
-            $class->updateSingleOption( 'database '.$db_suffix, $opt_name, $opt_val ) || return undef;
+            $class->updateSingleOption( 'database '.$db_suffix, $opt_name, $options->{$opt_name} ) || return undef;
         }
     } else
     {
@@ -239,6 +244,92 @@ sub Execute
         
         $debugsuffix = $tmpsuffix;
         return 1;
+    } elsif( $path[0] eq "delaywrite" )
+    {
+        my $dw = shift;
+        if( $dw =~ /[^01]/ )
+        {
+            return $class->SetError(
+                summary => "argument to execute .delaywrite must be either 0 or 1",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+        $delaywrite = $dw;
+        return $class->rewriteChangedFiles();
+    } elsif( $path[0] eq "adddatabase" )
+    {
+        my $params = shift;
+        if( ref( $params ) ne "HASH" )
+        {
+            return $class->SetError(
+                summary => "argument to execute .adddatabase needs to be a map",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+        if( !exists( $params->{suffix} ) )
+        {
+            return $class->SetError(
+                summary => "execute .adddatabase: missing 'suffix' in argument map",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+        if( !exists( $params->{type} ) )
+        {
+            return $class->SetError(
+                summary => "execute .adddatabase: missing 'type' in argument map",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+        
+        my $suffix = $params->{suffix};
+        $suffix =~ s/\s+$//;
+        $suffix =~ s/\s+/ /g;
+        my $section_name = 'database '.$suffix;
+        if( exists( $lookup->{$section_name} ) )
+        {
+            return $class->SetError(
+                summary => "execute .adddatabase: a database serving suffix '$suffix' does already exist",
+                code    => "PARAM_CHECK_FAILED"
+            );
+        }
+
+        #create new database section at end of config file
+        my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+        my $datapos = ( split( /\./, $dataposlist[$#dataposlist] ))[0] + 1;
+
+
+        my $section = {};
+        $lookup->{$section_name} = $section;
+       
+        $class->addOptionData({
+            data    =>  $data,
+            section =>  $section,
+            datapos =>  $datapos,
+            name    =>  'comment',
+            content =>  "#created automatically by ag_ldapserver\n",
+            ws      =>  ''
+        });
+        $class->inc( \$datapos );
+        $class->addOptionData({
+            data    =>  $data,
+            section =>  $section,
+            datapos =>  $datapos,
+            name    =>  'database',
+            content =>  $params->{type},
+            ws      =>  ' '
+        });
+        $class->inc( \$datapos );
+        $class->addOptionData({
+            data    =>  $data,
+            section =>  $section,
+            datapos =>  $datapos,
+            name    =>  'suffix',
+            content =>  $params->{suffix},
+            ws      =>  ' '
+        });
+        
+        $data->{__internal}{dirty} = 1;
+        return $class->rewriteChangedFiles();
     } else
     {
         return $class->SetError(
@@ -783,8 +874,8 @@ sub updateSingleOption
         my $back_opt = $section->{$section_type}->[0];
         my $back_type = $back_opt->{dataref}->{$back_opt->{datapos}}->{content_string};
         
-        local $Data::Dumper::Maxdepth = 2;
-        print STDERR "Constraints hash for option '$opt_name':\n".qd( $constr );
+        #local $Data::Dumper::Maxdepth = 2;
+        #print STDERR "Constraints hash for option '$opt_name':\n".qd( $constr );
         
         $back_type =~ s/^(\S+).*$/$1/s;
 
@@ -798,13 +889,14 @@ sub updateSingleOption
     }
 
     #bail if multiple options of the same type are distributed between different files
-    if( $constr->{multi} )
+    if( $constr->{multi} && exists( $section->{$opt_name} ) )
     {
-        my $file = $section->{$opt_name}->[0]->{dataref}->{__internal}->{filename};
-        #print STDERR "file: $file\n";
+        my $file = $section->{$opt_name}->[0]{dataref}{__internal}{filename};
+        local $Data::Dumper::Maxdepth = 2;
         foreach my $opt ( @{$section->{$opt_name}} )
         {
             my $tmpfile = $opt->{dataref}->{__internal}->{filename};
+            #print STDERR "tmpfile: $tmpfile\tfile: $file\n";
             next if( $tmpfile eq $file );
             return $class->SetError(
                 summary => "Multiple options of type $opt_name are spanned between 2 or more files. The current agent version cannot handle this.",
@@ -813,133 +905,212 @@ sub updateSingleOption
         }
     }
 
-    #option exists already
-    if( exists $section->{$opt_name} )
+    #generate dummy option (which will be replaced later) if the option does not exist yet
+    #TODO: some of this could be sourced out into a sub (getWritePosition or similar)
+    if( !exists( $section->{$opt_name} ) )
     {
-        if( !$constr->{multi} )
+        #check if option depends on something
+        foreach my $deps_on ( keys %{$constr->{after}} )
         {
-            #single-only option - just replace the content_string
-            #print STDERR "no multi\n";
-            my $opt = $section->{$opt_name}->[0];
-            if( defined $opt_val )
+            if( !exists( $section->{$deps_on} ) )
             {
-                $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
-            } else
-            {
-                delete( $opt->{dataref}->{$opt->{datapos}} );
-                delete( $section->{$opt_name} );
+                return $class->SetError(
+                    summary => "option '$opt_name' depends on '$deps_on', which doesnt exist in section '$section_name'",
+                    code    => "PARAM_CHECK_FAILED"
+                );
             }
-            $opt->{dataref}->{__internal}->{dirty} = 1;
-            return 1;
-        } else
+        }
+
+        #FIXME: finish this part (reverse constraint checking)
+        #my $before_pos = undef;
+        #foreach my $sect_opt_name ( keys %$section )
+        #{
+        #    next if $sect_opt_name eq $opt_name;
+        #    my $so_constr = $class->getConstraints( $section_type, $sect_opt_name );
+        #    if( exists( $so_constr->{after}{$opt_name} ) )
+        #    {
+        #        #the 'to be written' option has to appear before the currently checked option
+        #        my @so_poslist = sort {
+        #                         $class->keycompare( $a->{datapos}, $b->{datapos} ) 
+        #                      } $section->{$sect_opt_name};
+        #        #TODO: finish here
+        #    }
+        #}
+
+        #get last datapos of section
+        
+        #FIXME: this has to be changed for multiple files support
+        my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+        shift @dataposlist;
+
+        my $section_start = undef;
+        $section_start = $dataposlist[0] if $section_type eq 'global';
+        $section_start = $section->{$section_type}[0]{datapos} if not defined $section_start;
+        my $in_section = 0;
+        my $last_pos = undef;
+        #print STDERR "starting to find end position of section '$section_name'\n";
+        #print STDERR "section_start is: $section_start\n";
+        foreach my $dp ( @dataposlist )
         {
-            #multi option
-            #TODO: has to be changed for multiple files support
-            #print STDERR "multi\n";
-
-            #check if all options of this are placed with no other option between
-            
-            my $optionlist = $class->sortOptionList( $section->{$opt_name} );
-            my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
-
-            #print STDERR qd( \@dataposlist );
-            my $i = 1;
-            my $found = 0;
-            my $option_between = undef;
-            foreach my $pos ( @dataposlist )
+            my $cp = $class->keycompare( $dp, $section_start );
+            #print STDERR "----------------------------------------\n";
+            #print STDERR "dp: $dp\tcp: $cp\n";
+            if( $cp == -1 )
             {
-                if( not $found )
+                next;
+            } elsif( $cp == 0 )
+            {
+                $in_section = 1;
+                next;
+            } elsif( $cp == 1 )
+            {
+                my $type = $data->{$dp}{type};
+                #print STDERR "type: $type\n";
+                $in_section = 0 if( $type eq 'backend' || $type eq 'database' );
+                if( $in_section )
                 {
-                    next if( $pos ne $optionlist->[0]->{datapos} );
-                    $found = 1;
+                    $last_pos = $dp;
+                    next;
                 } else
                 {
-                    last if( $i == $#$optionlist );
-
-                    #print STDERR "checking global pos '$pos' and option pos '".$optionlist->[$i]->{datapos}."'\n";
-                    if( $pos ne $optionlist->[$i++]->{datapos} )
-                    {
-                        $option_between = $data->{$pos}->{type};
-                        last;
-                    }
+                    last;
                 }
-            } # foreach( @dataposlist )
-           
-            return $class->SetError(
-                summary => "while trying to write option '$opt_name', some other option ('".$option_between."') was found inbetween. This cannot be handled by the current agent version.",
-                code    => "LDAPSERVER_INTERNAL"
-            ) if defined $option_between;
-
-            #no option is between the options to write, so just remove the old ones and put the new ones
-            #at the same place
-            
-            
-            my $base_pos = $optionlist->[0]->{datapos};
-            
-            #preserve whitespace
-            my $opt_ws = $data->{$base_pos}->{ws};
-            
-            #first remove old ones
-            foreach( @$optionlist )
+            } else
             {
-                #print STDERR "deleting entry '".$_->{datapos}."'\n";
-                delete( $data->{$_->{datapos}} );
+                return $class->SetError(
+                    summary => "some strange undefinable error occured while comparing two datapositions",
+                    code    => "LDAPSERVER_INTERNAL"
+                );
             }
+        }
 
-            $section->{$opt_name} = [];
-            
-            #print STDERR join( ", ", sort( keys %$data ) )."\n";
-            
-            #print STDERR qd( $opt_val );
-            #now add new ones
-            if( ref( $opt_val ) )
+        #print STDERR "found last position at $last_pos\n";
+
+        #create the dummy option
+        $class->addOptionData({
+            data    =>  $data,
+            section =>  $section,
+            datapos =>  $last_pos.".1",
+            name    =>  $opt_name,
+            content =>  "DUMMY",
+            ws      =>  ' '
+        });
+
+        #local $Data::Dumper::Maxdepth = 1;
+        #print STDERR qd( $section->{$opt_name} );
+        
+        #return $class->SetError(
+        #    summary => "options that don't exist in the config file cannot be written atm. (tried to write '$opt_name')",
+        #    code    => "LDAPSERVER_INTERNAL"
+        #);
+    }
+    
+    if( !$constr->{multi} )
+    {
+        #single-only option - just replace the content_string
+        my $opt = $section->{$opt_name}->[0];
+        if( defined $opt_val )
+        {
+            $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
+        } else
+        {
+            delete( $opt->{dataref}->{$opt->{datapos}} );
+            delete( $section->{$opt_name} );
+        }
+        $opt->{'dataref'}{'__internal'}{'dirty'} = 1;
+        
+        return 1;
+    } else
+    {
+        #multi option
+        #TODO: has to be changed for multiple files support
+        
+        my $optionlist = $class->sortOptionList( $section->{$opt_name} );
+        my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+
+        #check if all options of this are placed with no other option between
+        my $i = 1;
+        my $found = 0;
+        my $option_between = undef;
+        foreach my $pos ( @dataposlist )
+        {
+            last if( scalar @$optionlist == 1 );
+            if( not $found )
             {
-                for( my $i = 0; $i <= $#$opt_val; $i++ )
+                next if( $pos ne $optionlist->[0]->{datapos} );
+                $found = 1;
+            } else
+            {
+                last if( $i == $#$optionlist );
+                if( $pos ne $optionlist->[$i++]->{datapos} )
                 {
-                    #print STDERR "trying to update position $i\n";
-                    $class->addOptionData({
-                        data    =>  $data,
-                        section =>  $section,
-                        datapos =>  "$base_pos.".($i+1),
-                        name    =>  $opt_name,
-                        content =>  $opt_val->[$i],
-                        ws      =>  $opt_ws
-                    }) || return undef;
+                    $option_between = $data->{$pos}->{type};
+                    last;
                 }
-            } elsif( defined( $opt_val ) )
+            }
+        } # foreach( @dataposlist )
+       
+        return $class->SetError(
+            summary => "while trying to write option '$opt_name', some other option ('".$option_between."') was found inbetween. This cannot be handled by the current agent version.",
+            code    => "LDAPSERVER_INTERNAL"
+        ) if defined $option_between;
+
+        #no option is between the options to write, so just remove the old ones and put the new ones
+        #at the same place
+        
+        my $base_pos = $optionlist->[0]->{datapos};
+        my $opt_ws = $data->{$base_pos}->{ws};
+        
+        foreach( @$optionlist )
+        {
+            delete( $data->{$_->{datapos}} );
+        }
+
+        $section->{$opt_name} = [];
+        
+        if( ref( $opt_val ) )
+        {
+            for( my $i = 0; $i <= $#$opt_val; $i++ )
             {
                 $class->addOptionData({
                     data    =>  $data,
                     section =>  $section,
-                    datapos =>  $base_pos,
+                    datapos =>  "$base_pos.".($i+1),
                     name    =>  $opt_name,
-                    content =>  $opt_val,
+                    content =>  $opt_val->[$i],
                     ws      =>  $opt_ws
                 });
-            } else
-            {
-                delete $section->{$opt_name};;
             }
-
-            #print STDERR join( ", ", sort { $class->keycompare( $a, $b ) } ( keys %$data ) )."\n";
-            
-            return 1;
-            
-        } # else( !$constr->{multi} )
+        } elsif( defined( $opt_val ) )
+        {
+            $class->addOptionData({
+                data    =>  $data,
+                section =>  $section,
+                datapos =>  $base_pos,
+                name    =>  $opt_name,
+                content =>  $opt_val,
+                ws      =>  $opt_ws
+            });
+        } else
+        {
+            delete $section->{$opt_name};
+        }
+        #local $Data::Dumper::Maxdepth = 1;
+        #print STDERR "Section for '$opt_name': \n".qd( $section->{$opt_name} );
+        $data->{__internal}{dirty} = 1;
+        return 1;
         
-    } else # !exists( $section->{$opt_name} )
-    {
-        return $class->SetError(
-            summary => "options that don't exist in the config file cannot be written atm.",
-            code    => "LDAPSERVER_INTERNAL"
-        );
-    } # else ( !exists( $section->{$opt_name} ) )
-    
+    } # else( !$constr->{multi} )
+        
     return $class->SetError(
         summary => "undefined error while trying to update option '$opt_name' in section '$section_name'",
         code    => "LDAPSERVER_INTERNAL"
     );
 }
+
+##
+## sub isOptionBetween
+##
 
 ##
 ## sub getConstraints( $section_type, $opt_name )
@@ -964,22 +1135,21 @@ sub getConstraints
     {
         /^database$/ && do
             {
-                #y2debug( "entering database block" );
                 $c_hash = $constraints->{'database'}->{$opt_name};
                 $not_found = 1 if( !$c_hash );
             };
         ( /^backend$/ || $not_found ) && do
             {
-                #y2debug( "entering backend block" );
                 $c_hash = $constraints->{'backend'}->{$opt_name};
                 $not_found = 1 if( !$c_hash );
             };
         ( /^global$/ || $not_found ) && do
             {
-                #y2debug( "entering global block" );
                 $c_hash = $constraints->{'global'}->{$opt_name};
                 $c_hash->{backend} = { all => 1 } if defined $c_hash && $_ ne "global";
             };
+        #let the option depend on section delimiter ( backend/database options )
+        $c_hash->{after}->{$_} = 1 if defined $c_hash && !defined $c_hash->{after} && $_ ne "global";
         last SWITCH;
     }
     return $c_hash;
@@ -993,15 +1163,17 @@ sub getConstraints
 sub rewriteChangedFiles
 {
     my $class = shift || return undef;
+    #return 1 if $delaywrite;
     while( my( $filename, $data ) = each %$files )
     {
         next if !defined( $data->{__internal}->{dirty} );
-        my $__internal = delete $data->{__internal};
+        delete $data->{__internal}{dirty};
         my @range = sort { $class->keycompare( $a, $b ) } keys %$data;
         
         my $file = "";
         foreach my $key ( @range )
         {
+            next if $key eq "__internal";
             my $opt = $data->{"$key"};
             if( $opt->{type} eq "comment" ){
             } elsif( $opt->{type} eq "schemainclude" )
@@ -1088,12 +1260,32 @@ sub sortOptionList
     return \@newlist;
 }
 
-## sub sortByConstraints
+## sub sortByConstraints( $section_type, \@option_names )
 ##
 ## sorts a list of option names according to constraints
-## after sorting, 
+## after sorting, the options depending on less other options are before the 
+## options depending on more.
+##
+## TODO: parameter checks
+##
 sub sortByConstraints
 {
+    my $class = shift;
+    my $s = shift;
+    my $list = shift;
+    return sort {
+        #print STDERR "comparing $a <-> $b\n";
+        my $tmp = $class->getConstraints( $s, $a ) || return 0;
+        my $dep_a = $tmp->{after} || return 0;
+        $tmp = $class->getConstraints( $s, $b ) || return 0;
+        my $dep_b = $tmp->{after} || return 0;
+        #print STDERR "-------------------------------------\n$a comes after:\n".qd( $dep_a );
+        #print STDERR "-------------------------------------\n$b comes after:\n".qd( $dep_b );
+
+        return 1 if exists( $dep_a->{$b} );
+        return -1 if exists( $dep_b->{$a} );
+        return 0;
+    } @$list;
 }
 
 ##
@@ -1107,6 +1299,7 @@ sub sortByConstraints
 sub keycompare
 {
     my $class = shift;
+    return 0 if $_[0] eq $_[1];
     no warnings;
     my $a = ref( $_[0] ) ? $_[0] : [ split( /\./, $_[0] ) ];
     my $b = ref( $_[0] ) ? $_[1] : [ split( /\./, $_[1] ) ];
@@ -1119,7 +1312,7 @@ sub keycompare
 
 sub qd
 {
-    return Data::Dumper->Dump( [ shift ] );
+    return Data::Dumper->Dump( [ @_ ] );
 }
 
 package main;
