@@ -191,8 +191,8 @@ YaST2 cannot continue the configuration
 without installing the package."), "openldap2" ) );
 	    } else {
 		// translators: error popup before aborting the module
-		Popup::Error( sformat( _("YaST2 cannot continue the configuration
-without installing the required packages."), "openldap2" ) );
+		Popup::Error (_("YaST2 cannot continue the configuration
+without installing the required packages."));
 	    }
 
 	    return ret;
