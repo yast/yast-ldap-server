@@ -44,7 +44,7 @@ my %command = (
         database        =>  \&readUnparsedSection,
         debug           =>  \&doDebug
     }
-);
+); 
 
 #information about relationships between options
 #TODO: write a function that computes dependance levels
@@ -200,7 +200,7 @@ sub Write
         my $db_suffix = shift;
         my $options = shift;
         return $class->SetError(
-            summary => "argument to 'write .global' needs to be a map",
+            summary => "argument to 'write .database' needs to be a map",
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
