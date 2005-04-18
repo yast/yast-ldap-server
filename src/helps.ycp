@@ -170,28 +170,20 @@ order causes the LDAP server not to start.</p>
     /* Tree Item Dialog "databases" 2/2 */
     _("<p>To add a new database, press <b>Add Database...</b>.</p>"),
 
-    /* Tree Item Dialog for existing "database" 1/6 */
+    /* Tree Item Dialog for existing "database" 1/5 */
     "database_detail" : _("<p>In this dialog, edit some parameters of this database.<p>") +
 
-    /* Tree Item Dialog for existing "database" 2/6 */
+    /* Tree Item Dialog for existing "database" 2/5 */
     _("<p>With <b>Root DN</b>, change the DN for the administrator.") +
 
-    /* Tree Item Dialog for existing "database" 3/6 */
-    _("Enter the complete DN or only the first part and append the Base DN automatically ")+
+    /* Tree Item Dialog for existing "database" 3/5 */
+    _("Enter the complete DN or only the first part and append the Base DN automatically with <b>Append Base DN</b>.</p>")+
 
-    /* Tree Item Dialog for existing "database" 4/6 */
-    _("with <b>Append Base DN</b>.</p>")+
+    /* Tree Item Dialog for existing "database" 4/5 */
+    _("<p>To change the password for the root account, enter a new one and select the <b>Encryption</b>.</p>") +
 
-    /* Tree Item Dialog for existing "database" 5/6 */
-    _("<p>To change the password for the root account, enter a new one ")+
-
-    /* Tree Item Dialog for existing "database" 6/6 */
-    _("and select the <b>Encryption</b>.</p>") +
-
-    /* Tree Item Dialog for existing "database" 7/7 */
-    _("<p>The password fields are initially empty, even if a password
-is already set in the configuration file.</p>
-"),
+    /* Tree Item Dialog for existing "database" 5/5 */
+    _("<p>The password fields are initially empty, even if a password is already set in the configuration file.</p>"),
 
 
 ];
