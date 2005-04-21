@@ -17,7 +17,7 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=ldap-server
 X-SuSE-YaST-AutoInstClonable=true
 
-Icon=ldap_client
+Icon=yast-ldap-server
 Exec=/sbin/yast2 ldap-server 
 
 Name=LDAP Server
