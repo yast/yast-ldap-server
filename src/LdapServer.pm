@@ -697,6 +697,10 @@ sub Import {
         $tlsSettings = $hash->{tlsSettings};
     }
 
+    if(exists $hash->{schemaIncludeList}) {
+        $schemaIncludeList = $hash->{schemaIncludeList};
+    }
+
     if(exists $hash->{configureCommonServerCertificate}) {
         $configureCommonServerCertificate = $hash->{configureCommonServerCertificate};
     }
@@ -736,6 +740,7 @@ sub Export {
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
     $hash->{tlsSettings} = $tlsSettings;
+    $hash->{schemaIncludeList} = $schemaIncludeList;
     $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
     $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
     $hash->{databaseNEW} = $databaseNEW;
