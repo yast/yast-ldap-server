@@ -24,11 +24,11 @@ Change the settings of the initial LDAP database here.</p>
     _("<p>The <b>Base DN</b> option specifies the root of the database that will be created.</p>") +
 
     /* Proposal help 3/6 */
-    _("<p>A <b>Root DN</b>, along with a <b>Root Password</b>, gives the possibility 
-to authenticate as superuser to the database, surpassing all ACLs and other 
+    _("<p>A <b>Root DN</b> along with a <b>Root Password</b> makes it possible to
+to authenticate as the superuser for the database, surpassing all ACLs and other 
 administrative limit restrictions. Checking <b>Append Base DN</b> appends the 
-<b>Base DN</b> entered above, e.g., a base DN of <i>dc=com</i> and root DN of 
-<i>c=Admin</i> would combine to an effective root DN of <i>c=Admin,dc=com</i>.<p>
+<b>Base DN</b> entered above, for example, a base DN of <tt>dc=com</tt> and root DN of 
+<tt>c=Admin</tt> would combine to an effective root DN of <tt>c=Admin,dc=com</tt>.<p>
 ") +
 
     /* Proposal help 4/6 */
@@ -177,7 +177,7 @@ order causes the LDAP server not to start.</p>
     _("<p>With <b>Root DN</b>, change the DN for the administrator.") +
 
     /* Tree Item Dialog for existing "database" 3/5 */
-    _("Enter the complete DN or only the first part and append the Base DN automatically with <b>Append Base DN</b>.</p>")+
+    _("Enter the complete DN or only the first part and append the base DN automatically with <b>Append Base DN</b>.</p>")+
 
     /* Tree Item Dialog for existing "database" 4/5 */
     _("<p>To change the password for the root account, enter a new one and select the <b>Encryption</b>.</p>") +

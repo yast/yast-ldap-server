@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Aug 18 12:40:26 CEST 2005 - locilka@suse.cz
+
+- merged proofread texts
+
+-------------------------------------------------------------------
 Thu Mar 31 17:34:55 CEST 2005 - mc@suse.de
 
 - add requires yast2-ca-management to spec file 
