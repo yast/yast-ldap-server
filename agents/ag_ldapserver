@@ -63,37 +63,37 @@ my $constraints = {
     database    => {
         database => {
             multi   => 0,
-            backend => { all => 1 },
+            backend => { all => 1 }
         },
         suffix  => { 
             multi   => 1, 
-            backend => { all => 1 },
+            backend => { all => 1 }
         },
         rootdn  => {
             after   => { suffix => 1 },
             multi   => 0,
-            backend => { all => 1 },
+            backend => { all => 1 }
         },
         rootpw  => {
             after   => { rootdn => 1 },
             multi   => 0,
-            backend => { all => 1 },
+            backend => { all => 1 }
         },
         index => {
             multi => 1,
-            backend => { all => 1 },
+            backend => { all => 1 }
         },
         directory   => { 
             multi => 0,
-            backend => { bdb => 1, ldbm => 1 },
+            backend => { bdb => 1, ldbm => 1 }
         },
         cachesize   => {
             multi => 0,
-            backend => { bdb => 1, ldbm => 1 },
+            backend => { bdb => 1, ldbm => 1 }
         },
         checkpoint  => { 
             multi => 0,
-            backend => { bdb => 1 },
+            backend => { bdb => 1 }
         }
     },
     global      => {
@@ -522,12 +522,16 @@ sub initData
     {
         my $opt = $lookup->{$dblist[0]}{directory};
         my $opt_val = $opt->[0]{dataref}{$opt->[0]{datapos}}{content_string} if defined $opt;
-        if( defined $opt_val && $opt_val =~ /^\/var\/lib\/ldap/ )
+
+		#FIXME: extremely ugly check to determine if the database entry is the one from slapd.conf.default
+        if( defined $opt_val && $opt_val =~ m#^/var/lib/ldap/?$# )
         {
+			chomp $opt_val;
+			y2debug("checking for default slapd.conf database entry in <$opt_val>");
             #print STDERR "clean_dummy: seen the right directory value: $opt_val\n";
             #check if directory contains files
             my $database_exists = 0;
-            opendir( my $dir, "/var/lib/ldap" ) || ( my $dir_not_there = 1 );
+            opendir( my $dir, $opt_val ) || ( my $dir_not_there = 1 );
             if( not defined  $dir_not_there )
             {
                 while( defined( my $file = readdir( $dir ) ) )
@@ -536,6 +540,7 @@ sub initData
                     if( $file eq "id2entry.bdb" || $file eq "id2entry.dbb" )
                     {
                         #print STDERR "file is $file, -> database is valid\n";
+						y2debug("found database, leaving alone");
                         $database_exists = 1;
                         last;
                     }
@@ -546,6 +551,7 @@ sub initData
                 {
                     #delete database
                     #print STDERR "clean_dummy: directory is empty, deleting database\n";
+					y2debug("did not find database, clearing section <$dblist[0]>");
                     $class->deleteSection( $dblist[0] );
                 }
             }
@@ -703,8 +709,9 @@ sub __init_rec
                 {
                     $last_opt = "schemainclude";
                     $content .= $opt_val;
+					chomp $opt_val;
                     #$opt_val =~ s/\n/\\n/;
-                    #y2debug( "starting new <$last_opt> with value <$opt_val> at position <$datapos>" );
+                    y2debug( "starting new <$last_opt> with value <$opt_val> at position <$datapos>" );
                     next;
                 }
                 
@@ -906,6 +913,7 @@ sub updateSingleOption
     my $section = $lookup->{$section_name};
     $section_name =~ /^(\S+)/;
     my $section_type = $1;
+    y2debug( "updateSingleOption: trying to add option <$opt_name> to section <$section_name>" );
 
     #return successfully if a non-existing option is tried to delete
     if( !exists( $section->{$opt_name} ) && !defined $opt_val )
@@ -941,8 +949,12 @@ sub updateSingleOption
     #bail if option is not supported by backend
     if( $section_type eq "database" || $section_type eq "backend" )
     {
+		y2debug("updateSingleOption: checking constraints for option <$opt_name> in section <$section_type>");
         my $back_opt = $section->{$section_type}->[0];
+        
         my $back_type = $back_opt->{dataref}->{$back_opt->{datapos}}->{content_string};
+		chomp $back_type;
+		y2debug("updateSingleOption: back_opt: <$back_opt>, back_type: <$back_type>");
         
         #local $Data::Dumper::Maxdepth = 2;
         #print STDERR "Constraints hash for option '$opt_name':\n".qd( $constr );
@@ -952,7 +964,7 @@ sub updateSingleOption
         if( !exists( $constr->{backend}->{$back_type} ) && !exists( $constr->{backend}->{all} ) )
         {
             return $class->SetError(
-                summary => "option '$opt_name' is not supported from backend $back_type",
+                summary => "option '$opt_name' is not supported by backend $back_type",
                 code    => "PARAM_CHECK_FAILED"
             );
         }
@@ -1235,8 +1247,9 @@ sub getConstraints
                 $c_hash = $constraints->{'global'}->{$opt_name};
                 $c_hash->{backend} = { all => 1 } if defined $c_hash && $_ ne "global";
             };
-        #let the option depend on section delimiter ( backend/database options )
-        $c_hash->{after}->{$_} = 1 if defined $c_hash && !defined $c_hash->{after} && $_ ne "global";
+        #let the option depend on section delimiter (backend/database option) if no 'after'
+        #constraint exists yet
+        $c_hash->{after}->{$_} = 1 if( defined $c_hash && !defined $c_hash->{after} && $_ ne "global" );
         last SWITCH;
     }
     return $c_hash;
