@@ -321,8 +321,12 @@ sub Execute
         }
 
         #create new database section at end of config file
-        my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
-        my $datapos = ( split( /\./, $dataposlist[$#dataposlist] ))[0] + 1;
+
+		#fix for bug #115579: subordinate database sections have to be before their parent section
+		#my @dataposlist = sort { $class->keycompare( $a, $b ) } keys %$data;
+        #my $datapos = ( split( /\./, $dataposlist[$#dataposlist] ))[0] + 1;
+
+		my $datapos = $class->getNewDatabasePosition($params->{suffix});
 
 
         my $section = {};
@@ -364,6 +368,45 @@ sub Execute
             code    => "SCR_WRONG_PATH"
         );
     }
+}
+
+##
+## sub getNewDatabasePosition( $suffix )
+##
+## returns the correct position for adding a database with given suffix.
+##
+sub getNewDatabasePosition
+{
+	my $class = shift || return undef;
+	my $suffix = shift || return $class->SetError(
+		summary	=> "Missing suffix parameter",
+		code	=> "LDAPSERVER_INTERNAL"
+	);
+
+	#create list of all suffixes in the config file;
+	my @dblist = map {(/^database (.*)/)[0]} grep {m/^database /} keys %$lookup;
+	my $pos;
+	foreach (@dblist)
+	{
+		if( $suffix =~ /$_/ )
+		{
+			y2debug("new database <$suffix> is successor of <$_>, adding config before it");
+			#this is a successor database section, put new database config section before it
+			$pos = $lookup->{"database $_"}{database}[0]{datapos};
+			$pos = ($pos-1).'.1';
+
+			y2debug( "inserting database <$suffix> at position: ".$pos );
+			
+			return $pos;
+		}
+	}
+
+	y2debug( "inserting database <$suffix> at end of config file" );
+	my @poslist = sort { $class->keycompare( $a, $b ) } keys %$data;
+    $pos = ( split( /\./, $poslist[$#poslist] ))[0] + 1;	
+	
+	return $pos;
+	
 }
 
 ##
@@ -1385,26 +1428,6 @@ sub dec
     $$num = join( ".", @a );
 }
 
-##
-## sub computeOptionMD5( $option_string )
-##
-## computes a md5 for a option value
-## TODO: handle doubleticks (whatever they are called... -> " <- this char ;) )
-## TODO: parameter checks
-##
-sub getOptionMD5
-{
-    my $class = shift || return undef;
-    my $val = shift;
-
-    #chop whitespace
-    $val =~ s/\s+$//s;
-    #compress whitespace
-    $val =~ s/\s+/ /gs;
-
-    return md5_hex( encode_utf8( $val ) );
-}
-
 sub sortDataposList
 {
     my $class = shift || return undef;
@@ -1415,74 +1438,6 @@ sub sortDataposList
     return \@newlist;
 }
 
-##
-## sub sortOptionList( \@list )
-##
-## sorts a list of options as contained in the lookup section
-##
-## TODO: support multiple files
-##
-sub sortOptionList
-{
-    my $class = shift || return undef;
-    my $list = shift;
-
-    my @newlist = sort { $class->keycompare( $a->{datapos}, $b->{datapos} ) } @$list;
-    local $Data::Dumper::Maxdepth = 2;
-
-    return \@newlist;
-}
-
-## sub sortByConstraints( $section_type, \@option_names )
-##
-## sorts a list of option names according to constraints
-## after sorting, the options depending on less other options are before the 
-## options depending on more.
-##
-## TODO: parameter checks
-##
-sub sortByConstraints
-{
-    my $class = shift;
-    my $s = shift;
-    my $list = shift;
-    return sort {
-        #print STDERR "comparing $a <-> $b\n";
-        my $tmp = $class->getConstraints( $s, $a ) || return 0;
-        my $dep_a = $tmp->{after} || return 0;
-        $tmp = $class->getConstraints( $s, $b ) || return 0;
-        my $dep_b = $tmp->{after} || return 0;
-        #print STDERR "-------------------------------------\n$a comes after:\n".qd( $dep_a );
-        #print STDERR "-------------------------------------\n$b comes after:\n".qd( $dep_b );
-
-        return 1 if exists( $dep_a->{$b} );
-        return -1 if exists( $dep_b->{$a} );
-        return 0;
-    } @$list;
-}
-
-##
-## sub keycompare( $a, $b )
-##
-## comparison function to compare two internal data indices
-## use as custom comparison function to sort a list of internal data indices
-##
-## TODO: handle undefined values properly to get rid of 'no warnings'
-##
-sub keycompare
-{
-    no warnings qw( uninitialized );
-    my $class = shift;
-    return 0 if $_[0] eq $_[1];
-    my $a = ref( $_[0] ) ? $_[0] : [ split( /\./, $_[0] ) ];
-    my $b = ref( $_[0] ) ? $_[1] : [ split( /\./, $_[1] ) ];
-    
-    my $ax = shift( @$a );
-    my $bx = shift( @$b );
-    return $ax <=> $bx if $ax != $bx;
-    return $class->keycompare( $a, $b );
-}
-
 sub __mayQuote {
     my $class = shift;
     my $key = shift;
@@ -1491,11 +1446,6 @@ sub __mayQuote {
         return $quote->{$key};
     }
     return 0;
-}
-
-sub qd
-{
-    return Data::Dumper->Dump( [ @_ ] );
 }
 
 sub sambaACLHack {
