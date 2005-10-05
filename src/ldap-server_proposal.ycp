@@ -67,6 +67,10 @@ if(func == "MakeProposal") {
             map bash_out = (map<string,any>)SCR::Execute( .target.bash_output, "/bin/hostname -d" );
             string domain = (string)bash_out["stdout"]:"";
             domain = substring( domain, 0, size(domain)-1 );
+            if (size (domain) <= 0)
+            {
+                domain = "site";
+            }
             y2milestone( "domain is '%1'", domain );
             list<string> dnlist = splitstring( domain, "." );
             y2milestone( "dnlist is '%1'", dnlist );
