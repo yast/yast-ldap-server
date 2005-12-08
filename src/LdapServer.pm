@@ -339,18 +339,18 @@ sub AddDatabase {
             $data->{checkpoint} = "1024 5";
         }
     }
-
     #######################################################
 
     push @$dbListNEW, $data->{suffix};
 
-    $databaseNEW->{$data->{suffix}}->{database}    = $data->{database};
-    $databaseNEW->{$data->{suffix}}->{suffix}      = $data->{suffix};
-    $databaseNEW->{$data->{suffix}}->{rootdn}      = $data->{rootdn};
-    $databaseNEW->{$data->{suffix}}->{passwd}      = $data->{passwd};
-    $databaseNEW->{$data->{suffix}}->{cryptmethod} = $data->{cryptmethod};
-    $databaseNEW->{$data->{suffix}}->{directory}   = $data->{directory};
-    $databaseNEW->{$data->{suffix}}->{cachesize}   = $data->{cachesize};
+    $databaseNEW->{$data->{suffix}}->{database}            = $data->{database};
+    $databaseNEW->{$data->{suffix}}->{suffix}              = $data->{suffix};
+    $databaseNEW->{$data->{suffix}}->{rootdn}              = $data->{rootdn};
+    $databaseNEW->{$data->{suffix}}->{passwd}              = $data->{passwd};
+    $databaseNEW->{$data->{suffix}}->{cryptmethod}         = $data->{cryptmethod};
+    $databaseNEW->{$data->{suffix}}->{directory}           = $data->{directory};
+    $databaseNEW->{$data->{suffix}}->{createdatabasedir}   = $data->{createdatabasedir};
+    $databaseNEW->{$data->{suffix}}->{cachesize}           = $data->{cachesize};
     if($data->{database} eq "bdb") {
         $databaseNEW->{$data->{suffix}}->{checkpoint} = $data->{checkpoint};
     }

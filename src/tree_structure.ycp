@@ -562,28 +562,42 @@ define boolean cb_input_databases()
     if( handler_cmd == `pb_add )
     {
         any ret = nil;
+        boolean user_changed_dbdir = false;
 
         UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label( "dialog not found" ) );
 
+        UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
+        UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
         while( true )
         {
             ret = UI::UserInput();
             y2milestone( "cb_input_databases: dialog returns '%1'", ret );
             if( ret == `cancel ) break;
-            else if( ret == `pb_directory )
-            {
+            else if( ret == `pb_directory ) {
                     /*directory selection dialog heading*/
                 string name = UI::AskForExistingDirectory( "/var/lib", _("Select Database Directory") );
                 if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
                 continue;
             }
-            else if( ret == `ok )
-            {
+            else if ( ret == `te_directory ) {
+                user_changed_dbdir = true;
+            }
+            else if ( ret == `te_basedn ) {
+                if ( user_changed_dbdir != true ) {
+                    string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+                    suffix = String::Replace(suffix, ",", "_");
+                    suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
+                    string dbdir = "/var/lib/ldap/" + suffix;
+                    UI::ChangeWidget( `te_directory, `Value, dbdir );
+                }
+            }
+            else if( ret == `ok ) {
                 //TODO: add database
                 string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
                 string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
                 string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
                 string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
+                boolean createdir = false;
                 string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
 
                 //check values
@@ -619,12 +633,24 @@ define boolean cb_input_databases()
                     Popup::Error( _("A directory must be specified.") );
                     continue;
                 }
+                if ( SCR::Read(.target.dir, directory) == nil ) {
+                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
+                                        _("The directory does not exist. Do you want to create it?"),
+                                        Label::YesButton(), Label::NoButton(), `focus);
+                    if ( res == false ) {
+                        continue;
+                    } else {
+                        y2debug( "Create dir == true" );
+                        createdir = true;
+                    }
+                }
 
                 //create new database
                 map<string,any> db = $[
-                    "suffix"    : suffix,
-                    "directory" : directory,
-                    "database"  : "bdb"
+                    "suffix"            : suffix,
+                    "directory"         : directory,
+                    "database"          : "bdb",
+                    "createdatabasedir" : createdir
                 ];
                 if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
                 {
@@ -969,7 +995,7 @@ widget_map = $[
                 `Heading( _("Add Database") ),
                 `VSpacing( 1 ),
                                                /* Textentry description */
-                `TextEntry( `id( `te_basedn ), _("&Base DN") ),
+                `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
                 `VSpacing( 0.5 ),
                                                /* Textentry description */
                 `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
@@ -991,7 +1017,7 @@ widget_map = $[
                 ),
                 `VSpacing( 0.5 ),
                                                          /* Textentry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_directory ), _("&Database Directory") ),
+                `VSquash( `HBox( `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
                                  `HSpacing( 0.5 ),
                                                          /* Button text */
                                  `Bottom( `PushButton( `id( `pb_directory ), _("&Browse...") ) )
