@@ -210,6 +210,8 @@ Supported keys in %valueMap are:
  
  * directory: The Directory where the database files are(bdb/ldbm) (required)
 
+ * createdatabasedir: If true the directory for the database will be created (optional; default false)
+
  * rootdn: The Root DN 
  
  * passwd: The plain Root Password (requires rootdn)
@@ -442,9 +444,19 @@ sub AddDatabase {
     }
     if( ! defined  SCR->Read(".target.dir", $data->{directory})) {
                                # parameter check failed
-        return $self->SetError(summary => __("The directory does not exist."),
+        if ( defined $data->{createdatabasedir} && $data->{createdatabasedir} == 1 ) {
+            my $ret = SCR->Execute(".target.bash", 
+                           "mkdir -m 0700 -p ".$data->{directory});
+            if( ( $ret ) && ( ! defined  SCR->Read(".target.dir", $data->{directory}) ) ) {
+                return $self->SetError(summary => __("Could not create directory."),
+                               description => "The 'directory' (".$data->{directory}.") could not be created.",
+                               code => "DIR_NOT_CREATED");
+            }
+        } else {
+            return $self->SetError(summary => __("The directory does not exist."),
                                description => "The 'directory' (".$data->{directory}.") does not exist.",
                                code => "DIR_DOES_NOT_EXIST");
+        }
     }
     $hash->{directory} = $data->{directory};
 
