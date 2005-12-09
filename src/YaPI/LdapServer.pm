@@ -132,7 +132,7 @@ BEGIN {
     push @INC, '/usr/share/YaST2/modules/';
 }
 
-our $VERSION="1.0.0";
+our $VERSION="1.1.0";
 
 use strict;
 use vars qw(@ISA);
