@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Dec  9 10:58:00 CET 2005 - rhafer@suse.de
+
+- version 2.13.1
+- suggest and create directory for new databases
+
+-------------------------------------------------------------------
 Wed Oct 19 11:57:37 CEST 2005 - rhafer@suse.de
 
 - version 2.13.0
