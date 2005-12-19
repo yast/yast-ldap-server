@@ -635,7 +635,7 @@ define boolean cb_input_databases()
                 }
                 if ( SCR::Read(.target.dir, directory) == nil ) {
                     boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
-                                        _("The directory does not exist. Do you want to create it?"),
+                                        _("The directory does not exist. Create it?"),
                                         Label::YesButton(), Label::NoButton(), `focus);
                     if ( res == false ) {
                         continue;
