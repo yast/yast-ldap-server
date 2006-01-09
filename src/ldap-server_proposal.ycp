@@ -25,7 +25,7 @@ import "Popup";
 import "Report";
 import "Progress";
 import "Users";
-import "Require";
+import "Package";
 import "String";
 
 /* The main () */
@@ -55,7 +55,7 @@ if(func == "MakeProposal") {
         }
         else
         {
-            if (!Require::IsPackageInstalled ("openldap2"))
+            if (!Package::Installed ("openldap2"))
             {
                 y2milestone ("Openldap2 is not installed. --> service disabled");
                 LdapServer::WriteServiceEnabled (false);
@@ -182,13 +182,9 @@ else if(func == "Write") {
     if( LdapServer::ReadServiceEnabled() )
     {
 	/* ensure openldap2 package is installed */
-	if( !Require::RequireAndConflictTarget( ["openldap2"], [], 
-						// notification about package needed 1/2
-						_("<p>To configure the LDAP server, the <b>%1</b> package must be installed.</p>") +
-						// notification about package needed 2/2
-						_("<p>Do you want to install it now?</p>")) )
+	if( !Package::Install( "openldap2" )
 	{
-	    if( !Require::IsPackageAvailable( "openldap2" ) ) {
+	    if( !Package::Available( "openldap2" ) ) {
 		// translators: error popup before aborting the module
 		Popup::Error( sformat( _("The package '%1' is not available.
 YaST2 cannot continue the configuration
