@@ -16,7 +16,7 @@ import "Popup";
 import "Wizard";
 import "Wizard_hw";
 import "LdapServer";
-import "Require";
+import "Package";
 
 include "ldap-server/helps.ycp";
 
@@ -44,13 +44,9 @@ symbol ReadDialog() {
     Wizard::RestoreHelp(HELPS["read"]:"");
     
     /* ensure openldap2 package is installed */
-    if( !Require::RequireAndConflictTarget( ["openldap2"], [], 
-					    // notification about package needed 1/2
-					    _("<p>To configure the LDAP server, the <b>%1</b> package must be installed.</p>") +
-					    // notification about package needed 2/2
-					    _("<p>Do you want to install it now?</p>")) )
+    if( !Package::Install( "openldap2" ) )
     {
-	if( !Require::IsPackageAvailable( "openldap2" ) ) {
+	if( !Package::Available( "openldap2" ) ) {
 	    // translators: error popup before aborting the module
 	    Popup::Error( sformat( _("The package '%1' is not available.
 YaST2 cannot continue the configuration
