@@ -182,7 +182,7 @@ else if(func == "Write") {
     if( LdapServer::ReadServiceEnabled() )
     {
 	/* ensure openldap2 package is installed */
-	if( !Package::Install( "openldap2" )
+	if( !Package::Install( "openldap2" ) )
 	{
 	    if( !Package::Available( "openldap2" ) ) {
 		// translators: error popup before aborting the module
