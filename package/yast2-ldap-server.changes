@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Jan 13 12:01:28 CET 2006 - rhafer@suse.de
+
+- create first database in /var/lib/ldap
+- 2.13.5
+
+-------------------------------------------------------------------
 Tue Jan 10 07:51:55 CET 2006 - visnov@suse.cz
 
 - fix syntax error in proposal
