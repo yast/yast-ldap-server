@@ -501,7 +501,9 @@ sub AddDatabase {
 
     if(SCR->Read(".target.size", $hash->{directory}."/DB_CONFIG") < 0) {
         my $DB_CONFIG = "set_cachesize 0 15000000 1\n".
-                        "set_lg_bsize 2097152\n";
+                        "set_lg_bsize 2097152\n".
+                        "set_lg_regionmax 262144\n".
+                        "set_flags DB_LOG_AUTOREMOVE\n";
 
         if(! SCR->Write(".target.string", $hash->{directory}."/DB_CONFIG", $DB_CONFIG)) {
             return $self->SetError(summary => "Can not create DB_CONFIG file.",
