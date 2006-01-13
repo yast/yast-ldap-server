@@ -563,6 +563,8 @@ define boolean cb_input_databases()
     {
         any ret = nil;
         boolean user_changed_dbdir = false;
+        list<string> dblist = LdapServer::ReadDbList();
+        integer numDbs = size(dblist);
 
         UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label( "dialog not found" ) );
 
@@ -575,7 +577,7 @@ define boolean cb_input_databases()
             if( ret == `cancel ) break;
             else if( ret == `pb_directory ) {
                     /*directory selection dialog heading*/
-                string name = UI::AskForExistingDirectory( "/var/lib", _("Select Database Directory") );
+                string name = UI::AskForExistingDirectory( "/var/lib/ldap", _("Select Database Directory") );
                 if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
                 continue;
             }
@@ -583,7 +585,7 @@ define boolean cb_input_databases()
                 user_changed_dbdir = true;
             }
             else if ( ret == `te_basedn ) {
-                if ( user_changed_dbdir != true ) {
+                if ( ( user_changed_dbdir != true ) && (numDbs > 0) ) {
                     string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
                     suffix = String::Replace(suffix, ",", "_");
                     suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
