@@ -735,8 +735,6 @@ define boolean cb_write_db()
         return false;
     }
 
-    db = $[];
-
     string rootdn = "";
     rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
     if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
