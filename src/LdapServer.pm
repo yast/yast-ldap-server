@@ -21,6 +21,7 @@ use YaPI;
 textdomain("ldap-server");
 
 use YaPI::LdapServer;
+use X500::DN;
 
 our %TYPEINFO;
 
@@ -107,7 +108,6 @@ my $SLPEnabled = 1;
 
 my $schemaIncludeList = [];
 
-
 BEGIN { $TYPEINFO{WriteDbList} = ["function", "boolean", ["list", "string"]]; }
 sub WriteDbList {
     my $self = shift;
@@ -119,6 +119,51 @@ BEGIN { $TYPEINFO{ReadDbList} = ["function", ["list", "string"]]; }
 sub ReadDbList {
     my $self = shift;
     return $dbList;
+}
+
+use Data::Dumper;
+#
+# Validate Suffix and Root-DN of a database
+#
+BEGIN { $TYPEINFO{CheckDatabase} = ["function", "string", ["map", "string", "any"]]; }
+sub CheckDatabase {
+    my $self = shift;
+    my $data = shift;
+    
+    # validate Suffix
+    if(! defined $data->{suffix} || $data->{suffix} eq "") {
+        # error message
+        return __("Invalid suffix."); 
+    }
+    my $object = X500::DN->ParseRFC2253($data->{suffix});
+
+    if(! defined $object) {
+        return __("Invalid suffix.");        
+    }
+
+    # validate Root DN 
+    if(! defined X500::DN->ParseRFC2253($data->{rootdn})) {
+        # parameter check failed
+        return __("Invalid 'rootdn'.");
+    }
+    
+    # rootdn must be a child of the suffix
+    if($data->{suffix} ne substr($data->{rootdn}, 
+                             length($data->{rootdn}) - length($data->{suffix}))) {
+        # parameter check failed
+        return __("'rootdn' must be below the 'suffix'.");
+    }
+
+    if(! defined $data->{rootdn} || $data->{rootdn} eq "" ) {
+        $data->{rootdn} = "cn=Administrator,".$data->{suffix};
+    }
+
+    if(! defined $data->{directory} || $data->{directory} !~ /^\// ) {
+        # error message
+        return __("Invalid directory path.");
+    }
+    
+    return "";
 }
 
 BEGIN { $TYPEINFO{WriteDatabase} = ["function", "boolean", ["map", "string", "any"]]; }
@@ -285,25 +330,22 @@ BEGIN { $TYPEINFO{AddDatabase} = ["function", "boolean", ["map", "string", "any"
 sub AddDatabase {
     my $self = shift;
     my $data = shift;
-
-    if(! defined $data->{suffix} || $data->{suffix} eq "") {
-        print STDERR "Wrong suffix\n";
-        # error message
-        Report->Error(__("Invalid suffix."));        
+   
+    my $chkResult = $self->CheckDatabase($data);
+    if ( $chkResult ne "" ) {
+        Report->Error($chkResult);
         return 0;
     }
 
     if(! defined $data->{database} || !grep( ($_ eq $data->{database}), ("bdb", "ldbm"))) {
         $data->{database} = "bdb";
     }
-
+    
     if(! defined $data->{rootdn} || $data->{rootdn} eq "" ) {
         $data->{rootdn} = "cn=Administrator,".$data->{suffix};
     }
 
     if(! defined $data->{passwd} || $data->{passwd} eq "" ) {
-        print STDERR "Wrong password\n";
-        
         # error message
         Report->Error(__("Invalid password."));
         return 0;
@@ -314,14 +356,6 @@ sub AddDatabase {
         $data->{cryptmethod} = "SSHA";
     }
 
-    if(! defined $data->{directory} || $data->{directory} !~ /^\// ) {
-        print STDERR "Wrong directory path\n";
-
-        # error message
-        Report->Error(__("Invalid directory path."));
-        return 0;
-    }
-    
     if(! defined $data->{cachesize} || $data->{cachesize} !~ /^\d+$/ ) {
         $data->{cachesize} = 10000;
     }
