@@ -66,7 +66,7 @@ my $constraints = {
             backend => { all => 1 }
         },
         suffix  => { 
-            multi   => 1, 
+            multi   => 0, 
             backend => { all => 1 }
         },
         rootdn  => {

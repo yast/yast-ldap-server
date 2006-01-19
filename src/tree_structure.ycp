@@ -668,9 +668,10 @@ define boolean cb_input_databases()
                 {
                     y2milestone( "adding database was successful, now trying to add widget tree item" );
                     rebuild_widget_tree = true;
+                    break;
+                } else {
+                    y2milestone( "adding database was not successful" );
                 }
-
-                break;
             }
         }
 
@@ -747,6 +748,12 @@ define boolean cb_write_db()
     if( rootpw != "" ) {
         db["passwd"] = rootpw;
         db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+    }
+
+    string checkResult = LdapServer::CheckDatabase( db );
+    if( checkResult != "" ) {
+        callback_error = checkResult;
+        return false;
     }
 
     //write changes
