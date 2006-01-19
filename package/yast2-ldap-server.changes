@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Jan 19 12:47:46 CET 2006 - rhafer@suse.de
+
+- Better checks of suffix and rootdn (Bugzilla #56638)
+- 2.13.7 
+
+-------------------------------------------------------------------
 Tue Jan 17 10:28:52 CET 2006 - rhafer@suse.de
 
 - Don't overwrite database configuration when viewing it 
