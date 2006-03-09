@@ -343,7 +343,6 @@ generation of base DN, root DN, and LDAP password.
 
                 //be paranoid
                 rootPW = "";
-                UI::ChangeWidget( `id( `te_rootpw ), `Value, "" );
             }
             //update enctype
             string enctype = (string)UI::QueryWidget( `id( `cmb_cryptmethod ), `Value );
@@ -373,7 +372,17 @@ generation of base DN, root DN, and LDAP password.
             registerSLP = (boolean)UI::QueryWidget( `id( `cb_register_slp ), `Value );
             y2debug( "changing registerSLP to %1", registerSLP );
             LdapServerConf::registerSLP = registerSLP;
-
+            string checkResult = LdapServer::CheckDatabase( $[ "database":"bdb",
+                                    "suffix": LdapServerConf::baseDN,
+                                    "rootdn" : LdapServerConf::rootDN,
+                                    "passwd" : LdapServerConf::rootPW,
+                                    "cryptmethod" : LdapServerConf::enctype,
+                                    "directory" : "/var/lib/ldap"
+                                  ] );
+            if  (checkResult != "" ) {
+                Popup::Error(checkResult);
+                continue;
+            }
             break;
         } else if( ret == `rb_enable )
         {
