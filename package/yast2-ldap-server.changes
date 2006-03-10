@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Mar  9 16:48:13 CET 2006 - rhafer@suse.de
+
+- Better validation of rootdn and suffix in proposal 
+  (Bugzilla #114359) 
+
+-------------------------------------------------------------------
 Mon Feb 20 14:30:17 CET 2006 - rhafer@suse.de
 
 - removed yast2-devel-packages macro BuildRequires
