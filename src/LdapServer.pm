@@ -602,16 +602,19 @@ sub Write {
                 Report->Error (__("Cannot write 'TLS Settings'."));
             }
             
-        } else 
-        {
-            if( ( scalar keys %$importCertificates ) > 0 )
-            {
-                $ret = YaPI::LdapServer->ImportCertificates( $importCertificates );
-                if(! defined $ret) {
-                    # error message
-                    Report->Error (__("Cannot write 'TLS Settings'."));
-                    y2error( "importCertificates failed" );
-                }
+        } elsif( ( scalar keys %$importCertificates ) > 0 ) {
+            $ret = YaPI::LdapServer->ImportCertificates( $importCertificates );
+            if(! defined $ret) {
+                # error message
+                Report->Error (__("Cannot write 'TLS Settings'."));
+                y2error( "importCertificates failed" );
+            }
+        } else {
+            $ret = YaPI::LdapServer->WriteTLS( $tlsSettings );
+            if(! defined $ret) {
+                # error message
+                Report->Error (__("Cannot write 'TLS Settings'."));
+                y2error( "WriteTLS failed" );
             }
         }
     }
