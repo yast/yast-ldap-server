@@ -381,12 +381,12 @@ define boolean cb_write_tls()
     {
         LdapServer::WriteConfigureCommonServerCertificate( false );
         LdapServer::WriteImportCertificates( $[] );
-        map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
-        y2debug( "tlsSettings: '%1'", tlsSettings );
-        tlsSettings = filter( string key, string val, tlsSettings, {
-            return( key != "TLSCertificateKeyFile" && key != "TLSCertificateFile" );
-        } );
-        y2debug( "tlsSettings after filter: '%1'", tlsSettings );
+        map<string,string> tlsSettings = $[
+                "TLSCertificateKeyFile" : nil,
+                "TLSCertificateFile"    : nil,
+                "TLSCACertificateFile"  : nil,
+                "TLSCACertificatePath"  : nil ];
+
         LdapServer::WriteTlsSettings( tlsSettings );
     }
     return true;
