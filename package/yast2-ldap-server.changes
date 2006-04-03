@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Apr  3 14:50:29 CEST 2006 - rhafer@suse.de
+
+- Remove TLS settings if TLS is disabled (Bugzilla #162476)
+- 2.13.10
+
+-------------------------------------------------------------------
 Thu Mar  9 16:48:13 CET 2006 - rhafer@suse.de
 
 - Better validation of rootdn and suffix in proposal 
