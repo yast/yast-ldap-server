@@ -28,6 +28,7 @@ our %TYPEINFO;
 YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("Report");
 YaST::YCP::Import ("Summary");
+YaST::YCP::Import ("SuSEFirewall");
 
 
 ##
@@ -511,6 +512,9 @@ sub Read {
 
     $SLPEnabled = YaPI::LdapServer->ReadSLPEnabled();
     $SLPEnabled = 0 if( !defined $SLPEnabled );
+    Progress->set(0);
+    SuSEFirewall->Read();
+    Progress->set(1);
 
     sleep($sl);
 
@@ -692,6 +696,7 @@ sub Write {
     }
 
     YaPI::LdapServer->SwitchService($serviceEnabled);
+    SuSEFirewall->Write();
 
     sleep($sl);
 

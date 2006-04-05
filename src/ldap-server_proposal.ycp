@@ -1,8 +1,8 @@
 /**
- * File:	clients/ldap-server_proposal.ycp
- * Package:	Configuration of ldap-server
- * Summary:	Proposal function dispatcher.
- * Authors:	Andreas Bauer <abauer@suse.de>
+ * File:        clients/ldap-server_proposal.ycp
+ * Package:     Configuration of ldap-server
+ * Summary:     Proposal function dispatcher.
+ * Authors:     Andreas Bauer <abauer@suse.de>
  *
  * $Id$
  *
@@ -27,6 +27,7 @@ import "Progress";
 import "Users";
 import "Package";
 import "String";
+import "SuSEFirewall";
 
 /* The main () */
 y2milestone("----------------------------------------");
@@ -50,7 +51,7 @@ if(func == "MakeProposal") {
     {
         if (force_reset && LdapServerConf::wroteDatabase)
         {
-	    /* error popup */
+            /* error popup */
             Report::Warning( _("The LDAP database has already been created. You can change the settings later in the installed system.") );
         }
         else
@@ -117,30 +118,54 @@ if(func == "MakeProposal") {
             warning = _("Unable to retrieve system root password.  Change password to continue.");
             warning_level = `blocker;
         }
-                   /* proposal text 1/6 */
+        // Try to get Firewall status 
+        string fw_text = "";
+        if ( SuSEFirewall::GetEnableService()) {
+                list<string> known_interfaces = SuSEFirewall::GetListOfKnownInterfaces();
+                boolean is_ldap_enabled = false;
+                if (size(known_interfaces)>0) {
+                        y2milestone("Interfaces: %1", known_interfaces);
+                        // all known interfaces for testing
+                        list <string> used_zones = SuSEFirewall::GetZonesOfInterfaces(known_interfaces);
+                        y2milestone("Zones used by firewall: %1", used_zones);
+
+                        foreach (string zone, used_zones, {
+                            if (SuSEFirewall::IsServiceSupportedInZone ("ldap", zone))
+                                is_ldap_enabled = true;
+                        });
+                }
+                textdomain "base";
+                fw_text = _("Open Port in Firewall") + ": ";
+                textdomain "ldap-server";
+                if ( is_ldap_enabled )
+                        fw_text = fw_text + HTML::Bold( _("YES"));
+                else
+                        fw_text = fw_text + HTML::Bold( _("NO"));
+
+        } else {
+                textdomain "base";
+                fw_text = _("Firewall is disabled");
+                textdomain "ldap-server";
+        }
+
         proposal = _("LDAP Server Configuration:") + HTML::Newline() +
-                                       /* proposal text 2/6 */
-              HTML::List( [ _("Base DN: ") + LdapServerConf::baseDN,
-                                       /* proposal text 3/6 */
-                            _("Root DN: ") + LdapServerConf::rootDN,
-                                       /* proposal text 4/6 */
-                            _("LDAP Password: ") + rootPWString
-                          ] ) +
-                                       /* proposal text 5/6 */
-              _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
-                                       /* proposal text 6/6 */
-              _("Register at SLP Daemon: ") + HTML::Bold( LdapServerConf::registerSLP ? _("YES") : _("NO") );
-    } else
-    {
-                   /* proposal text extra */
+                     HTML::List( [ _("Base DN: ") + LdapServerConf::baseDN,
+                                   _("Root DN: ") + LdapServerConf::rootDN,
+                                   _("LDAP Password: ") + rootPWString
+                                 ] ) +
+                   _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
+                   _("Register at SLP Daemon: ") + HTML::Bold( LdapServerConf::registerSLP ? _("YES") : _("NO") ) +
+                   HTML::Newline() +
+                  fw_text;
+    } else {
         proposal = _("Start LDAP Server: ") + HTML::Bold( _("NO") );
     }
 
 
     ret = $[
-	"preformatted_proposal" : proposal,
-	"warning_level" : warning_level,
-	"warning" : warning,
+        "preformatted_proposal" : proposal,
+        "warning_level" : warning_level,
+        "warning" : warning,
     ];
 }
 /* run the module */
@@ -167,11 +192,11 @@ else if(func == "AskUser") {
 /* create titles */
 else if(func == "Description") {
     ret = $[
-	/* Rich text title for LdapServer in proposals */
-	"rich_text_title" : _("OpenLDAP Server"),
-	/* Menu title for LdapServer in proposals */
-	"menu_title" : _("Open&LDAP Server"),
-	"id" : "ldap-server",
+        /* Rich text title for LdapServer in proposals */
+        "rich_text_title" : _("OpenLDAP Server"),
+        /* Menu title for LdapServer in proposals */
+        "menu_title" : _("Open&LDAP Server"),
+        "id" : "ldap-server",
     ];
 }
 /* write the proposal */
@@ -181,22 +206,22 @@ else if(func == "Write") {
 
     if( LdapServer::ReadServiceEnabled() )
     {
-	/* ensure openldap2 package is installed */
-	if( !Package::Install( "openldap2" ) )
-	{
-	    if( !Package::Available( "openldap2" ) ) {
-		// translators: error popup before aborting the module
-		Popup::Error( sformat( _("The package '%1' is not available.
+        /* ensure openldap2 package is installed */
+        if( !Package::Install( "openldap2" ) )
+        {
+            if( !Package::Available( "openldap2" ) ) {
+                // translators: error popup before aborting the module
+                Popup::Error( sformat( _("The package '%1' is not available.
 YaST2 cannot continue the configuration
 without installing the package."), "openldap2" ) );
-	    } else {
-		// translators: error popup before aborting the module
-		Popup::Error (_("YaST2 cannot continue the configuration
+            } else {
+                // translators: error popup before aborting the module
+                Popup::Error (_("YaST2 cannot continue the configuration
 without installing the required packages."));
-	    }
+            }
 
-	    return ret;
-	}
+            return ret;
+        }
     }
 
     //string rootPW = "";
