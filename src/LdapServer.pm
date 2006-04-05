@@ -512,9 +512,9 @@ sub Read {
 
     $SLPEnabled = YaPI::LdapServer->ReadSLPEnabled();
     $SLPEnabled = 0 if( !defined $SLPEnabled );
-    Progress->set(0);
+    my $progress_orig = Progress->set(0);
     SuSEFirewall->Read();
-    Progress->set(1);
+    Progress->set($progress_orig);
 
     sleep($sl);
 
@@ -696,7 +696,9 @@ sub Write {
     }
 
     YaPI::LdapServer->SwitchService($serviceEnabled);
+    my $progress_orig = Progress->set(0);
     SuSEFirewall->Write();
+    Progress->set($progress_orig);
 
     sleep($sl);
 
