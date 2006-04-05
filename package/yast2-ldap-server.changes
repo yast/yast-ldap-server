@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Apr  5 15:39:05 CEST 2006 - rhafer@suse.de
+
+- Allow to open the LDAP/LDAPS ports on the firewall 
+  (Bugzilla #163275)
+
+-------------------------------------------------------------------
 Mon Apr  3 14:50:29 CEST 2006 - rhafer@suse.de
 
 - Remove TLS settings if TLS is disabled (Bugzilla #162476)
