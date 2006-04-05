@@ -11,6 +11,7 @@
 
 textdomain "ldap-server";
 
+import "CWMFirewallInterfaces";
 import "Label";
 import "Wizard";
 import "LdapServer";
@@ -128,27 +129,37 @@ void showTreeDialog( string name, boolean focus_tree )
 
 any EnableServiceDialog()
 {
+    map<string, any> firewall_settings = $[
+            "services": [ "ldap" , "ldaps" ],
+            "display_details": true,
+         ];
+    map<string, any> firewall_widget = 
+	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
+
     term dlg_service_new = `VBox(
                  /* radiobutton group headline */
-        `HSquash( `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
-            `VBox(
-                `Left( `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() ) ),
-                `VSpacing( 1 ),
-                `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ) ),
-                `VSpacing( 0.5 ),
-                `HBox(
-                    `HSpacing( 4 ),
-                    `HSquash( `VBox(
-                                                          /* button text */
-                        `PushButton( `id( `pb_configure ), `opt( `hstretch ), _("&Configure...") ),
-                        `VSpacing( 1 ),
-                        `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )
-                    ) ),
-                    `HSpacing( 1 )
-                ),
-                `VSpacing( 0.5 )
-            )
-        ) ) )
+        `HSquash( `VBox(
+            `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
+                `VBox(
+                    `Left( `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() ) ),
+                    `VSpacing( 1 ),
+                    `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ) ),
+                    `VSpacing( 0.5 ),
+                    `HBox(
+                        `HSpacing( 4 ),
+                        `HSquash( `VBox(
+                                                              /* button text */
+                            `PushButton( `id( `pb_configure ), `opt( `hstretch ), _("&Configure...") ),
+                            `VSpacing( 1 ),
+                            `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )
+                        ) ),
+                        `HSpacing( 1 )
+                    ),
+                    `VSpacing( 0.5 )
+                )
+            )),
+            `VSpacing( 1 ), firewall_widget["custom_widget"]:`Empty()
+        ))
     );
 
     term dlg_service = `VBox(
@@ -176,14 +187,20 @@ any EnableServiceDialog()
         UI::ChangeWidget( `cb_register_slp, `Enabled, false );
     }
 
-    symbol ret = nil;
+    CWMFirewallInterfaces::OpenFirewallInit (firewall_widget, "");
+    any ret = nil;
+    map event = $[];
     while( true )
     {
-        ret = (symbol)UI::UserInput();
+        event = UI::WaitForEvent ();
+        ret = event["ID"]:nil;
+        CWMFirewallInterfaces::OpenFirewallHandle (firewall_widget, "", event);
         y2debug( "EnableServiceDialog: seeing return value '%1'", ret );
+
         if( ret == `back || ret == `abort ) break;
         else if( ret == `next || ret == `finish )
         {
+            CWMFirewallInterfaces::OpenFirewallStore (firewall_widget, "", event);
             LdapServer::WriteSLPEnabled( (boolean)UI::QueryWidget( `cb_register_slp, `Value ) );
             break;
         }
@@ -246,6 +263,12 @@ any ProposalDialog()
         `item( `id( "PLAIN" ), "PLAIN", enctype == "PLAIN" )
     ];
 
+    map<string, any> firewall_settings = $[
+            "services": [ "ldap" , "ldaps" ],
+            "display_details": true,
+         ];
+    map<string, any> firewall_widget = 
+	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
     term dlg_propose =
                          /* Headline */
         `VBox( `Heading( _("OpenLDAP Server Settings") ),
@@ -278,7 +301,9 @@ any ProposalDialog()
                `VSpacing( 1 ),
                                             /* checkbox text */
                `Left( `CheckBox( `id( `cb_use_common_ca ), _("Activate Start&TLS with Common Server Certificate"), useCommonCA ) ),
-               `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), registerSLP ) )
+               `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), registerSLP ) ),
+               `VSpacing( 1 ), 
+               firewall_widget["custom_widget"]:`Empty()
              );
 
     Wizard::SetContentsButtons( caption, dlg_propose, HELPS["propose"]:"<p><b>no proposal help text</b></p>",
@@ -309,10 +334,14 @@ generation of base DN, root DN, and LDAP password.
         UI::ChangeWidget( `id( `cb_use_common_ca ), `Enabled, false );
     }
 
+    CWMFirewallInterfaces::OpenFirewallInit (firewall_widget, "");
     any ret = nil;
+    map event = $[];
     while( true )
     {
-        ret = UI::UserInput();
+        event = UI::WaitForEvent ();
+        ret = event["ID"]:nil;
+       	CWMFirewallInterfaces::OpenFirewallHandle (firewall_widget, "", event);
         y2debug( "ProposeDialog: seeing return value %1", ret );
         if( ret == `back || ret == `abort || ret == `cancel ) break;
         else if( ret == `next )
@@ -327,6 +356,7 @@ generation of base DN, root DN, and LDAP password.
             } else {
                 LdapServer::WriteServiceEnabled( true );
             }
+	    CWMFirewallInterfaces::OpenFirewallStore (firewall_widget, "", event);
             //validate/update rootpw
             rootPW = (string)UI::QueryWidget( `id( `te_rootpw ), `Value );
             if( rootPW != "" )
