@@ -115,7 +115,7 @@ if(func == "MakeProposal") {
         if( LdapServer::ReadUseRootPW() && Users::GetRootPassword() == "" )
         {
                 /* proposal error */
-            warning = _("Unable to retrieve system root password.  Change password to continue.");
+            warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
             warning_level = `blocker;
         }
         // Try to get Firewall status 

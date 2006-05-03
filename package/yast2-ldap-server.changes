@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed May  3 16:39:05 CEST 2006 - rhafer@suse.de
+
+- Improved error message when root password is not available in
+  proposal (Bugzilla #171413)
+- Version 2.13.12
+  
+-------------------------------------------------------------------
 Wed Apr  5 15:39:05 CEST 2006 - rhafer@suse.de
 
 - Allow to open the LDAP/LDAPS ports on the firewall 
