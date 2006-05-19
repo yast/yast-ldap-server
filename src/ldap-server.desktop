@@ -11,11 +11,12 @@ X-SuSE-YaST-Call=ldap-server
 X-SuSE-YaST-Group=Net_advanced
 X-SuSE-YaST-Argument=
 X-SuSE-YaST-RootOnly=true
-X-SuSE-YaST-AutoInst=
+X-SuSE-YaST-AutoInst=all
 X-SuSE-YaST-Geometry=
 X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=ldap-server
 X-SuSE-YaST-AutoInstClonable=true
+X-SuSE-YaST-AutoInstRequires=lan,ca_mgm
 
 Icon=yast-ldap-server
 Exec=/sbin/yast2 ldap-server 

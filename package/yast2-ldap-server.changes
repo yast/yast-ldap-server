@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri May 19 11:22:34 CEST 2006 - ug@suse.de
+
+- fixed desktop file for autoyast cloning (#177082)
+- Version 2.13.13
+
+-------------------------------------------------------------------
 Wed May  3 16:39:05 CEST 2006 - rhafer@suse.de
 
 - Improved error message when root password is not available in
