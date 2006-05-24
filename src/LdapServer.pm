@@ -25,6 +25,7 @@ use X500::DN;
 
 our %TYPEINFO;
 
+YaST::YCP::Import ("Package");
 YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("Report");
 YaST::YCP::Import ("Summary");
@@ -401,6 +402,15 @@ sub AddDatabase {
  #
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read {
+
+    # If we got here and the package in not installed, the service is
+    # not configured (e.g. we are called from AutoYaST clone system)
+    if (!Package::Installed ("openldap2"))
+    {
+        y2milestone ("Openldap2 is not installed. --> service disabled");
+        $serviceEnabled = 0;
+        return 1;
+    }
 
     # LdapServer read dialog caption
     my $caption = __("Initializing LDAP Server Configuration");
