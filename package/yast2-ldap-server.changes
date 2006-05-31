@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Wed May 31 20:33:44 CEST 2006 - rhafer@suse.de
+
+- Fix Import/Export functions for AutoYaST (Bugzilla #179750)
+- Fixed call to Package Module to detect if openldap2 package is
+  installed (Bug #180142)
+- Version 2.13.15
+
+-------------------------------------------------------------------
 Wed May 24 13:48:03 CEST 2006 - rhafer@suse.de
 
 - Don't try to Read() config when openldap2 is not installed, e.g.
