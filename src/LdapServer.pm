@@ -405,7 +405,7 @@ sub Read {
 
     # If we got here and the package in not installed, the service is
     # not configured (e.g. we are called from AutoYaST clone system)
-    if (!Package::Installed ("openldap2"))
+    if (!Package->Installed("openldap2"))
     {
         y2milestone ("Openldap2 is not installed. --> service disabled");
         $serviceEnabled = 0;
