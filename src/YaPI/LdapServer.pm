@@ -386,51 +386,50 @@ sub AddDatabase {
                                    code => "PARAM_CHECK_FAILED");
         }
         
-        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+        if((!defined $data->{passwd} || $data->{passwd} eq "") &&
+           (! defined $data->{rootpw} || $data->{rootpw} eq "" ) ){
             # parameter check failed
             return $self->SetError(summary => __("Define 'passwd'."),
                                    code => "PARAM_CHECK_FAILED");
         }
-        if(!defined $data->{passwd} || $data->{passwd} eq "") {
-            # parameter check failed
-            return $self->SetError(summary => __("Define 'passwd'."),
-                                   code => "PARAM_CHECK_FAILED");
-        }
-
-        if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
-            $cryptMethod = $data->{cryptmethod};
-        }
-        if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
-            return $self->SetError(summary => sprintf(
-                                                      # parameter check failed
-                                                      __("'%s' is an unsupported crypt method."),
-                                                      $cryptMethod),
-                                   code => "PARAM_CHECK_FAILED");
-        }
-        
-        if( $cryptMethod eq "CRYPT" ) {
-            my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
-            $passwd_string = crypt $data->{passwd},$salt;
-            $passwd_string = "{crypt}".$passwd_string;
-        } elsif( $cryptMethod eq "SMD5" ) {
-            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
-                             (int(rand 26)+65), (int(rand 26)+65));
-            my $ctx = new Digest::MD5();
-            $ctx->add($data->{passwd});
-            $ctx->add($salt);
-            $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
-        } elsif( $cryptMethod eq "SHA"){
-            my $digest = sha1($data->{passwd});
-            $passwd_string = "{sha}".encode_base64($digest, "");
-        } elsif( $cryptMethod eq "SSHA"){
-            my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
-                             (int(rand 26)+65), (int(rand 26)+65));
-            my $digest = sha1($data->{passwd}.$salt);
-            $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
+	if(defined $data->{passwd} && $data->{passwd} ne "") {
+            if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
+                $cryptMethod = $data->{cryptmethod};
+            }
+            if( !grep( ($_ eq $cryptMethod), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
+                return $self->SetError(summary => sprintf(
+                                                          # parameter check failed
+                                                          __("'%s' is an unsupported crypt method."),
+                                                          $cryptMethod),
+                                       code => "PARAM_CHECK_FAILED");
+            }
+            
+            if( $cryptMethod eq "CRYPT" ) {
+                my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
+                $passwd_string = crypt $data->{passwd},$salt;
+                $passwd_string = "{crypt}".$passwd_string;
+            } elsif( $cryptMethod eq "SMD5" ) {
+                my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                                 (int(rand 26)+65), (int(rand 26)+65));
+                my $ctx = new Digest::MD5();
+                $ctx->add($data->{passwd});
+                $ctx->add($salt);
+                $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
+            } elsif( $cryptMethod eq "SHA"){
+                my $digest = sha1($data->{passwd});
+                $passwd_string = "{sha}".encode_base64($digest, "");
+            } elsif( $cryptMethod eq "SSHA"){
+                my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                                 (int(rand 26)+65), (int(rand 26)+65));
+                my $digest = sha1($data->{passwd}.$salt);
+                $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
+            } else {
+                $passwd_string = $data->{passwd};
+            }
+            $hash->{rootpw} = $passwd_string;
         } else {
-            $passwd_string = $data->{passwd};
+            $hash->{rootpw} = $data->{rootpw};
         }
-        $hash->{rootpw} = $passwd_string;
     }
     
     #################
@@ -524,7 +523,8 @@ sub AddDatabase {
     }
 
     # do not add the base entry, if we have nothing to bind with.
-    if(exists $data->{rootdn} && exists $data->{passwd}) { 
+    if((exists $data->{rootdn} && exists $data->{passwd}) && 
+       (defined $data->{passwd} && $data->{passwd} ne "") ){
     
         if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
                                     "port"     => 389})) {
