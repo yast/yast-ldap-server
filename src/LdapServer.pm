@@ -347,7 +347,8 @@ sub AddDatabase {
         $data->{rootdn} = "cn=Administrator,".$data->{suffix};
     }
 
-    if(! defined $data->{passwd} || $data->{passwd} eq "" ) {
+    if ((! defined $data->{passwd} || $data->{passwd} eq "" ) &&
+        (! defined $data->{rootpw} || $data->{rootpw} eq "" ) ){
         # error message
         Report->Error(__("Invalid password."));
         return 0;
@@ -383,6 +384,7 @@ sub AddDatabase {
     $databaseNEW->{$data->{suffix}}->{suffix}              = $data->{suffix};
     $databaseNEW->{$data->{suffix}}->{rootdn}              = $data->{rootdn};
     $databaseNEW->{$data->{suffix}}->{passwd}              = $data->{passwd};
+    $databaseNEW->{$data->{suffix}}->{rootpw}              = $data->{rootpw};
     $databaseNEW->{$data->{suffix}}->{cryptmethod}         = $data->{cryptmethod};
     $databaseNEW->{$data->{suffix}}->{directory}           = $data->{directory};
     $databaseNEW->{$data->{suffix}}->{createdatabasedir}   = $data->{createdatabasedir};
@@ -470,7 +472,6 @@ sub Read {
 
         if(exists $database->{$db}->{rootpw}) {
             my $rootpw = $database->{$db}->{rootpw};
-            delete $database->{$db}->{rootpw};
             
             if($rootpw =~ /^{(\w+)}/) {
                 $database->{$db}->{cryptmethod} = uc("$1");
@@ -731,14 +732,6 @@ sub Import {
     my $self = shift;
     my $hash = shift;
 
-    if(exists $hash->{database}) {
-        foreach my $db (keys %{$hash->{database}}) {
-            
-            if(exists $database->{$db}) {
-                $database->{$db} = $hash->{database}->{$db};
-            }
-        }
-    }
     if(exists $hash->{allowList}) {
         $allowList = $hash->{allowList};
     }
@@ -759,10 +752,11 @@ sub Import {
         $configureCommonServerCertificate = $hash->{configureCommonServerCertificate};
     }
 
-    if(exists $hash->{databaseNEW}) {
-        foreach my $db (keys %{$hash->{databaseNEW}}) {
-            
-            if(! $self->AddDatabase($hash->{databaseNEW}->{$db})) {
+    if(exists $hash->{database}) {
+	my $dbs = $hash->{database};
+        foreach my $db (@$dbs) {
+            $db->{createdatabasedir} = 1;
+            if(! $self->AddDatabase($db)) {
                 return 0;
             }
             
@@ -789,15 +783,19 @@ sub Export {
     #$hash->{dbList} = $dbList;
     #$hash->{dbListNEW} = $dbListNEW;
 
-
-    $hash->{database} = $database;
+    my @database_tmp = ();
+    foreach my $db (@$dbList) {
+    	push @database_tmp, $database->{$db};
+    }
+    if (scalar(@database_tmp) > 0) {
+    	$hash->{database} = \@database_tmp;
+    }
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
     $hash->{tlsSettings} = $tlsSettings;
     $hash->{schemaIncludeList} = $schemaIncludeList;
     $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
     $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
-    $hash->{databaseNEW} = $databaseNEW;
     $hash->{serviceEnabled} = $serviceEnabled;
 
     return $hash;
