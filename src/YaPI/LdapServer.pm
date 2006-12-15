@@ -257,6 +257,7 @@ sub AddDatabase {
     my $hash = {};
     my $addDBHash = {};
 
+    y2debug("YaPI::LdapServer.pm AddDatabase: ".Data::Dumper->Dump([$data]));
     ################
     # check database
     ################
@@ -497,6 +498,9 @@ sub AddDatabase {
         }
         $hash->{checkpoint} = $checkpoint;
     }
+    if ( exists $data->{'overlay'} ){
+        $hash->{'overlay'} = $data->{'overlay'};
+    }
 
     if(SCR->Read(".target.size", $hash->{directory}."/DB_CONFIG") < 0) {
         my $DB_CONFIG = "set_cachesize 0 15000000 1\n".
@@ -633,7 +637,7 @@ sub EditDatabase {
         return $self->SetError(summary => "Missing 'data'",
                                code => "PARAM_CHECK_FAILED");
     }
-
+    y2debug("YaPI::LdapServer.pm EditDatabase: ".Data::Dumper->Dump([$data]));
     ###################
     # work on rootdn
     ###################
@@ -786,7 +790,13 @@ sub EditDatabase {
             }
         }
     }
+    if ( exists $data->{'overlay'} ){
+        $editHash->{'overlay'} = $data->{'overlay'};
+    }
 
+
+    y2debug("YaPI::EditDatabase ". Data::Dumper->Dump([$data]) );
+    y2debug("YaPI::EditDatabase edithash: ". Data::Dumper->Dump([$editHash]) );
     if(! SCR->Write(".ldapserver.database", $suffix, $editHash)) {
         my $err = SCR->Error(".ldapserver");
         $err->{description} = $err->{summary}."\n\n".$err->{description};
