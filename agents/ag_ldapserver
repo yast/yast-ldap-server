@@ -123,9 +123,6 @@ my $constraints = {
             },
             ppolicy_use_lockout => {
                 multi => 0
-            },
-            'syncprov-sessionlog' => {
-                multi => 0
             }
     }
 };
