@@ -719,27 +719,46 @@ sub __init_rec
         delete $active_data->{$_};
     }
 
-# NOTE: leave this commented for now to make overlays work
-#
-#    #remove old entries in lookup hash
-#    while( my ($sect_name, $section) = each %$lookup )
-#    {
-#        y2milestone("act sectname: $sect_name");
-#        while( my ($name, $optlist) = each %$section )
-#        {
-#            y2milestone("$name optlist: ".qd($optlist));
-#            my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$optlist;
-#            y2milestone("$name $#newlist newlist: ".qd(\@newlist));
-#            if( $#newlist > -1 )
-#            {
-#                $section->{$name} = \@newlist;
-#            } else
-#            {
-#                delete $section->{$name};
-#            }
-#        }
+    #remove old entries in lookup hash
+    while( my ($sect_name, $section) = each %$lookup )
+    {
+        y2debug("act sectname: $sect_name");
+        while( my ($name, $optlist) = each %$section )
+        {
+            y2debug("$name optlist: ".qd($optlist));
+            $sect_name =~ /^(\S+)/;
+            my $section_type = $1;
+            my $constr = $class->getConstraints( $section_type, $name );
+            y2debug("constr: ".qd($constr));
+            if( $constr && $constr->{subsection} ){
+                foreach my $opt (@$optlist) {
+                    while ( my ($subsect_key, $subsect_opt) = each %{$opt->[1]} ){
+                        my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$subsect_opt;
+                        y2debug("$name $#newlist newlist: ".qd(\@newlist));
+                        if( $#newlist > -1 )
+                        {
+                            $opt->[1]->{$subsect_key} = \@newlist;
+                        } else
+                        {
+                            delete $opt->[1]->{$subsect_key};
+                        }
+                    }
+                }
+                y2debug("new $name optlist: ".qd($optlist));
+            } else {
+                my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$optlist;
+                y2debug("$name $#newlist newlist: ".qd(\@newlist));
+                if( $#newlist > -1 )
+                {
+                    $section->{$name} = \@newlist;
+                } else
+                {
+                    delete $section->{$name};
+                }
+            }
+        }
 #        #delete $lookup->{$sect_name} if( $#{[keys %$section]} == -1 );
-#    }
+    }
 
     $active_data->{__internal} = {};
     $active_data->{__internal}{md5sum} = $md5sum_new;
