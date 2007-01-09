@@ -84,6 +84,8 @@ sub SetModified {
 
 my $dbList = [];
 
+my $overlays = {};
+
 my $database = {};
 
 my $allowList = [];
@@ -392,6 +394,9 @@ sub AddDatabase {
     if($data->{database} eq "bdb") {
         $databaseNEW->{$data->{suffix}}->{checkpoint} = $data->{checkpoint};
     }
+    if( exists $data->{'overlay'} ) {
+        $databaseNEW->{$data->{'suffix'}}->{'overlay'} = $data->{'overlay'};
+    }
 
     $modified = 1;
 
@@ -421,7 +426,7 @@ sub Read {
     my $steps = 4;
 
     my $sl = 0.5;
-    sleep($sl);
+    #sleep($sl);
 
     # TODO FIXME Names of real stages
     # We do not set help text here, because it was set outside
@@ -455,7 +460,7 @@ sub Read {
         # Error message
         Report->Error(__("Cannot read the database list."));
     }
-    sleep($sl);
+    #sleep($sl);
 
     # read another database
     Progress->NextStep();
@@ -463,7 +468,6 @@ sub Read {
     foreach my $db (@$dbList) {
         
         $database->{$db} = YaPI::LdapServer->ReadDatabase($db);
-        
         if(! defined $database->{$db})
           {
               # Error message
@@ -482,7 +486,7 @@ sub Read {
         }
 
     }
-    sleep($sl);
+    #sleep($sl);
 
     # read current settings
     Progress->NextStage();
@@ -527,11 +531,11 @@ sub Read {
     SuSEFirewall->Read();
     Progress->set($progress_orig);
 
-    sleep($sl);
+    #sleep($sl);
 
     # Progress finished
     Progress->NextStage();
-    sleep($sl);
+    #sleep($sl);
     
     $modified = 0;
     return 1;
@@ -553,7 +557,7 @@ sub Write {
     my $ret = undef;
 
     my $sl = 0.5;
-    sleep($sl);
+    #sleep($sl);
 
     # TODO FIXME Names of real stages
     # We do not set help text here, because it was set outside
@@ -634,7 +638,7 @@ sub Write {
         }
     }
 
-    sleep($sl);
+    #sleep($sl);
 
     Progress->NextStage();
 
@@ -687,7 +691,7 @@ sub Write {
         }
     }
     
-    sleep($sl);
+    #sleep($sl);
 
     Progress->NextStage();
 
@@ -711,12 +715,12 @@ sub Write {
     SuSEFirewall->Write();
     Progress->set($progress_orig);
 
-    sleep($sl);
+    #sleep($sl);
 
 
     # Progress finished
     Progress->NextStage();
-    sleep($sl);
+    #sleep($sl);
 
     return 1;
 }
@@ -852,5 +856,22 @@ sub AutoPackages {
     return \%ret;
 }
 
+BEGIN { $TYPEINFO{GetPasswordPolicyOverlay} = ["function", ["map", "string", "string"], "string"]; }
+sub GetPasswordPolicyOverlay {
+    my $self = shift;
+    my $prefix = shift;
+    
+    my $db = $database->{$prefix};
+    my $overlays = $db->{'overlay'};
+
+    foreach my $overlay (@$overlays) {
+        if ( $overlay->[0] eq "ppolicy" ) {
+            y2milestone("GetPasswordPolicyOverlay ".Data::Dumper->Dump([$database]));
+            return $overlay->[1];
+        }
+    }
+    y2milestone("GetPasswordPolicyOverlay: overlay not found");
+    return undef;
+}
 1;
 # EOF
