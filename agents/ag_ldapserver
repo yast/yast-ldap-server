@@ -130,7 +130,8 @@ my $constraints = {
 my $quote = {
              suffix => 1,
              rootdn => 1,
-             rootpw => 1
+             rootpw => 1,
+             ppolicy_default => 1
             };
 
 #internal representation of the config data
@@ -1368,6 +1369,7 @@ sub updateSingleOption
                         }
                     }
                     $subsection_hash->{$opt} =  [{datapos=>"$sub_insertpos",dataref=>$data}];
+                    $insert_pos_add++;
                 }
                 if( !exists( $section->{$opt_name} ) )
                 {
