@@ -1083,6 +1083,8 @@ sub updateSingleOption
     y2debug("-> updateSingleOption optval: ". qd($opt_val));
 
     my $section = $lookup->{$section_name};
+    y2debug("Old data section: ". qd($data));
+    y2debug("Old lookup section: ". qd($section));
     $section_name =~ /^(\S+)/;
     my $section_type = $1;
     y2debug( "updateSingleOption: trying to add option <$opt_name> to section <$section_name>" );
@@ -1281,7 +1283,7 @@ sub updateSingleOption
             y2debug("subsection name: $subsection_name");
             y2debug("subsection opts: ". qd($subsection_opts));
             
-            # check if the subsection is alreay present
+            # check if the subsection is already present
             my $subsection_pos = 0;
             my $subsection_exists = 0;
             my $subsection_hash = undef;
@@ -1336,10 +1338,12 @@ sub updateSingleOption
                     $insert_pos_add++;
                 } else {
                     # clean up existing subsection
+                    y2debug("clean up existing subsection ");
+                    y2debug("subsection_opt ".qd($subsection_opts));
                     foreach my $key ( keys %$subsection_hash ) {
                         if  ( $key eq $opt_name ) {
                             next;
-                        } elsif (! grep /^$key$/, (keys %$subsection_opts) ){
+                        } else {
                             delete $data->{ $section->{$opt_name}->[$subsection_pos]->[1]->{$key}->[0]->{'datapos'}};
                             delete $subsection_hash->{$key};
                         }
