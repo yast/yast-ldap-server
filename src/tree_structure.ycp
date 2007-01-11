@@ -572,7 +572,8 @@ define boolean cb_input_databases()
         UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
         UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
         UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-        UI::ChangeWidget( `cb_ppolicy_defaultpolicy, `Enabled , false );
+        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+        UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
         while( true )
         {
             ret = UI::UserInput();
@@ -601,10 +602,12 @@ define boolean cb_input_databases()
                     UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
                     UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
                     UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
+                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, true );
                 } else {
                     UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
                     UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
                     UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
                 }
             }
             else if( ret == `ok ) {
@@ -690,6 +693,11 @@ define boolean cb_input_databases()
                         ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
                     }
                     if (pp_default != "" ) {
+                        if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+                        {
+                            pp_default = pp_default+","+suffix;
+                        }
+                        db = add(db, "ppolicy_default_changed", "1");
                         ppolicy = add( ppolicy, "ppolicy_default", pp_default);
                     }
                     list<any> pp_overlay = [ "ppolicy", ppolicy ];
@@ -792,6 +800,7 @@ define boolean cb_write_db()
         boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
         boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
         string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+        map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
         map<string,any> ppolicy = $[];
         if (hashcleartext ) {
             ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
@@ -800,6 +809,13 @@ define boolean cb_write_db()
             ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
         }
         if (pp_default != "" ) {
+            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+            {
+                pp_default = pp_default+","+suffix;
+            }
+            if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
+                db = add(db, "ppolicy_default_changed", "1");
+            }
             ppolicy = add( ppolicy, "ppolicy_default", pp_default);
         }
         list<any> pp_overlay = [ "ppolicy", ppolicy ];
@@ -901,6 +917,13 @@ define boolean cb_read_db()
         string pp_hash_cleartext = ppolicy_map["ppolicy_hash_cleartext"]:nil;
         string pp_use_lockout = ppolicy_map["ppolicy_use_lockout"]:nil;
         string pp_default = ppolicy_map["ppolicy_default"]:nil;
+        boolean pp_append_checked = false;
+        integer pos = find( pp_default, suffix );
+        if( pos > -1 )
+        {
+            pp_default = substring( pp_default, 0, pos-1 );
+            pp_append_checked = true;
+        }
         if ( pp_hash_cleartext != nil ){
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
         } else {
@@ -913,8 +936,10 @@ define boolean cb_read_db()
         }
         if ( pp_default != nil ){
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
+            UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
         } else {
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
+            UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
         }
     } else {
         UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
@@ -1147,10 +1172,21 @@ widget_map = $[
                     ) ))),
                 `VSpacing( 1 ),
                 `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ), _("Enable Password Policy"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ), _("Hash Cleartext"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ), _("Use Lockout"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `TextEntry( `id( `te_ppolicy_defaultpolicy ), _("Default Policy"), "cn=Default Policy" )),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),
+                                      `opt(`notify ), _("Enable Password Policies"), false ),
+                            `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                                      _("Hash Cleartext Passwords"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
+                                      _("Disclose \"Account Locked\" Status"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                       _("Default Policy Object DN"), "cn=Default Password Policy" ),
+                           `HSpacing( 0.5 ),
+                           `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
+                                                     _("&Append Base DN"), true )
+                                        ),`VSpacing( 0.3 ))),
                     `VSpacing(0.25)
                 )),
                 `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
@@ -1201,10 +1237,26 @@ void addDatabaseWidgetMap( string suffix, boolean new_db )
                 )),
                 `VSpacing( 1 ),
                 `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ), _("Enable Password Policy"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ), _("Hash Cleartext"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ), _("Use Lockout"), false ), `HSpacing( `opt(`hstretch))),
-                    `HBox( `TextEntry( `id( `te_ppolicy_defaultpolicy ), _("Default Policy"), "cn=Default Policy" )),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
+                                      _("Enable Password Policies"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                                      _("Hash Cleartext Passwords"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
+                                      _("Disclose \"Account Locked\" Status"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `VSquash( `HBox(
+                                `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                            _("Default Policy Object DN"), "cn=Default Policy" ),
+                                `HSpacing( 0.5 ),
+                                `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
+                                                     _("&Append Base DN"), true )
+                                            ),
+                                      `VSpacing( 0.3 )
+                                )
+                            )
+                        ),
                     `VSpacing(0.25)
                 ))
              );
