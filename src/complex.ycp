@@ -73,6 +73,10 @@ symbol WriteDialog() {
     Wizard::RestoreHelp(HELPS["write"]:"");
     // LdapServer::AbortFunction = PollAbort;
     boolean ret = LdapServer::Write();
+    if (! ret ) {
+        return `abort;
+    }
+    ret = LdapServer::WritePPolicyObjects();
     return ret ? `next : `abort;
 }
 
