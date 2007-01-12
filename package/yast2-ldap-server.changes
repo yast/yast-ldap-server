@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Jan 12 11:20:50 CET 2007 - rhafer@suse.de
+
+- Added support of LDAP Password Policy overlay (ppolicy). 
+  Fate #301179. 
+- Version 2.14.1 
+
+-------------------------------------------------------------------
 Mon Nov 20 13:43:21 CET 2006 - jsrain@suse.cz
 
 - 2.14.0
