@@ -94,6 +94,12 @@ my $constraints = {
         checkpoint  => { 
             multi => 0,
             backend => { bdb => 1 }
+        },
+        overlay => {
+            subsection => 1,
+            multi => 1,
+            last => 1,
+            backend => { bdb => 1 }
         }
     },
     global      => {
@@ -107,13 +113,25 @@ my $constraints = {
         TLSCertificateFile => { multi => 0 },
         TLSCertificateKeyFile => { multi => 0 },
         TLSVerifyClient => { multi => 0 }
+    },
+    overlay => {
+            ppolicy_default => {
+                multi => 0
+            },
+            ppolicy_hash_cleartext => {
+                multi => 0
+            },
+            ppolicy_use_lockout => {
+                multi => 0
+            }
     }
 };
 
 my $quote = {
              suffix => 1,
              rootdn => 1,
-             rootpw => 1
+             rootpw => 1,
+             ppolicy_default => 1
             };
 
 #internal representation of the config data
@@ -132,7 +150,7 @@ my $files = {};
 sub OtherCommand
 {
     my ($self, $symbol, $config, @rest) = @_;
-
+    y2debug("-> OtherCommand");
     return $self->SetError(
         summary => "first command has to be configfile, seen( $_ )",
         code    => "SCR_INIT_ERR"
@@ -149,6 +167,7 @@ sub Read
         summary => "Missing path",
         code    => "PARAM_CHECK_FAILED"
     );
+    y2debug("-> Read: $path");
     my @path = split( /\./, $path );
     shift @path;
     
@@ -174,8 +193,10 @@ sub Read
 sub Write
 {
     my $class = shift || return undef;
+    my $path_str = shift;
+    y2debug("-> Write: ".$path_str);
 
-    my @path = split( /\./, shift ); # FIXME: what about path parts that contain dots?
+    my @path = split( /\./, $path_str ); # FIXME: what about path parts that contain dots?
     shift @path;
     my @args = @_;
 
@@ -226,14 +247,16 @@ sub Write
     {
         my $db_suffix = shift;
         my $options = shift;
+
+        y2milestone("Write database $db_suffix ");
+        y2debug("Options: ". qd($options));
+
         return $class->SetError(
             summary => "argument to 'write .database' needs to be a map",
             code    => "PARAM_CHECK_FAILED"
         ) if( ref( $options ) ne "HASH" );
 
-        #print STDERR join( ", ", $class->sortByConstraints( 'database', [ keys %$options ] ) )."\n";
         my @sorted_keys = $class->sortByConstraints( 'database', [ keys %$options ] );
-        
         foreach my $opt_name ( @sorted_keys )
         {
             $class->updateSingleOption( 'database '.$db_suffix, $opt_name, $options->{$opt_name} ) || return undef;
@@ -251,6 +274,7 @@ sub Write
 sub Execute
 {
     my $class = shift || return undef;
+    y2debug("-> Execute");
     
     my @path = split( /\./, shift );
     shift @path;
@@ -383,6 +407,7 @@ sub getNewDatabasePosition
 		code	=> "LDAPSERVER_INTERNAL"
 	);
 
+        y2debug("-> getNewDatabasePosition");
 	#create list of all suffixes in the config file;
 	my @dblist = map {(/^database (.*)/)[0]} grep {m/^database /} keys %$lookup;
 	my $pos;
@@ -425,21 +450,48 @@ sub readUnparsedSection
         summary => "Missing argv hash in command handler",
         code    => "LDAPSERVER_INTERNAL"
     );
+    y2debug("-> readUnparsedSection");
+    y2debug(qd($conf));
 
-    my $section_name = $conf->{command};
-    $section_name .= " ".$conf->{name} if defined $conf->{name} && $conf->{command} ne 'global';
-    $section_name =~ /^(\S+)/;
-    my $section_type = $1;
+    my $section_name = "";
+    my $section;
+    if ( $conf->{'option'} ) {
+        $section_name = $conf->{'option'};
+        $section = shift;
+    } else {
+        $section_name = $conf->{command};
+        $section_name .= " ".$conf->{name} if defined $conf->{name} && $conf->{command} ne 'global';
+        chomp($section_name);
+        $section_name =~ /^(\S+)/;
+        $section = $lookup->{$section_name};
+    }
+    my $section_type = $conf->{command};
     y2debug( "Retrieving section '$section_name'" );
-    my $section = $lookup->{$section_name};
     y2debug( "Section has ".$#{[keys %$section]}." entries." );
+    if ( $conf->{'command'} eq "database" ){
+        y2debug(qd($section));
+    }
     my $ret = {};
     while( my( $opt, $list ) = each %$section )
     {
         next if $opt eq 'comment';
         my $constr = $class->getConstraints( $section_type, $opt );
+        y2debug( "constraints: ".qd($constr));
         next if not defined $constr;
-        if( $constr->{multi} )
+        if ( $opt eq 'overlay' ) {
+            y2debug( "overlay options: ".qd($list) );
+            foreach my $pos ( @$list )
+            {
+                y2debug( "overlay pos: ".qd($pos) );
+                my $type = $pos->[0];
+                my $sub_options = $pos->[1];
+                my $subret = $class->readUnparsedSection({ option => $type, command => 'overlay' }, $sub_options);
+                y2milestone( "result: ".qd($subret));
+                $ret->{$opt} = [] if( not exists( $ret->{$opt} ) );
+                push( @{$ret->{$opt}}, [ $type, $subret] );
+            }
+        }
+        elsif( $constr->{multi} )
         {
             foreach my $pos ( @$list )
             {
@@ -482,6 +534,7 @@ sub readBackList
         summary => "Missing argv hash in command handler",
         code    => "LDAPSERVER_INTERNAL"
     );
+    y2debug("-> readBackList");
 
     my @backlist;
     foreach( keys %$lookup )
@@ -504,6 +557,7 @@ sub readDBList
         summary => "Missing argv hash in command handler",
         code    => "LDAPSERVER_INTERNAL"
     );
+    y2debug("-> readDBList");
 
     my @dblist;
     foreach( keys %$lookup )
@@ -514,6 +568,8 @@ sub readDBList
     @dblist = sort {
         keycompare( $lookup->{"database ".$a}{database}[0]{datapos}, $lookup->{"database ".$b}{database}[0]{datapos} );
     } @dblist;
+    y2debug(qd(\@dblist));
+    y2debug("<- readDBList");
     return [@dblist];
 }
 
@@ -538,6 +594,7 @@ sub initData
         code    => "LDAPSERVER_INTERNAL"
     );
 
+    y2debug("-> initData");
     #check filename... this is done again in __init_rec, but there it would produce a
     #possibly misleading error summary ('Include file location...')
     if( $filename !~ /^\// )
@@ -559,6 +616,8 @@ sub initData
     
     my $ret = $class->__init_rec( $filename, $data, $lookup->{'global'} );
 
+    y2debug("Data after __init_rec:". qd($data));
+    y2debug("Lookup after __init_rec:". qd($lookup));
     #check if the dummy database (default of openldap2.rpm) exists
     my @dblist = grep { /^database / } keys %$lookup;
     if( scalar @dblist == 1 && defined $ret )
@@ -635,6 +694,7 @@ sub __init_rec
         code    => "LDAPSERVER_OPEN_FAILED"
     );
 
+    y2debug("-> __init_rec");
     #generate md5sum
     binmode( $cfh );
     my $md5sum_new = Digest::MD5->new->addfile( $cfh )->hexdigest || do {
@@ -663,18 +723,42 @@ sub __init_rec
     #remove old entries in lookup hash
     while( my ($sect_name, $section) = each %$lookup )
     {
+        y2debug("act sectname: $sect_name");
         while( my ($name, $optlist) = each %$section )
         {
-            my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$optlist;
-            if( $#newlist > -1 )
-            {
-                $section->{$name} = \@newlist;
-            } else
-            {
-                delete $section->{$name};
+            y2debug("$name optlist: ".qd($optlist));
+            $sect_name =~ /^(\S+)/;
+            my $section_type = $1;
+            my $constr = $class->getConstraints( $section_type, $name );
+            y2debug("constr: ".qd($constr));
+            if( $constr && $constr->{subsection} ){
+                foreach my $opt (@$optlist) {
+                    while ( my ($subsect_key, $subsect_opt) = each %{$opt->[1]} ){
+                        my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$subsect_opt;
+                        y2debug("$name $#newlist newlist: ".qd(\@newlist));
+                        if( $#newlist > -1 )
+                        {
+                            $opt->[1]->{$subsect_key} = \@newlist;
+                        } else
+                        {
+                            delete $opt->[1]->{$subsect_key};
+                        }
+                    }
+                }
+                y2debug("new $name optlist: ".qd($optlist));
+            } else {
+                my @newlist = grep { $#{[keys %{$_->{dataref}}]} > -1 } @$optlist;
+                y2debug("$name $#newlist newlist: ".qd(\@newlist));
+                if( $#newlist > -1 )
+                {
+                    $section->{$name} = \@newlist;
+                } else
+                {
+                    delete $section->{$name};
+                }
             }
         }
-        #delete $lookup->{$sect_name} if( $#{[keys %$section]} == -1 );
+#        #delete $lookup->{$sect_name} if( $#{[keys %$section]} == -1 );
     }
 
     $active_data->{__internal} = {};
@@ -686,6 +770,8 @@ sub __init_rec
 
     #currently active option
     my $last_opt = "";
+    my $overlay_prefix ="";
+    my $parent_section = {};
 
     #value of the currently active option
     my $content = "";
@@ -726,12 +812,15 @@ sub __init_rec
             }
             $content .= $_;
             next;
-        } elsif( /^([^\s#]+)(\s+)(.+)/s ) 
+        } elsif( /^([^\s#]+)((\s+)(.+))?/s ) 
         {
             my $opt_name    = $1;
-            my $ws_tmp      = $2;
-            my $opt_val     = $3;
-            
+            my $ws_tmp      = "";
+            my $opt_val     = "";
+            if ( defined $2 ) {
+                $ws_tmp      = $3;
+                $opt_val     = $4;
+            }
             if( $last_opt ne "" ) {
                 $class->addOptionData({
                     data    =>  $active_data,
@@ -743,6 +832,23 @@ sub __init_rec
                 });
                 $class->inc( \$datapos );
                 $content = "";
+            }
+            if( $overlay_prefix ne "" ) {
+                if ( $opt_name =~ /^$overlay_prefix/s ) {
+                    y2debug("option for current overlay : $opt_name <$opt_val> lastopt: $last_opt");
+                } else {
+                    y2debug("overlay section ends here $opt_name $overlay_prefix");
+                    y2debug("overlay section: ".qd($active_section));
+                    if ( exists $parent_section->{'overlay'} ) {
+                        push @{$parent_section->{'overlay'}}, ( [ $overlay_prefix,$active_section ] );
+                    } else {
+                        $parent_section->{'overlay'} = [ [ $overlay_prefix, $active_section ] ];
+                    }
+                    $overlay_prefix = "";
+                    y2debug("parent section: ".qd($parent_section));
+                    $active_section = $parent_section;
+                    $parent_section = {};
+                }
             }
             $opt_ws      = $ws_tmp;
             if( $opt_name eq "include" )
@@ -802,18 +908,22 @@ sub __init_rec
                 next;
                 
                 
-            } elsif( $opt_name eq "backend" )
-            {
+            } elsif( $opt_name eq "backend" ) {
                 #start new backend section
                 $opt_val =~ /^(\S+)/;
                 $active_section = {};
                 $lookup->{"backend ".$1} = $active_section;
-            } elsif( $opt_name eq "database" )
-            {
+            } elsif( $opt_name eq "database" ) {
                 #start new database section
                 my $suffix = $class->findFirstSuffix( $cfh );
                 $active_section = {};
                 $lookup->{"database ".$suffix} = $active_section;
+            } elsif( $opt_name eq "overlay" ) {
+                $overlay_prefix = $opt_val;
+                chomp($overlay_prefix);
+                $parent_section = $active_section;
+                $active_section = {};
+                y2milestone("found overlay section: $opt_name <$overlay_prefix>");
             }
             $last_opt = $opt_name;
             $content .= $opt_val;
@@ -821,7 +931,9 @@ sub __init_rec
             #$opt_val =~ s/\n/\\n/;
             #y2debug( "starting new <$last_opt> with value <$opt_val> at position <$datapos>" );
             next;
-        } 
+        } else {
+            y2milestone("__init_rec() bogus line: $_");
+        }
     }
 
     #write last option
@@ -834,6 +946,19 @@ sub __init_rec
             content =>  $content,
             ws      =>  $opt_ws
         });
+        if( $overlay_prefix ne "" ) {
+            y2debug("overlay section ends here prefix: $overlay_prefix");
+            y2debug("overlay section: ".qd($active_section));
+            if ( exists $parent_section->{'overlay'} ) {
+                push @{$parent_section->{'overlay'}}, ( [ $overlay_prefix,$active_section ] );
+            } else {
+                $parent_section->{'overlay'} = [ [ $overlay_prefix, $active_section ] ];
+            }
+            $overlay_prefix = "";
+            y2debug("parent section: ".qd($parent_section));
+            $active_section = $parent_section;
+            $parent_section = {};
+        }
     }
     
     close $cfh or return $class->SetError(
@@ -864,6 +989,7 @@ sub addOptionData
     my $content = $config->{content};
     my $ws      = $config->{ws};
     
+    y2debug("-> addOptionData");
     $data->{"$datapos"} = {
         type            => $name,
         content_string  => $content,
@@ -906,6 +1032,8 @@ sub findFirstSuffix
 {
     my $class = shift || return undef;
     my $cfh = shift;
+    
+    y2debug("-> findFirstSuffix");
 
     my $pos = tell( $cfh );
 
@@ -952,12 +1080,17 @@ sub updateSingleOption
     my $class = shift || return undef;
 
     my ($section_name, $opt_name, $opt_val ) = @_;
+    y2debug("-> updateSingleOption $section_name, $opt_name");
+    y2debug("-> updateSingleOption optval: ". qd($opt_val));
 
     my $section = $lookup->{$section_name};
+    y2debug("Old data section: ". qd($data));
+    y2debug("Old lookup section: ". qd($section));
     $section_name =~ /^(\S+)/;
     my $section_type = $1;
     y2debug( "updateSingleOption: trying to add option <$opt_name> to section <$section_name>" );
 
+    my $insert_pos = undef;
     #return successfully if a non-existing option is tried to delete
     if( !exists( $section->{$opt_name} ) && !defined $opt_val )
     {
@@ -992,12 +1125,12 @@ sub updateSingleOption
     #bail if option is not supported by backend
     if( $section_type eq "database" || $section_type eq "backend" )
     {
-		y2debug("updateSingleOption: checking constraints for option <$opt_name> in section <$section_type>");
+        y2debug("updateSingleOption: checking constraints for option <$opt_name> in section <$section_type>");
         my $back_opt = $section->{$section_type}->[0];
         
         my $back_type = $back_opt->{dataref}->{$back_opt->{datapos}}->{content_string};
-		chomp $back_type;
-		y2debug("updateSingleOption: back_opt: <$back_opt>, back_type: <$back_type>");
+        chomp $back_type;
+        y2debug("updateSingleOption: back_opt: <$back_opt>, back_type: <$back_type>");
         
         #local $Data::Dumper::Maxdepth = 2;
         #print STDERR "Constraints hash for option '$opt_name':\n".qd( $constr );
@@ -1014,7 +1147,7 @@ sub updateSingleOption
     }
 
     #bail if multiple options of the same type are distributed between different files
-    if( $constr->{multi} && exists( $section->{$opt_name} ) )
+    if( !$constr->{subsection} && $constr->{multi} && exists( $section->{$opt_name} ) )
     {
         my $file = $section->{$opt_name}->[0]{dataref}{__internal}{filename};
         local $Data::Dumper::Maxdepth = 2;
@@ -1063,7 +1196,6 @@ sub updateSingleOption
         #    }
         #}
 
-        my $insert_pos = undef;
 
         #special handling for the schema includes: insert at beginning of file (bug #40331)
         #TODO: solve with 'before' constraint
@@ -1129,40 +1261,134 @@ sub updateSingleOption
         y2debug( "updateSingleOption: found insert position for '$opt_name' at <$insert_pos>" );
 
         #create the dummy option
-        $class->addOptionData({
-            data    =>  $data,
-            section =>  $section,
-            datapos =>  $insert_pos,
-            name    =>  $opt_name,
-            content =>  "DUMMY",
-            ws      =>  ' '
-        });
+        if (! $constr->{'subsection'}) {
+            $class->addOptionData({
+                data    =>  $data,
+                section =>  $section,
+                datapos =>  $insert_pos,
+                name    =>  $opt_name,
+                content =>  "DUMMY",
+                ws      =>  ' '
+            });
+        }
 
-        #local $Data::Dumper::Maxdepth = 1;
-        #print STDERR qd( $section->{$opt_name} );
-        
-        #return $class->SetError(
-        #    summary => "options that don't exist in the config file cannot be written atm. (tried to write '$opt_name')",
-        #    code    => "LDAPSERVER_INTERNAL"
-        #);
+        y2debug( "Dummy data:" .qd( $section->{$opt_name} ));
     }
     
-    if( !$constr->{multi} )
+    if ( $constr->{subsection} )  # this is a subsection (e.g. overlay)
     {
-        #single-only option - just replace the content_string
-        my $opt = $section->{$opt_name}->[0];
-        if( defined $opt_val )
-        {
-            $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
-        } else
-        {
-            delete( $opt->{dataref}->{$opt->{datapos}} );
-            delete( $section->{$opt_name} );
-        }
-        $opt->{'dataref'}{'__internal'}{'dirty'} = 1;
-        
-        return 1;
-    } else
+        my $insert_pos_add = 1;
+        foreach my $act_optval ( @$opt_val ) {
+            my $subsection_name = $act_optval->[0];
+            my $subsection_opts = $act_optval->[1];
+            y2debug("subsection name: $subsection_name");
+            y2debug("subsection opts: ". qd($subsection_opts));
+            
+            # check if the subsection is already present
+            my $subsection_pos = 0;
+            my $subsection_exists = 0;
+            my $subsection_hash = undef;
+            foreach my $subsection (@{$section->{$opt_name}}){
+                if( $subsection->[0] eq $subsection_name ) {
+                    $subsection_hash = $subsection->[1];
+                    $subsection_exists = 1;
+                    last;
+                }
+                $subsection_pos++;
+            }
+            y2debug("subsection position is: $subsection_pos");
+            y2debug("subsection is: ". qd ($subsection_hash));
+
+            # should this subsection be removed ?
+            if (! defined $subsection_opts ) {
+                y2debug("deleteing subsection $opt_name $subsection_name");
+                y2debug("old lookup section ". qd($section));
+                foreach my $key (keys %{$section->{$opt_name}->[$subsection_pos]->[1]}) {
+                    delete $data->{ $section->{$opt_name}->[$subsection_pos]->[1]->{$key}->[0]->{'datapos'}};
+                }
+                splice @{$section->{$opt_name}},$subsection_pos,1;
+            } else {
+                if (! defined $insert_pos){
+                    y2debug("looking for new insert_pos");
+                    # seems the current subjection does already exist in the file
+                    # find  the data position of the current option
+                    y2debug('$section->{$opt_name}->[0]->[1]' .qd($section->{$opt_name}->[0]->[1]));
+                    $insert_pos = $section->{$opt_name}->[0]->[1]->{$opt_name}->[0]->{'datapos'};
+                }
+                y2debug("insert_pos: $insert_pos");
+                my $sub_insertpos = "$insert_pos.$insert_pos_add";
+                if (! defined $subsection_hash) {
+                    y2debug("this is a new subsection");
+                    $data->{"$sub_insertpos"} = {
+                        type            => $opt_name,
+                        content_string  => $subsection_name,
+                        ws              => ' ',
+                        md5             => $class->getOptionMD5( $subsection_name )
+                    };           
+
+                    if($class->__mayQuote($opt_name)) {
+                        if($subsection_name =~ /^"/) {
+                            $subsection_name =~ s/^"//;
+                            $subsection_name =~ s/"(\s*)$/$1/;
+                            $subsection_name =~ s/\\"/"/g;
+                            $subsection_name =~ s/\\\\/\\/g;
+                            $data->{"$sub_insertpos"}->{content_string} = $subsection_name;
+                        }
+                    }
+                    $subsection_hash = {  $opt_name => [{datapos=>"$sub_insertpos",dataref=>$data}] };
+                    $insert_pos_add++;
+                } else {
+                    # clean up existing subsection
+                    y2debug("clean up existing subsection ");
+                    y2debug("subsection_opt ".qd($subsection_opts));
+                    foreach my $key ( keys %$subsection_hash ) {
+                        if  ( $key eq $opt_name ) {
+                            next;
+                        } else {
+                            delete $data->{ $section->{$opt_name}->[$subsection_pos]->[1]->{$key}->[0]->{'datapos'}};
+                            delete $subsection_hash->{$key};
+                        }
+                    }
+                }
+                while( my( $opt, $val ) = each %$subsection_opts ) {
+                    $sub_insertpos = "$insert_pos.$insert_pos_add";
+                    $data->{"$sub_insertpos"} = {
+                        type            => $opt,
+                        content_string  => $val,
+                        ws              => ' ',
+                        md5             => $class->getOptionMD5( $val )
+                    };           
+
+                    if($class->__mayQuote($opt)) {
+                        if($val =~ /^"/) {
+                            $val =~ s/^"//;
+                            $val =~ s/"(\s*)$/$1/;
+                            $val =~ s/\\"/"/g;
+                            $val =~ s/\\\\/\\/g;
+                            $data->{"$sub_insertpos"}->{content_string} = $val;
+                        }
+                    }
+                    $subsection_hash->{$opt} =  [{datapos=>"$sub_insertpos",dataref=>$data}];
+                    $insert_pos_add++;
+                }
+                if( !exists( $section->{$opt_name} ) )
+                {
+                    $section->{$opt_name} = [[$subsection_name, $subsection_hash]];
+                } else
+                {
+                    if ($subsection_exists == 1) {
+                        $section->{$opt_name}->[$subsection_pos] = [$subsection_name, $subsection_hash] ;
+                    } else {
+                        push( @{$section->{$opt_name}},[$subsection_name, $subsection_hash]  );
+                    }
+                }
+            }
+       }
+       y2debug("New data section: ". qd($data));
+       y2debug("New lookup section: ". qd($section));
+       return 1;
+    }
+    elsif( $constr->{multi} )
     {
         #multi option
         #TODO: has to be changed for multiple files support
@@ -1237,12 +1463,27 @@ sub updateSingleOption
         {
             delete $section->{$opt_name};
         }
-        #local $Data::Dumper::Maxdepth = 1;
         y2debug( "Section for '$opt_name': " );
         $data->{__internal}{dirty} = 1;
         return 1;
         
-    } # else( !$constr->{multi} )
+    }
+    else  # simple single values statement
+    {
+        #single-only option - just replace the content_string
+        my $opt = $section->{$opt_name}->[0];
+        if( defined $opt_val )
+        {
+            $opt->{dataref}->{$opt->{datapos}}->{content_string} = $opt_val;
+        } else
+        {
+            delete( $opt->{dataref}->{$opt->{datapos}} );
+            delete( $section->{$opt_name} );
+        }
+        $opt->{'dataref'}{'__internal'}{'dirty'} = 1;
+        
+        return 1;
+    }
         
     return $class->SetError(
         summary => "undefined error while trying to update option '$opt_name' in section '$section_name'",
@@ -1270,6 +1511,8 @@ sub getConstraints
     my $class = shift || return undef;
     my ($section_type, $opt_name ) = @_;
     
+    y2debug("-> getConstraints <$section_type> <$opt_name>");
+    
     my $c_hash = undef;
     my $not_found = 0;
     
@@ -1283,6 +1526,11 @@ sub getConstraints
         ( /^backend$/ || $not_found ) && do
             {
                 $c_hash = $constraints->{'backend'}->{$opt_name};
+                $not_found = 1 if( !$c_hash );
+            };
+        ( /^overlay$/ || $not_found ) && do
+            {
+                $c_hash = $constraints->{'overlay'}->{$opt_name};
                 $not_found = 1 if( !$c_hash );
             };
         ( /^global$/ || $not_found ) && do
@@ -1307,6 +1555,7 @@ sub rewriteChangedFiles
 {
     my $class = shift || return undef;
     #return 1 if $delaywrite;
+    y2debug("-> rewriteChangedFile");
 
     while( my( $filename, $data ) = each %$files )
     {
@@ -1408,6 +1657,7 @@ sub inc
         summary => "Missing argument to function inc",
         code    => "LDAPSERVER_MISSING_ARG"
     );
+    y2debug("-> inc");
     my @a = split( /\./, $$num );
     $a[$#a]++;
     $$num = join( ".", @a );
@@ -1422,6 +1672,7 @@ sub dec
 {
     my $class = shift || return undef;
     my $num = shift || return undef;
+    y2debug("-> dec");
 
     my @a = split( /\./, $$num );
     $a[$#a]--;
@@ -1432,6 +1683,7 @@ sub sortDataposList
 {
     my $class = shift || return undef;
     my @list = @_ || return undef;
+    y2debug("-> sortDataposList");
     return undef if( ref($list[0]) eq "LIST" );
 
     my @newlist = sort { $class->keycompare( $a, $b ) } @list;
@@ -1441,6 +1693,7 @@ sub sortDataposList
 sub __mayQuote {
     my $class = shift;
     my $key = shift;
+    y2debug("-> __mayQuote");
 
     if(exists $quote->{$key}) {
         return $quote->{$key};
@@ -1451,6 +1704,7 @@ sub __mayQuote {
 sub sambaACLHack {
     my $class = shift;
     my $dn = shift;
+    y2debug("-> sambaACLHack");
     my $file = '/etc/openldap/slapd.conf';
     my $acl = "## Yast2 samba hack ACL\n";
     $acl   .= "## allow the \"ldap admin dn\" access, but deny everyone else\n";
@@ -1506,6 +1760,7 @@ sub getOptionMD5
 {
     my $class = shift || return undef;
     my $val = shift;
+    y2debug("-> getOptionMD5");
 
     #chop whitespace
     $val =~ s/\s+$//s;
@@ -1526,6 +1781,7 @@ sub sortOptionList
 {
     my $class = shift || return undef;
     my $list = shift;
+    y2debug("-> sortOptionList");
 
     my @newlist = sort { $class->keycompare( $a->{datapos}, $b->{datapos} ) } @$list;
     local $Data::Dumper::Maxdepth = 2;
@@ -1546,11 +1802,14 @@ sub sortByConstraints
     my $class = shift;
     my $s = shift;
     my $list = shift;
+    y2debug("-> sortByConstraints");
     return sort {
         #print STDERR "comparing $a <-> $b\n";
         my $tmp = $class->getConstraints( $s, $a ) || return 0;
+        if ( exists $tmp->{'last'} ) { return 1; }
         my $dep_a = $tmp->{after} || return 0;
         $tmp = $class->getConstraints( $s, $b ) || return 0;
+        if ( exists $tmp->{'last'} ) { return -1; }
         my $dep_b = $tmp->{after} || return 0;
         #print STDERR "-------------------------------------\n$a comes after:\n".qd( $dep_a );
         #print STDERR "-------------------------------------\n$b comes after:\n".qd( $dep_b );
@@ -1572,6 +1831,7 @@ sub sortByConstraints
 sub keycompare
 {
     my $class = shift;
+    y2debug("-> keycompare");
     return 0 if $_[0] eq $_[1];
     no warnings;
     my $a = ref( $_[0] ) ? $_[0] : [ split( /\./, $_[0] ) ];

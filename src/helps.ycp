@@ -170,22 +170,22 @@ order causes the LDAP server not to start.</p>
     /* Tree Item Dialog "databases" 2/2 */
     _("<p>To add a new database, press <b>Add Database...</b>.</p>"),
 
-    /* Tree Item Dialog for existing "database" 1/5 */
     "database_detail" : _("<p>In this dialog, edit some parameters of this database.<p>") +
-
-    /* Tree Item Dialog for existing "database" 2/5 */
+    _("<h4>General Settings</h4>") +
     _("<p>With <b>Root DN</b>, change the DN for the administrator.") +
-
-    /* Tree Item Dialog for existing "database" 3/5 */
     _("Enter the complete DN or only the first part and append the base DN automatically with <b>Append Base DN</b>.</p>")+
-
-    /* Tree Item Dialog for existing "database" 4/5 */
     _("<p>To change the password for the root account, enter a new one and select the <b>Encryption</b>.</p>") +
-
-    /* Tree Item Dialog for existing "database" 5/5 */
-    _("<p>The password fields are initially empty, even if a password is already set in the configuration file.</p>"),
-
-
+    _("<p>The password fields are initially empty, even if a password is already set in the configuration file.</p>") +
+    _("<h4>Password Policy Settings</h4>") +
+    _("<p>To make use of Password Policies for this database, enable the <b>Enable Password Policies</b> checkbox<p>") +
+    _("<p>Check <b>Hash Cleartext Passwords</b>, to specify that the OpenLDAP Server should hash cleartext passwords
+present in Add and Modify requests before being stored in the database. Note that this violates the  X.500/LDAP information
+model, but may be needed to compensate for LDAP clients that don't use the Password Modify extended operation to 
+manage passwords.</p>")+
+    _("<p>If <b>Disclose \"Account Locked\" Status</b> is enabled, users authenticating to a locked account, will
+get a notification that their account is locked. Note that this notification might provides useful information
+to an attacker. Sites that are sensitive to security issues should not enable this option.</p>") +
+    _("<p>Enter the Name of the Default Policy Object into <b>\"Default Policy Object DN\"</b> textfield.</p>")
 ];
 
 /* EOF */
