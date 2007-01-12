@@ -562,24 +562,13 @@ sub Write {
     # TODO FIXME Names of real stages
     # We do not set help text here, because it was set outside
     Progress->New($caption, " ", $steps, [
-	    # Progress stage 1/4
 	    __("Write global settings"),
-	    # Progress stage 2/4
 	    __("Add new databases"),
-	    # Progress stage 3/4
 	    __("Edit databases"),
-	    # Progress stage 4/4
-	    __("Checking Password Policy Objects"),
 	], [
-	    # Progress step 1/4
 	    __("Write global settings"),
-	    # Progress step 2/4
 	    __("Add new databases"),
-	    # Progress step 3/4
 	    __("Edit databases"),
-	    # Progress step 4/4
-	    __("Checking Password Policy Objects"),
-	    # Progress finished
 	    __("Finished")
 	],
 	""
@@ -721,9 +710,33 @@ sub Write {
 
     #sleep($sl);
 
+    # Progress finished
+    Progress->NextStage();
+    sleep(1);
+    return 1;
+}
+
+BEGIN { $TYPEINFO{WritePPolicyObjects} = ["function", "boolean"]; }
+sub WritePPolicyObjects {
+
+    my $caption = __("Creating Password Policy Objects");
+
+    # TODO FIXME And set the right number of stages
+    my $steps = 1;
+
+    my $ret = undef;
+
+    # We do not set help text here, because it was set outside
+    Progress->New($caption, " ", $steps, [
+	    __("Checking Password Policy Objects"),
+	], [
+	    __("Checking Password Policy Objects"),
+	    __("Finished")
+	],
+	""
+    );
 
     Progress->NextStage();
-    #sleep($sl);
     if( $serviceEnabled )
     {
         foreach my $current ( [$dbList,$database], [$dbListNEW, $databaseNEW] ){
