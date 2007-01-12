@@ -84,6 +84,8 @@ sub SetModified {
 
 my $dbList = [];
 
+my $overlays = {};
+
 my $database = {};
 
 my $allowList = [];
@@ -389,8 +391,12 @@ sub AddDatabase {
     $databaseNEW->{$data->{suffix}}->{directory}           = $data->{directory};
     $databaseNEW->{$data->{suffix}}->{createdatabasedir}   = $data->{createdatabasedir};
     $databaseNEW->{$data->{suffix}}->{cachesize}           = $data->{cachesize};
+    $databaseNEW->{$data->{suffix}}->{ppolicy_default_changed} = $data->{ppolicy_default_changed};
     if($data->{database} eq "bdb") {
         $databaseNEW->{$data->{suffix}}->{checkpoint} = $data->{checkpoint};
+    }
+    if( exists $data->{'overlay'} ) {
+        $databaseNEW->{$data->{'suffix'}}->{'overlay'} = $data->{'overlay'};
     }
 
     $modified = 1;
@@ -421,7 +427,7 @@ sub Read {
     my $steps = 4;
 
     my $sl = 0.5;
-    sleep($sl);
+    #sleep($sl);
 
     # TODO FIXME Names of real stages
     # We do not set help text here, because it was set outside
@@ -455,7 +461,7 @@ sub Read {
         # Error message
         Report->Error(__("Cannot read the database list."));
     }
-    sleep($sl);
+    #sleep($sl);
 
     # read another database
     Progress->NextStep();
@@ -463,7 +469,6 @@ sub Read {
     foreach my $db (@$dbList) {
         
         $database->{$db} = YaPI::LdapServer->ReadDatabase($db);
-        
         if(! defined $database->{$db})
           {
               # Error message
@@ -482,7 +487,7 @@ sub Read {
         }
 
     }
-    sleep($sl);
+    #sleep($sl);
 
     # read current settings
     Progress->NextStage();
@@ -526,12 +531,11 @@ sub Read {
     my $progress_orig = Progress->set(0);
     SuSEFirewall->Read();
     Progress->set($progress_orig);
-
-    sleep($sl);
+    #sleep($sl);
 
     # Progress finished
     Progress->NextStage();
-    sleep($sl);
+    #sleep($sl);
     
     $modified = 0;
     return 1;
@@ -553,24 +557,28 @@ sub Write {
     my $ret = undef;
 
     my $sl = 0.5;
-    sleep($sl);
+    #sleep($sl);
 
     # TODO FIXME Names of real stages
     # We do not set help text here, because it was set outside
     Progress->New($caption, " ", $steps, [
-	    # Progress stage 1/3
+	    # Progress stage 1/4
 	    __("Write global settings"),
-	    # Progress stage 2/3
+	    # Progress stage 2/4
 	    __("Add new databases"),
-	    # Progress stage 3/3
+	    # Progress stage 3/4
 	    __("Edit databases"),
+	    # Progress stage 4/4
+	    __("Checking Password Policy Objects"),
 	], [
-	    # Progress step 1/3
+	    # Progress step 1/4
 	    __("Write global settings"),
-	    # Progress step 2/3
+	    # Progress step 2/4
 	    __("Add new databases"),
-	    # Progress step 3/3
+	    # Progress step 3/4
 	    __("Edit databases"),
+	    # Progress step 4/4
+	    __("Checking Password Policy Objects"),
 	    # Progress finished
 	    __("Finished")
 	],
@@ -634,7 +642,7 @@ sub Write {
         }
     }
 
-    sleep($sl);
+    #sleep($sl);
 
     Progress->NextStage();
 
@@ -687,7 +695,7 @@ sub Write {
         }
     }
     
-    sleep($sl);
+    #sleep($sl);
 
     Progress->NextStage();
 
@@ -711,13 +719,94 @@ sub Write {
     SuSEFirewall->Write();
     Progress->set($progress_orig);
 
-    sleep($sl);
+    #sleep($sl);
 
 
+    Progress->NextStage();
+    #sleep($sl);
+    if( $serviceEnabled )
+    {
+        foreach my $current ( [$dbList,$database], [$dbListNEW, $databaseNEW] ){
+            my $currentDbList = $current->[0];
+            my $currentDatabase = $current->[1];
+            foreach my $base_dn (@$currentDbList) {
+                y2milestone("working on defaultpolicy for $base_dn");
+                my $ppolicy_hash = LdapServer->GetPasswordPolicyOverlay($base_dn,$currentDatabase);
+                my $db = $currentDatabase->{$base_dn};
+                y2debug("currentDatabase ".Data::Dumper->Dump([$db]));
+                y2debug("currentppolicy ".Data::Dumper->Dump([$ppolicy_hash]));
+                if( defined $ppolicy_hash && 
+                    exists $db->{ppolicy_default_changed} &&
+                    $ppolicy_hash->{'ppolicy_default'} ne "" )
+                {
+                    YaST::YCP::Import("Popup"); 
+                    YaST::YCP::Import("Ldap"); 
+                    YaST::YCP::Import("LdapPopup"); 
+                    Ldap->Import ({"ldap_server" => "localhost",
+                                   "bind_dn" => "" });
+                    Ldap->LDAPInit ();
+                    my $res = SCR->Read (".ldap.search", {"base_dn" =>  $ppolicy_hash->{'ppolicy_default'},
+                                                          "filter" => "objectclass=*",
+                                                          "scope" => 0} );
+                    if ( defined $res && scalar(@$res) != 0 ) {
+                        # ppolicy object does already exist
+                        y2milestone("default_policy does already exist");
+                        next;
+                    }
+                    if (! Popup->YesNo( sprintf(__("The default Password Policy Object for\n'%s' does not exist.\n
+Do you want to create that Object now?"),$base_dn ) ))
+                    {
+                        next;
+                    }
+                    y2milestone("going to create default_policy object");
+                    Ldap->Import ({"ldap_server" => "localhost",
+                                   "bind_dn" => $db->{'rootdn'}
+                                    });
+                    Ldap->LDAPInit ();
+                    my $pw = $db->{'passwd'};
+                    my $bind_res = "tmp";
+                    while( $bind_res ne "" ) {
+                        if (!$pw || $pw eq "" || $pw =~ /^\{/ ) {
+                            $pw = Ldap->GetLDAPPassword(0);
+                        }
+                        $bind_res = Ldap->LDAPBind ($pw);
+                        if ($bind_res ne "" ) {
+                            if (Popup->YesNo( sprintf(__("Authentication Failed. Probably you entered the wrong password.
+The error message was: '%s'.\nTry again? "), $bind_res ) ) )
+                            {   
+                                $pw = "";
+                            } else {
+                                last;
+                            }
+                        }
+                    }
+                    if ( $bind_res ne "" ) {
+                        next;
+                    }
+                    Ldap->InitSchema ();
+                    my $dn =  $ppolicy_hash->{'ppolicy_default'};
+                    my $X500Dn = X500::DN->ParseRFC2253($dn);
+                    my $num_rdn = $X500Dn->getRDNs;
+                    my $rdn = $X500Dn->getRDN($num_rdn-1);
+                    my @rdnAttrType = $rdn->getAttributeTypes();
+                    y2debug("rdnAttrType ".$rdnAttrType[0]);
+                    my $rdnAttrVal = $rdn->getAttributeValue($rdnAttrType[0]);
+                    my $ppolicy = {"dn" => $dn};
+                    $ppolicy	= LdapPopup->PasswordPolicyDialog ($ppolicy);
+                    if ( keys %{$ppolicy} )
+                    {
+                        $ppolicy->{"objectclass"} = [ "namedObject", "pwdPolicy" ];
+                        $ppolicy->{"pwdattribute"} = ["userPassword"];
+                        $ppolicy->{$rdnAttrType[0]} = [ $rdnAttrVal ];
+                        SCR->Write (".ldap.add", { "dn" => $dn, "check_attrs" => 1}, $ppolicy)
+                    }
+                }
+            }
+        }
+    }
     # Progress finished
     Progress->NextStage();
-    sleep($sl);
-
+    sleep(1);
     return 1;
 }
 
@@ -852,5 +941,22 @@ sub AutoPackages {
     return \%ret;
 }
 
+BEGIN { $TYPEINFO{GetPasswordPolicyOverlay} = ["function", ["map", "string", "string"], "string"]; }
+sub GetPasswordPolicyOverlay {
+    my $self = shift;
+    my $prefix = shift;
+    my $db_hash = shift || $database;
+    my $db = $db_hash->{$prefix};
+    my $overlays = $db->{'overlay'};
+
+    foreach my $overlay (@$overlays) {
+        if ( $overlay->[0] eq "ppolicy" ) {
+            y2debug("GetPasswordPolicyOverlay ".Data::Dumper->Dump([$database]));
+            return $overlay->[1];
+        }
+    }
+    y2debug("GetPasswordPolicyOverlay: overlay not found");
+    return undef;
+}
 1;
 # EOF

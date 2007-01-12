@@ -570,6 +570,10 @@ define boolean cb_input_databases()
 
         UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
         UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
+        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+        UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
         while( true )
         {
             ret = UI::UserInput();
@@ -591,6 +595,19 @@ define boolean cb_input_databases()
                     suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
                     string dbdir = "/var/lib/ldap/" + suffix;
                     UI::ChangeWidget( `te_directory, `Value, dbdir );
+                }
+            }
+            else if ( ret == `cb_ppolicy_overlay ) {
+                if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
+                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
+                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
+                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
+                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, true );
+                } else {
+                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
                 }
             }
             else if( ret == `ok ) {
@@ -663,6 +680,35 @@ define boolean cb_input_databases()
                 {
                     db = add( db, "passwd", rootpw );
                     db = add( db, "cryptmethod", cryptmethod );
+                }
+                if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+                    boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+                    boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+                    string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+                    map<string,any> ppolicy = $[];
+                    if (hashcleartext ) {
+                        ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+                    }
+                    if (uselockout ) {
+                        ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+                    }
+                    if (pp_default != "" ) {
+                        if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+                        {
+                            pp_default = pp_default+","+suffix;
+                        }
+                        db = add(db, "ppolicy_default_changed", "1");
+                        ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+                    }
+                    list<any> pp_overlay = [ "ppolicy", ppolicy ];
+                    list<any> overlays = [ pp_overlay ];
+                    db = add( db, "overlay", overlays);
+
+                    list<string> inclist = LdapServer::ReadSchemaIncludeList();
+                    if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
+                        inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
+                        LdapServer::WriteSchemaIncludeList(inclist);
+                    }
                 }
                 if( LdapServer::AddDatabase( db ) )
                 {
@@ -750,6 +796,52 @@ define boolean cb_write_db()
         db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
     }
 
+    if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+        boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+        boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+        string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+        map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
+        map<string,any> ppolicy = $[];
+        if (hashcleartext ) {
+            ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+        }
+        if (uselockout) {
+            ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+        }
+        if (pp_default != "" ) {
+            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+            {
+                pp_default = pp_default+","+suffix;
+            }
+            if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
+                db = add(db, "ppolicy_default_changed", "1");
+            }
+            ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+        }
+        list<any> pp_overlay = [ "ppolicy", ppolicy ];
+        list<any> overlays = [ pp_overlay ];
+        db = add( db, "overlay", overlays);
+        list<string> inclist = LdapServer::ReadSchemaIncludeList();
+        if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
+            inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
+            LdapServer::WriteSchemaIncludeList(inclist);
+        }
+    } else {
+        map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
+        if ( ppolicy_map != nil ){
+            list<any> newoverlay = [];
+            list<any> empty_pp_ol = ["ppolicy", nil ];
+            integer i = 0;
+            foreach( list<any> i, db["overlay"]:[], {
+                if ((string)i[0]:"" != "ppolicy") {
+                    newoverlay = add(newoverlay, i);
+                } else {
+                    newoverlay = add(newoverlay, empty_pp_ol);
+                }
+            });
+            db["overlay"] = newoverlay;
+        }
+    }
     string checkResult = LdapServer::CheckDatabase( db );
     if( checkResult != "" ) {
         callback_error = checkResult;
@@ -818,6 +910,43 @@ define boolean cb_read_db()
     UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
     UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
 
+    // Check for ppolicy overlay
+    map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
+    if ( ppolicy_map != nil ){
+        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
+        string pp_hash_cleartext = ppolicy_map["ppolicy_hash_cleartext"]:nil;
+        string pp_use_lockout = ppolicy_map["ppolicy_use_lockout"]:nil;
+        string pp_default = ppolicy_map["ppolicy_default"]:nil;
+        boolean pp_append_checked = false;
+        integer pos = find( pp_default, suffix );
+        if( pos > -1 )
+        {
+            pp_default = substring( pp_default, 0, pos-1 );
+            pp_append_checked = true;
+        }
+        if ( pp_hash_cleartext != nil ){
+            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
+        } else {
+            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
+        }
+        if ( pp_use_lockout != nil ){
+            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
+        } else {
+            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
+        }
+        if ( pp_default != nil ){
+            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
+            UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
+        } else {
+            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
+            UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
+        }
+    } else {
+        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
+        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+    }
     return true;
 }
 
@@ -825,6 +954,17 @@ define boolean cb_input_db()
 ``{
     string suffix = current_tree_item;
     y2milestone( "calling db input handler for suffix '%1'", suffix );
+    if ( handler_cmd == `cb_ppolicy_overlay ) {
+        if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
+            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
+            UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
+            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
+        } else {
+            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+            UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+        }
+    }
     return true;
 }
 
@@ -997,43 +1137,62 @@ widget_map = $[
             `PushButton( `id( `pb_add ), _("A&dd Database...") )
         ),
         "dialogs"   : $[
-            "adddb" : `VBox(
-                          /* Dialog Headline */
+            "adddb" : `HBox( `HSpacing(0.25),`VBox(
+                /* Dialog Headline */
                 `Heading( _("Add Database") ),
-                `VSpacing( 1 ),
+                `VSpacing( 1 ), 
+                /* Textentry description */
+                `Frame( _("General Settings"), `VBox(
+                    `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
+                    `VSpacing( 0.5 ),
                                                /* Textentry description */
-                `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
-                `VSpacing( 0.5 ),
-                                               /* Textentry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                                 `HSpacing( 0.5 ),
+                    `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                                     `HSpacing( 0.5 ),
                                                            /* checkbox description */
-                                 `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true ) ),
-                                        `VSpacing( 0.3 )
-                                 )
-                ) ),
-                `VSpacing( 0.5 ),
+                                     `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true ) ),
+                                            `VSpacing( 0.3 )
+                                     )
+                    ) ),
+                    `VSpacing( 0.5 ),
                                                /* Textentry description */
-                `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-                       `HSpacing( 0.5 ),
-                                               /* Textentry description */
-                       `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                       `HSpacing( 0.5 ),
-                                                          /* Combobox description */
-                       `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
-                ),
-                `VSpacing( 0.5 ),
-                                                         /* Textentry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
-                                 `HSpacing( 0.5 ),
-                                                         /* Button text */
-                                 `Bottom( `PushButton( `id( `pb_directory ), _("&Browse...") ) )
-                ) ),
+                    `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                           `HSpacing( 0.5 ),
+                                                   /* Textentry description */
+                           `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                           `HSpacing( 0.5 ),
+                                                              /* Combobox description */
+                           `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                    ),
+                    `VSpacing( 0.5 ),
+                                                             /* Textentry description */
+                    `VSquash( `HBox( `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
+                                     `HSpacing( 0.5 ),
+                                                             /* Button text */
+                                     `Bottom( `PushButton( `id( `pb_directory ), _("&Browse...") ) )
+                    ) ))),
                 `VSpacing( 1 ),
+                `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),
+                                      `opt(`notify ), _("Enable Password Policies"), false ),
+                            `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                                      _("Hash Cleartext Passwords"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
+                                      _("Disclose \"Account Locked\" Status"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                       _("Default Policy Object DN"), "cn=Default Password Policy" ),
+                           `HSpacing( 0.5 ),
+                           `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
+                                                     _("&Append Base DN"), true )
+                                        ),`VSpacing( 0.3 ))),
+                    `VSpacing(0.25)
+                )),
                 `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
                        `PushButton( `id( `cancel ), Label::CancelButton() )
                 )
-            )
+            ), `HSpacing(0.25))
         ],
         "cb_check"  : ``( cb_check_databases() ),
         "cb_read"   : ``( cb_read_databases() ),
@@ -1054,26 +1213,52 @@ void addDatabaseWidgetMap( string suffix, boolean new_db )
         `VBox( `Heading( _("Edit Database") ),
                `VSpacing( 1 ),
                                                                   /* textentry description */
-               `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
-               `VSpacing( 0.5 ),
-                                                 /* textentry description */
-               `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+               `Frame ( _("General Settings"), `VBox(
+                   `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
+                   `VSpacing( 0.5 ),
+                                                     /* textentry description */
+                   `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                                    `HSpacing( 0.5 ),
+                                                               /* checkbox text */
+                                    `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") ) ),
+                                           `VSpacing( 0.3 )
+                                    )
+                   ) ),
+                   `VSpacing( 0.5 ),
+                                                        /* textentry description */
+                   `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                          `HSpacing( 0.5 ),
+                                                        /* textentry description */
+                          `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                          `HSpacing( 0.5 ),
+                                                           /* combobox text */
+                          `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                   )
+                )),
+                `VSpacing( 1 ),
+                `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
+                                      _("Enable Password Policies"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                                      _("Hash Cleartext Passwords"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
+                                      _("Disclose \"Account Locked\" Status"), false ),
+                           `HSpacing( `opt(`hstretch))),
+                    `VSquash( `HBox(
+                                `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                            _("Default Policy Object DN"), "cn=Default Policy" ),
                                 `HSpacing( 0.5 ),
-                                                           /* checkbox text */
-                                `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") ) ),
-                                       `VSpacing( 0.3 )
+                                `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
+                                                     _("&Append Base DN"), true )
+                                            ),
+                                      `VSpacing( 0.3 )
                                 )
-               ) ),
-               `VSpacing( 0.5 ),
-                                                    /* textentry description */
-               `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-                      `HSpacing( 0.5 ),
-                                                    /* textentry description */
-                      `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                      `HSpacing( 0.5 ),
-                                                       /* combobox text */
-                      `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
-               )
+                            )
+                        ),
+                    `VSpacing(0.25)
+                ))
              );
 
     map<string,any> item_map = $[
