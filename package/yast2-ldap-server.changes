@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Jan 12 11:20:50 CET 2007 - rhafer@suse.de
+
+- Added support of LDAP Password Policy overlay (ppolicy). 
+  Fate #301179. 
+- Version 2.13.16 
+
+-------------------------------------------------------------------
 Wed May 31 20:33:44 CEST 2006 - rhafer@suse.de
 
 - Fix Import/Export functions for AutoYaST (Bugzilla #179750)
