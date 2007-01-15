@@ -728,9 +728,9 @@ sub WritePPolicyObjects {
 
     # We do not set help text here, because it was set outside
     Progress->New($caption, " ", $steps, [
-	    __("Checking Password Policy Objects"),
+	    __("Check password policy objects"),
 	], [
-	    __("Checking Password Policy Objects"),
+	    __("Check password policy objects"),
 	    __("Finished")
 	],
 	""
@@ -766,8 +766,11 @@ sub WritePPolicyObjects {
                         y2milestone("default_policy does already exist");
                         next;
                     }
-                    if (! Popup->YesNo( sprintf(__("The default Password Policy Object for\n'%s' does not exist.\n
-Do you want to create that Object now?"),$base_dn ) ))
+                    if (! Popup->YesNo( sprintf(__("The default password policy object for
+'%s' does not exist.
+
+Create that object now?
+"),$base_dn ) ))
                     {
                         next;
                     }
@@ -784,8 +787,10 @@ Do you want to create that Object now?"),$base_dn ) ))
                         }
                         $bind_res = Ldap->LDAPBind ($pw);
                         if ($bind_res ne "" ) {
-                            if (Popup->YesNo( sprintf(__("Authentication Failed. Probably you entered the wrong password.
-The error message was: '%s'.\nTry again? "), $bind_res ) ) )
+                            if (Popup->YesNo( sprintf(__("Authentication failed. The password is probably incorrect.
+The error message was: '%s'.
+Try again? 
+"), $bind_res ) ) )
                             {   
                                 $pw = "";
                             } else {
