@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Wed Jan 17 15:04:14 CET 2007 - rhafer@suse.de
+
+- The Overlay subsection should aways be the last part of a
+  database section (Bug #235385)
+- Do not create TreeDialog multiple times. Breaks AutoYaST 
+  (Bug #232838)
+- Version 2.15.0
+
+-------------------------------------------------------------------
 Fri Jan 12 11:20:50 CET 2007 - rhafer@suse.de
 
 - Added support of LDAP Password Policy overlay (ppolicy). 
