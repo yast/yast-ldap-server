@@ -449,7 +449,7 @@ any TreeDialog()
 {
     //close service dialog
     UI::CloseDialog();
-
+    Wizard::CreateTreeDialog();
     //item selected at start
     current_tree_item = "databases";
 
@@ -462,7 +462,7 @@ any TreeDialog()
         if( rebuild_widget_tree )
         {
             //generate tree
-            Wizard::CreateTreeDialog();
+            Wizard::DeleteTreeItems();
             deleteDynamicTreeItems();
             generateDynamicTreeItems();
             widget_tree = generateTree();
