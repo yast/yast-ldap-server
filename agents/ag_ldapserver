@@ -1239,6 +1239,7 @@ sub updateSingleOption
                     my $type = $data->{$dp}{type};
                     #y2debug( "type: $type" );
                     $in_section = 0 if( $type eq 'backend' || $type eq 'database' );
+                    $in_section = 0 if( $type eq 'overlay' && $opt_name ne 'overlay' );
                     if( $in_section )
                     {
                         $insert_pos = $dp;
