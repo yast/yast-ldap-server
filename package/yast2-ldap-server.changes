@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Jan 25 17:17:28 CET 2007 - mc@suse.de
+
+- add commandline interface [Feature #120062]
+
+-------------------------------------------------------------------
 Wed Jan 17 15:04:14 CET 2007 - rhafer@suse.de
 
 - The Overlay subsection should aways be the last part of a
