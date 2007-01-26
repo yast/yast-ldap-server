@@ -79,7 +79,7 @@ define boolean addDatabaseHandler (map options ) {
     }
     if (options["password"]:nil != nil)
     {
-        db["rootpw"] = options["password"]:"";
+        db["passwd"] = options["password"]:"";
     }
     if (options["enctype"]:nil != nil)
     {
