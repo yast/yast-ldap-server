@@ -197,7 +197,7 @@ any EnableServiceDialog()
         CWMFirewallInterfaces::OpenFirewallHandle (firewall_widget, "", event);
         y2debug( "EnableServiceDialog: seeing return value '%1'", ret );
 
-        if( ret == `back || ret == `abort ) break;
+        if( ret == `back || ret == `abort || ret == `cancel) break;
         else if( ret == `next || ret == `finish )
         {
             CWMFirewallInterfaces::OpenFirewallStore (firewall_widget, "", event);
