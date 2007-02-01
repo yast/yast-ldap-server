@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Feb  1 11:14:00 CET 2007 - rhafer@suse.de
+
+- Close window did not work in autoyast UI (Bug #241009)
+
+-------------------------------------------------------------------
 Wed Jan 17 15:04:14 CET 2007 - rhafer@suse.de
 
 - The Overlay subsection should aways be the last part of a
