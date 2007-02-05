@@ -723,6 +723,7 @@ sub __init_rec
     #remove old entries in lookup hash
     while( my ($sect_name, $section) = each %$lookup )
     {
+        y2debug("cleanup");
         y2debug("act sectname: $sect_name");
         while( my ($name, $optlist) = each %$section )
         {
@@ -1637,9 +1638,22 @@ sub deleteSection
     my $section = $lookup->{$s_name};
     while( my ($opt_name, $optlist) = each %$section )
     {
-        foreach my $opt ( @$optlist )
-        {
-            delete $opt->{dataref}{$opt->{datapos}};
+        $s_name =~ /^(\S+)/;
+        my $section_type = $1;
+        my $constr = $class->getConstraints( $section_type, $opt_name );
+        if( $constr && $constr->{subsection} ){
+            foreach my $opt (@$optlist) {
+                while ( my ($subsect_key, $subsect_opt) = each %{$opt->[1]} ){
+                    my $datapos =  $opt->[1]->{$subsect_key}->[0]->{datapos};
+                    delete $opt->[1]->{$subsect_key}->[0]->{dataref}->{$datapos};
+                    delete $opt->[1]->{$subsect_key};
+                }
+            }
+        } else {
+            foreach my $opt ( @$optlist )
+            {
+                delete $opt->{dataref}{$opt->{datapos}};
+            }
         }
     }
     delete $lookup->{$s_name};
