@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Feb  5 18:46:49 CET 2007 - rhafer@suse.de
+
+- Fixed Export() for AutoYaST to also export newly created 
+  Databases (Bug #241101)
+
+-------------------------------------------------------------------
 Thu Feb  1 11:14:00 CET 2007 - rhafer@suse.de
 
 - Close window did not work in autoyast UI (Bug #241009)
