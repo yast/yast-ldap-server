@@ -897,6 +897,18 @@ sub Export {
     if (scalar(@database_tmp) > 0) {
     	$hash->{database} = \@database_tmp;
     }
+    my @database_tmp_new = ();
+    foreach my $db (@$dbListNEW) {
+        foreach my $key (keys %{$databaseNEW->{$db}}) {
+            if (! defined $databaseNEW->{$db}->{$key} ) {
+                delete $databaseNEW->{$db}->{$key};
+            }
+        }
+    	push @database_tmp_new, $databaseNEW->{$db};
+    }
+    if (scalar(@database_tmp_new) > 0) {
+    	push @{$hash->{database}}, @database_tmp_new;
+    }
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
     $hash->{tlsSettings} = $tlsSettings;
