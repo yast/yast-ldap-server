@@ -857,6 +857,10 @@ sub Import {
 
     if(exists $hash->{configureCommonServerCertificate}) {
         $configureCommonServerCertificate = $hash->{configureCommonServerCertificate};
+    } elsif( exists $hash->{importCertificates} ) {
+        $importCertificates = $hash->{importCertificates}; 
+    } elsif (exists $hash->{tlsSettings}) {
+        $tlsSettings = $hash->{tlsSettings};
     }
 
     if(exists $hash->{database}) {
@@ -911,10 +915,15 @@ sub Export {
     }
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
-    $hash->{tlsSettings} = $tlsSettings;
+    if($configureCommonServerCertificate) {
+        $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
+        $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
+    } elsif( ( scalar keys %$importCertificates ) > 0 ) {
+        $hash->{importCertificates} = $importCertificates;
+    } else {
+        $hash->{tlsSettings} = $tlsSettings;
+    }
     $hash->{schemaIncludeList} = $schemaIncludeList;
-    $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
-    $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
     $hash->{serviceEnabled} = $serviceEnabled;
 
     return $hash;
