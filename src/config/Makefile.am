@@ -3,3 +3,5 @@
 
 rncdir =  $(schemadir)/autoyast/rnc
 rnc_DATA = ldap-server.rnc
+
+EXTRA_DIST = $(rnc_DATA)
