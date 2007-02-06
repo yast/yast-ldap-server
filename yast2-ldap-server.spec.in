@@ -30,6 +30,7 @@ Summary:	Configuration of the OpenLDAP server
 @moduledir@/LdapServerConf.*
 @moduledir@/YaPI/LdapServer.pm
 @desktopdir@/ldap-server.desktop
+@schemadir@/autoyast/rnc/ldap-server.rnc
 @scrconfdir@/*
 @agentdir@/*
 %doc @docdir@

@@ -1,0 +1,53 @@
+default namespace = "http://www.suse.com/1.0/yast2ns"
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace config = "http://www.suse.com/1.0/configns"
+
+
+ldap-server = element ldap-server {
+    element allowList {
+        LIST,
+        element listentry { text }*
+    }? &
+    element commonServerCertificateAvailable { text }? &
+    element configureCommonServerCertificate { text }? &
+    element tlsSettings {
+        element TLSCertificateKeyFile { text }? &
+        element TLSCertificateFile { text }? &
+        element TLSCACertificateFile { text }? &
+        element TLSCACertificatePath { text }?
+    }? &
+    element database {
+        LIST,
+        element listentry {
+            element cachesize { text }? &
+            element checkpoint { text }? &
+            element createdatabasedir { text }? &
+            element cryptmethod { text }? &
+            element database { text }? &
+            element directory { text }? &
+            element overlay {
+                LIST,
+                element listentry {
+                    LIST,
+                    element listentry { Anything }*
+                }*
+            }? &
+            element passwd { text }? &
+            element ppolicy_default_changed { text }? &
+            element rootdn { text }? &
+            element suffix { text }?
+        }*
+    }? &
+    element loglevel { text }? &
+    element schemaIncludeList {
+        LIST,
+        element listentry { text }*
+    }? &
+    element serviceEnabled { text }? &
+    element importCertificates {
+        element CACertificatesFile { text }? &
+        element ServerCertificateFile { text }? &
+        element ServerKeyFile { text }?
+    }?
+}
+
