@@ -916,6 +916,7 @@ sub Export {
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
     if($configureCommonServerCertificate) {
+        $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
         $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
     } elsif( ( scalar keys %$importCertificates ) > 0 ) {
         $hash->{importCertificates} = $importCertificates;
@@ -923,7 +924,6 @@ sub Export {
         $hash->{tlsSettings} = $tlsSettings;
     }
     $hash->{schemaIncludeList} = $schemaIncludeList;
-    $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
     $hash->{serviceEnabled} = $serviceEnabled;
 
     return $hash;
