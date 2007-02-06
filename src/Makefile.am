@@ -1,6 +1,6 @@
 # Makefile.am for ldap-server/src
 
-SUBDIRS = YaPI
+SUBDIRS = YaPI config
 
 yncludedir = @yncludedir@/ldap-server
 
