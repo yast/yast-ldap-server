@@ -210,6 +210,18 @@ sub Write
         ) unless( $dn );
         return $class->sambaACLHack( $dn );
     }
+    if( $path[0] eq 'krb5ACLHack' ) {
+	    my $dn = $args[0];
+	    #
+	    # undef or "" is allowed; in this case only the
+	    # admin has access
+	    #
+	    #return $class->SetError(
+	    #summary => "DN missing in krb5ACLHack",
+	    #code    => "PARAM_CHECK_FAILED"
+	    #) unless( $dn );
+        return $class->krb5ACLHack( $dn );
+    }
     # !!! okay, you can open your eyes now !!!
 
     $class->initData( $slapdconf ) || return undef;
@@ -1714,6 +1726,58 @@ sub __mayQuote {
         return $quote->{$key};
     }
     return 0;
+}
+
+sub krb5ACLHack
+{
+    my $class = shift;
+    my $dn = shift;
+    y2debug("-> krb5ACLHack");
+    my $file = '/etc/openldap/slapd.conf';
+    my $acl = "## Yast2 krb5 hack ACL\n";
+    $acl   .= "## allow the \"ldap admin dn\" access, but deny everyone else\n";
+    $acl   .= "access to attrs=krbPrincipalKey,krbExtraData\n";
+    if(defined $dn && $dn ne "")
+    { 
+    	$acl   .= "    by dn=\"$dn\" write\n";
+    }
+    $acl   .= "    by * none\n";
+    $acl   .= "## Yast2 krb5 hack ACL done\n";
+
+    open( SLAPD, "< $file" ) or return $class->SetError(
+            summary => "unable to open $file for reading",
+            code    => "LDAPSERVER_OPEN_FAILED"
+    );
+    my @slapd = <SLAPD>;
+    close(SLAPD);
+
+    # kick out old krb5 hack ACLs
+    for( my $i=0; $i<@slapd; $i++ ) {
+        next unless( $slapd[$i] =~ /^## Yast2 krb5 hack ACL/ );
+        do {
+            $slapd[$i] = '';
+        } while( $slapd[++$i] !~ /^## Yast2 krb5 hack ACL done/ );
+        $slapd[$i] = '';
+    }
+
+    for( my $i=0; $i<@slapd; $i++ ) {
+        # make sure the include is there and our ACL is inserted later
+        next unless( $slapd[$i] =~ /^include.*kerberos.schema/ );
+
+        # search for first ACL or backend oder database section and put the
+        # ALC in front of that.
+        while( $slapd[$i] !~ /^(access|database|backend)/ and ++$i<@slapd) {}
+        $slapd[$i-1] .= "$acl";
+        last;
+    }
+
+    open( SLAPD, "> $file" ) or return $class->SetError(
+            summary => "unable to open $file for writing",
+            code    => "LDAPSERVER_OPEN_FAILED"
+    );
+    print SLAPD @slapd;
+    close(SLAPD);
+    return 1;
 }
 
 sub sambaACLHack {
