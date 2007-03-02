@@ -903,12 +903,14 @@ sub Export {
     }
     my @database_tmp_new = ();
     foreach my $db (@$dbListNEW) {
-        foreach my $key (keys %{$databaseNEW->{$db}}) {
-            if (! defined $databaseNEW->{$db}->{$key} ) {
-                delete $databaseNEW->{$db}->{$key};
+        if (! grep( /^$db$/, @$dbList) ){
+            foreach my $key (keys %{$databaseNEW->{$db}}) {
+                if (! defined $databaseNEW->{$db}->{$key} ) {
+                    delete $databaseNEW->{$db}->{$key};
+                }
             }
+            push @database_tmp_new, $databaseNEW->{$db};
         }
-    	push @database_tmp_new, $databaseNEW->{$db};
     }
     if (scalar(@database_tmp_new) > 0) {
     	push @{$hash->{database}}, @database_tmp_new;
@@ -916,8 +918,10 @@ sub Export {
     $hash->{allowList} = $allowList;
     $hash->{loglevel} = $loglevel;
     if($configureCommonServerCertificate) {
-        $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
-        $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
+#### CA-Management has no real support for AutoYaST-Cloning. So don't export
+# commonServerCert CA-Settings for now.
+#        $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
+#        $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
     } elsif( ( scalar keys %$importCertificates ) > 0 ) {
         $hash->{importCertificates} = $importCertificates;
     } else {
