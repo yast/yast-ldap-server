@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Fri Mar  2 15:38:00 CET 2007 - rhafer@suse.de
+
+- Fixes for Bug #250228:
+  * Don't write duplicate Database sections into AutoYaST profiles
+  * Leave out default Server Certificate Settings as long as 
+    CA-Management does not export its settings
+- Version 2.13.22
+
+-------------------------------------------------------------------
 Tue Feb  6 15:09:08 CET 2007 - rhafer@suse.de
 
 - Correctly Im- and Export() TLS configuration (Bug #242589)
