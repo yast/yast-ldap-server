@@ -2,7 +2,7 @@
 
 @HEADER@
 BuildRequires:	perl-XML-Writer pkg-config update-desktop-files yast2 yast2-core yast2-devtools
-Requires:	yast2 perl perl-gettext yast2-perl-bindings yast2-ca-management perl-X500-DN perl-Digest-SHA1 net-tools
+Requires:	yast2 yast2-users yast2-ldap-client yast2-network perl perl-gettext yast2-perl-bindings yast2-ca-management perl-X500-DN perl-Digest-SHA1 net-tools
 
 BuildArchitectures:	noarch
 
