@@ -206,6 +206,7 @@ any EnableServiceDialog()
         }
         else if( ret == `pb_configure )
         {
+            CWMFirewallInterfaces::OpenFirewallStore (firewall_widget, "", event);
             LdapServer::WriteSLPEnabled( (boolean)UI::QueryWidget( `cb_register_slp, `Value ) );
             return `config;
         } else if( ret == `rb_yes )
