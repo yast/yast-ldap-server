@@ -314,7 +314,7 @@ define boolean cb_check_tls()
     if( (boolean)UI::QueryWidget( `rb_yes, `Value ) && !(
             haskey( importPaths, "ServerCertificateFile" ) ||
             use_common_ca ||
-            ( haskey( tlsSettings, "TLSCertificateFile" ) && haskey( tlsSettings, "TLSCertificateKeyFile" ) ) )
+            ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) )
        )
     {
             /*error popup*/
@@ -335,7 +335,9 @@ define boolean cb_read_tls()
         /* tls configuration info text 1/4 */
     string info = HTML::Bold( _("Current Configuration:") )+HTML::Newline()+HTML::ListStart();
     foreach( string key, string val, tlsSettings, {
-        info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+        if ( val != nil ) {
+            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+        }
     } );
     info = info + HTML::ListEnd() + HTML::Newline();
         /* tls configuration info text 2/4 */
@@ -360,7 +362,7 @@ define boolean cb_read_tls()
 
     if(     use_common_ca
          || haskey( importPaths, "ServerCertificateFile" )
-         || ( haskey( tlsSettings, "TLSCertificateFile" ) && haskey( tlsSettings, "TLSCertificateKeyFile" ) )
+         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) 
       )
     {
         UI::ChangeWidget( `rb_yes, `Value, true );
