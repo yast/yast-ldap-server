@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Wed Apr 11 10:50:25 CEST 2007 - rhafer@suse.de
+
+- Keep Firewall-Settings when switching to configuration Dialog (Bug
+  #259798)
+- Display status of TLS configuration correctly (Bug #259806)
+- Version 2.13.23 
+
+-------------------------------------------------------------------
 Fri Mar  2 15:38:00 CET 2007 - rhafer@suse.de
 
 - Fixes for Bug #250228:
