@@ -24,6 +24,4 @@ Exec=/sbin/yast2 ldap-server
 
 Name=LDAP Server
 GenericName=Configure an LDAP Server
-Name[de]=LDAP-Server
-GenericName[de]=LDAP-Server konfigurieren
 X-KDE-SubstituteUID=true
