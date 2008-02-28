@@ -954,10 +954,42 @@ define boolean cb_read_db()
 
 define boolean cb_input_db()
 ``{
-    string suffix = current_tree_item;
+    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
     y2milestone( "calling db input handler for suffix '%1'", suffix );
     if ( handler_cmd == `cb_ppolicy_overlay ) {
         if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
+            // Check if the Database has "shadowAccount" Objects and warn
+            // about possible conflicts
+            if ( (boolean) SCR::Execute(.ldap,
+                    $[ "hostname":"localhost", "port": 389, "use_tls": "try" ] ) )
+            {
+                y2milestone("checking for existing shadow account objects");
+                list entries = (list)SCR::Read(.ldap.search,
+                                $[ "base_dn" : suffix,
+                                   "filter" : "objectclass=shadowAccount",
+                                   "scope" : 2,
+                                   "attrsOnly" : true,
+                                   "attrs" : [],
+                                   "dn_only" : true ] );
+                SCR::Execute(.ldap.unbind);
+                if ( size(entries) > 0 )
+                {
+                    if (! Popup::YesNo( _("The LDAP Database contains at least one \"shadowAccount\" object.
+Using OpenLDAP's Password Policies and \"shadowAccount\" objects
+together with pam_ldap can have unexpected effects, as they provide
+overlapping functionality.
+Do you really want to enable Password Policies?") ) )
+
+                    {
+                        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
+                        return true;
+                    }
+                } else {
+                    y2milestone("no shadow account objects found");
+                }
+            } else {
+                y2milestone("failed to initialize LDAP connection while runnig ppolicy check");
+            }
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
             UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
