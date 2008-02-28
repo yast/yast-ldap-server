@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Feb 28 08:55:10 CET 2008 - rhafer@suse.de
+
+- Check for existing "shadowAccount" Objects when enabling password
+  policies and warn the user (bnc#364833)
+
+-------------------------------------------------------------------
 Wed Apr 11 10:50:25 CEST 2007 - rhafer@suse.de
 
 - Keep Firewall-Settings when switching to configuration Dialog (Bug
