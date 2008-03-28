@@ -8,12 +8,12 @@ Wed Mar 26 17:04:46 CET 2008 - rhafer@suse.de
 -------------------------------------------------------------------
 Mon Mar 17 12:43:32 CET 2008 - jsrain@suse.cz
 
-- added 'StartupNotify=true' to the desktop file (bnc #304964)
+- added 'StartupNotify=true' to the desktop file (bnc#304964)
 
 -------------------------------------------------------------------
 Fri May 25 13:30:04 CEST 2007 - jsrain@suse.cz
 
-- removed outdated translations from .desktop-files (#271209)
+- removed outdated translations from .desktop-files (bnc#271209)
 
 -------------------------------------------------------------------
 Wed Apr 11 10:36:03 CEST 2007 - rhafer@suse.de
