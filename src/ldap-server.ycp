@@ -70,7 +70,7 @@ define boolean addDatabaseHandler (map options ) {
     }
     else
     {
-        CommandLine::Print (_("basedn exists or not available"));
+        CommandLine::Print (_("No basedn provided or a database with the provided basedn does already \nexist"));
         return false;
     }
     if (options["rootdn"]:nil != nil)
@@ -207,19 +207,19 @@ map cmdline_description = $[
     "actions"           : $[
         "service"     : $[
                         "handler"   : serviceHandler,
-                        "help"      : _("Enable/Disable the service")
+                        "help"      : _("Enable/disable the service")
                         ],
         "addDatabase" : $[
                         "handler"   : addDatabaseHandler,
-                        "help"      : _("Add a new Database"),
+                        "help"      : _("Add a new database"),
                         ],
         "getDatabaseList" : $[
                         "handler"   : getDatabaseListHandler,
-                        "help"      : _("Show a List of currently available Databases"),
+                        "help"      : _("Show a list of currently available databases"),
                         ],
         "getSchemaList": $[
                         "handler"   : getSchemaListHandler,
-                        "help"      : _("Show a List of currently configured schemas"),
+                        "help"      : _("Show a list of currently configured schemas"),
                         ],
         "addSchema":    $[
                         "handler"   : addSchemaHandler,
