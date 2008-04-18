@@ -461,7 +461,7 @@ define boolean cb_input_tls()
                     {
                         UI::CloseDialog();
                         dlg_name = "import";
-                        UI::OpenDialog( (term)widget_map["g_tls","dialogs","import"]:`Label(_("dialog not found")));
+                        UI::OpenDialog( (term)widget_map["g_tls","dialogs","import"]:`Label(_("Dialog not found")));
 
                         //fill textentries
                         UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
@@ -568,7 +568,7 @@ define boolean cb_input_databases()
         list<string> dblist = LdapServer::ReadDbList();
         integer numDbs = size(dblist);
 
-        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label(_("dialog not found")));
+        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label(_("Dialog not found")));
 
         UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
         UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
