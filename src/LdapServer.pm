@@ -634,7 +634,7 @@ sub Write {
     #sleep($sl);
 
     Progress->NextStage();
-
+    my $failure = 0;
     if( $serviceEnabled )
     {
         foreach my $db (@$dbListNEW) {
@@ -645,7 +645,15 @@ sub Write {
               {
                   # Error message
                   Report->Error( sprintf( __("Cannot add new database '%s'."), $db ) );
-                  next;
+                  
+                  # Stop here and don't start the server when creating the first db failed
+                  if ( ( @{$dbList} == 0 ) && ( @{$dbListNEW} == 1 ) )
+                  {
+                        $failure = 1;
+                        last;
+                  } else {
+                        next;
+                  }
               }
             
             #add indexes
@@ -683,37 +691,41 @@ sub Write {
               }
         }
     }
-    
-    #sleep($sl);
-
-    Progress->NextStage();
-
-    if( $serviceEnabled )
+    if ( $failure )
     {
-        foreach my $db (@$dbList) {
-            
-            $ret = YaPI::LdapServer->EditDatabase($db, $database->{$db});
-            
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error(sprintf(__("Cannot write the database '%s'."), $db));
-              }
+        YaPI::LdapServer->ModifyService(0);
+        Progress->Finish();
+        return 0;
+    } else {
+        Progress->NextStage();
 
+        if( $serviceEnabled )
+        {
+            foreach my $db (@$dbList) {
+                
+                $ret = YaPI::LdapServer->EditDatabase($db, $database->{$db});
+                
+                if(! defined $ret)
+                  {
+                      # Error message
+                      Report->Error(sprintf(__("Cannot write the database '%s'."), $db));
+                  }
+
+            }
         }
+
+        YaPI::LdapServer->SwitchService($serviceEnabled);
+        my $progress_orig = Progress->set(0);
+        SuSEFirewall->Write();
+        Progress->set($progress_orig);
+
+        #sleep($sl);
+
+        # Progress finished
+        Progress->NextStage();
+        sleep(1);
+        return 1;
     }
-
-    YaPI::LdapServer->SwitchService($serviceEnabled);
-    my $progress_orig = Progress->set(0);
-    SuSEFirewall->Write();
-    Progress->set($progress_orig);
-
-    #sleep($sl);
-
-    # Progress finished
-    Progress->NextStage();
-    sleep(1);
-    return 1;
 }
 
 BEGIN { $TYPEINFO{WritePPolicyObjects} = ["function", "boolean"]; }
