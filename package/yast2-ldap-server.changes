@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Tue May 13 10:59:58 CEST 2008 - rhafer@suse.de
+
+- Remove unneeded '&' from frame Headline (bnc#388750)
+- Don't start/enable LDAP Server when the configuration of the 
+  initial database failed (Partly fixes bnc#388270)
+- Version 2.16.2
+
+-------------------------------------------------------------------
 Fri Apr 18 15:24:58 CEST 2008 - jsrain@suse.cz
 
 - merged texts from proofread
