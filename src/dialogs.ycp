@@ -136,10 +136,10 @@ any EnableServiceDialog()
     map<string, any> firewall_widget = 
 	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
 
-    term dlg_service_new = `VBox(
+    term dlg_service = `VBox(
                  /* radiobutton group headline */
         `HSquash( `VBox(
-            `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
+            `Frame( _("Start LDAP Server"), `RadioButtonGroup(
                 `VBox(
                     `Left( `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() ) ),
                     `VSpacing( 1 ),
@@ -162,23 +162,7 @@ any EnableServiceDialog()
         ))
     );
 
-    term dlg_service = `VBox(
-                 /* radiobutton group headline */
-        `Frame( _("&Start LDAP Server"), `RadioButtonGroup(
-            `HBox(
-                                                             /* radiobutton text */
-                `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ),
-                                                             /* radiobutton text */
-                `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() )
-            )
-        ) ),
-                                          /* button text */
-        `PushButton( `id( `pb_configure ), _("&Configure...") ),
-        `VSpacing( 1 ),
-        `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )
-    );
-
-    Wizard::SetContentsButtons( caption, dlg_service_new, HELPS["service_dialog"]:"help not found",
+    Wizard::SetContentsButtons( caption, dlg_service, HELPS["service_dialog"]:"help not found",
         Label::BackButton(), Label::FinishButton() );
 
     if( !LdapServer::ReadServiceEnabled() )
