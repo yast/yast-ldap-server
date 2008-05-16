@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Fri 16 16:49:30 CEST 2008 - rhafer@suse.de
+
+- Error out if Database does not exist in
+  YaPI::LdapServer->AddIndex() (bnc#389144)
+- Version 2.16.3
+
+-------------------------------------------------------------------
 Fri May 16 16:40:22 CEST 2008 - jsrain@suse.cz
 
 - added categories Settings and System into desktop file
