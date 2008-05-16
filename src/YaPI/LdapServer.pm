@@ -902,7 +902,7 @@ sub ReadIndex {
                                code => "PARAM_CHECK_FAILED");
     }
     my $dbHash = SCR->Read( ".ldapserver.database", $suffix );
-    if(! defined $dbHash) {
+    unless ( ( defined $dbHash) && (%$dbHash) ){
         return $self->SetError(%{SCR->Error(".ldapserver")});
     }
     if(exists $dbHash->{index} && defined $dbHash->{index} &&
@@ -968,7 +968,6 @@ sub AddIndex {
         return $self->SetError(summary => "Missing parameter 'suffix'",
                                code => "PARAM_CHECK_FAILED");
     }
-
     if(!defined $indexHash || !defined $indexHash->{attr} || 
        !defined $indexHash->{param} ) {
         return $self->SetError(summary => "Missing parameter 'index'",
@@ -979,12 +978,13 @@ sub AddIndex {
     
     $orig_idxArray = $self->ReadIndex($suffix);
     if(! defined $orig_idxArray) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
+        return $self->SetError( summary => "Database '$suffix' does not exist",
+                                code => "PARAM_CHECK_FAILED" );
     }
     
     foreach my $idx (@{$orig_idxArray}) {
         if($idx->{md5} eq $md5) {
-            return $self->SetError(summary => "Index still exists",
+            return $self->SetError(summary => "Index already exists",
                                    code => "PARAM_CHECK_FAILED");
         }
         push @new_idx, $idx->{attr}." ".$idx->{param};
