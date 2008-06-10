@@ -1,5 +1,5 @@
 -------------------------------------------------------------------
-Tue Fri 16 16:49:30 CEST 2008 - rhafer@suse.de
+Fri May 16 16:49:30 CEST 2008 - rhafer@suse.de
 
 - Error out if Database does not exist in
   YaPI::LdapServer->AddIndex() (bnc#389144)
