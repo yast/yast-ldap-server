@@ -21,7 +21,7 @@ use Digest::SHA1 qw(sha1);
 use MIME::Base64;
 use X500::DN;
 use ycp;
-use YaST::YCP qw(Boolean);
+use YaST::YCP;
 
 our %TYPEINFO;
 
@@ -83,6 +83,44 @@ my @defaultIndexes = (
 
 my @databases = ();
 my @schema = ();
+
+my @globalAcl = (
+    { 'what' => 
+        { 'filter' => undef,
+          'attr' => undef,
+          'dn' => 
+            { 
+              'style' => "base",
+              'dn'    => ""
+            }
+        },
+      'who' => 
+      [
+        { 'whotype' => "all",
+          'whovalue' => undef,
+          'level' => "read",
+          'priv' => undef
+        }
+      ]
+    },
+    { 'what' => 
+        { 'filter' => undef,
+          'attr' => undef,
+          'dn' => 
+            { 'style' => "base",
+              'dn'    => "cn=Subschema"
+            }
+        },
+      'who' => 
+      [
+        { 'whotype' => "all",
+          'whovalue' => undef,
+          'level' => "read",
+          'priv' => undef
+        }
+      ]
+    }
+);
 
 ##
  # Read all ldap-server settings
@@ -226,8 +264,10 @@ sub Write {
                         "/usr/sbin/slapadd -F /etc/openldap/slapd.d -b cn=config -l $tmpfile" );
                 if ( $rc->{'exit'} )
                 {
+                    $self->SetError( _("Error while populating the configurations database with \"slapadd\"."),
+                            $rc->{'stderr'} );
                     y2error("Error during slapadd:" .$rc->{'stderr'});
-                    $ret = 0;
+                    return 0;
                 }
             }
             else
@@ -557,6 +597,8 @@ sub SetInitialDefaults
     my $defaults = shift;
     $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
     $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
+    $defaults->{'checkpoint'} = [ YaST::YCP::Integer($defaults->{'checkpoint'}->[0]),
+                                  YaST::YCP::Integer($defaults->{'checkpoint'}->[1]) ];
     y2milestone("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
     %dbDefaults = %$defaults;
     return 1;
@@ -591,6 +633,8 @@ sub InitDbDefaults
     $dbDefaults{'pwenctype'} = "SSHA";
     $dbDefaults{'entrycache'} = 10000;
     $dbDefaults{'idlcache'} = 10000;
+    $dbDefaults{'checkpoint'} = [ YaST::YCP::Integer(1024),
+            YaST::YCP::Integer(5) ];
     
     $dbDefaults{'defaultIndex'} = YaST::YCP::Boolean(1);
     $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
@@ -608,16 +652,26 @@ sub ReadFromDefaults
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,
                      'directory' => '/var/lib/ldap',
-                     'entrycache' => $dbDefaults{'entrycache'},
-                     'idlcache' => $dbDefaults{'idlcache'} };
+                     'entrycache' => YaST::YCP::Integer($dbDefaults{'entrycache'}),
+                     'idlcache' => YaST::YCP::Integer($dbDefaults{'idlcache'}),
+                     'checkpoint' => $dbDefaults{'checkpoint'} };
     my $cfgdatabase = { 'type' => 'config',
                         'rootdn' => 'cn=config' };
+    my $frontenddb = { 'type' => 'frontend',
+                       'access' => [
+                            'to dn.base="" by * read',
+                            'to dn.base="cn=Subschema" by * read', 
+                            'to attrs=userPassword,userPKCS12 by self write by * auth', 
+                            # 'to attrs=shadowLastChange by self write by * read', 
+                            'to * by * read'
+                        ]
+                      };
 
     @schema = ( "core", "cosine", "inetorgperson" );
 
     SCR->Execute('.ldapserver.initGlobals' );
     SCR->Execute('.ldapserver.initSchema', \@schema );
-    SCR->Execute('.ldapserver.initDatabases', [ $cfgdatabase, $database ] );
+    SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
     my $rc = SCR->Read('.ldapserver.databases');
     if ( $dbDefaults{'defaultIndex'} == 1 )
     {
