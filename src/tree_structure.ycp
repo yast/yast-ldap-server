@@ -1096,12 +1096,19 @@ define boolean cb_write_ppolicy()
 //           LdapServer::WriteSchemaIncludeList(inclist);
 //       }
     } else {
-        // delete ppolicy
-        result = LdapServer::AddPasswordPolicy( index, $[] );
-        if ( ! result ) {
-            map<string, string> err = LdapServer::GetError();
-            callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+        map<string,any> ppolicy_map = LdapServer::GetPpolicyOverlay(index);
+        if ( size(ppolicy_map) == 0 )
+        {
+            result = true;
         }
+        else
+        {
+            // delete ppolicy
+            result = LdapServer::AddPasswordPolicy( index, $[] );
+            if ( ! result ) {
+                map<string, string> err = LdapServer::GetError();
+                callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+            }
 
 //       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
 //       if ( ppolicy_map != nil ){
@@ -1117,6 +1124,7 @@ define boolean cb_write_ppolicy()
 //           });
 //           db["overlay"] = newoverlay;
 //       }
+        }
     }
     return result;
 }
