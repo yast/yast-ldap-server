@@ -329,26 +329,26 @@ any ProposalDialog()
         else if( ret == `next )
         {
             //validate/update rootpw
-            defaults["rootpw"] = (string)UI::QueryWidget( `id( `te_rootpw ), `Value );
-            if ( defaults["rootpw"]:"" == "" )
+            defaults["rootpw_clear"] = (string)UI::QueryWidget( `id( `te_rootpw ), `Value );
+            if ( defaults["rootpw_clear"]:"" == "" )
             {
                 Popup::Error( _("Please enter a password for the Administrator user") );
                 continue;
             }
-            if( defaults["rootpw"]:"" != "" )
+            if( defaults["rootpw_clear"]:"" != "" )
             {
-                if( defaults["rootpw"]:"" != UI::QueryWidget( `id( `te_valid_rootpw ), `Value ) )
+                if( defaults["rootpw_clear"]:"" != UI::QueryWidget( `id( `te_valid_rootpw ), `Value ) )
                 {
                                   /* error popup */
                     Popup::Error( _("Password validation failed.") );
-                    defaults["rootpw"] = "";
+                    defaults["rootpw_clear"] = "";
                     continue;
                 }
             }
             //update enctype
             string enctype = (string)UI::QueryWidget( `id( `cmb_cryptmethod ), `Value );
             y2debug( "changing enctype to %1", enctype );
-//            LdapServerConf::enctype = enctype;
+            defaults["pwenctype"] = enctype;
 
             //update Base DN
             defaults["basedn"] = (string)UI::QueryWidget( `id( `te_basedn ), `Value );
