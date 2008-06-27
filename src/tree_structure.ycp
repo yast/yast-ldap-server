@@ -42,8 +42,6 @@ define symbol handler_cmd = nil;
  */
 define string current_tree_item = "";
 
-//define void addDatabaseWidgetMap( string suffix, string item_map, integer index, boolean new_db );
-
 /*********************************
  **     callback handlers       **
  *********************************/
@@ -1195,7 +1193,7 @@ widget_map = $[
  *      tree generation functions       **
  *****************************************/
 
-void addDatabaseWidgetMap( string label, string item_name, integer index, boolean new_db )
+void addDatabaseWidgetMap( string type, string label, string item_name, integer index, boolean new_db )
 {
     if( haskey( widget_map, item_name ) ) return;
     map<string, any> dbIndex = $[
@@ -1215,6 +1213,17 @@ void addDatabaseWidgetMap( string label, string item_name, integer index, boolea
     ];
     map<string,any> item_map = $[
         "name"      : label,
+        "index"     : index,
+        "widget"    : editBdbDatabase,
+        "new_db"    : new_db,
+        "dynamic"   : true,
+        "help_page" : "database_detail",
+        "cb_read"   : ``( cb_read_db() ),
+        "cb_write"  : ``( cb_write_db() ),
+        "cb_input"  : ``( cb_input_db() )
+    ];
+    map<string,any> bdb_item_map = $[
+        "name"      : label,
         "children"  : [ item_name + "_index", item_name + "_ppolicy" ],
         "index"     : index,
         "widget"    : editBdbDatabase,
@@ -1226,9 +1235,17 @@ void addDatabaseWidgetMap( string label, string item_name, integer index, boolea
         "cb_input"  : ``( cb_input_db() )
     ];
     y2milestone( "adding database item '%1' as '%2'", label, item_name );
-    widget_map[item_name] = item_map;
-    widget_map[item_name + "_index"] = dbIndex;
-    widget_map[item_name + "_ppolicy"] = dbPpolicy;
+
+    if ( type == "bdb" )
+    {
+        widget_map[item_name] = bdb_item_map;
+        widget_map[item_name + "_index"] = dbIndex;
+        widget_map[item_name + "_ppolicy"] = dbPpolicy;
+    }
+    else
+    {
+        widget_map[item_name] = item_map;
+    }
 
     widget_map["databases","children"] = add( widget_map["databases","children"]:[], item_name );
 }
@@ -1244,7 +1261,7 @@ void generateDynamicTreeItems()
     foreach( map<string,string> db, dblist, {
         string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
         string name = "database-" + tostring(i);
-        addDatabaseWidgetMap( tmp , name, tointeger(db["index"]:"0"),  false );
+        addDatabaseWidgetMap( db["type"]:"", tmp , name, tointeger(db["index"]:"0"),  false );
         i = i+1;
     } );
     y2debug( "databases map is '%1'", (map<string,any>)widget_map["databases"]:$[] );
