@@ -551,5 +551,30 @@ sub UpdateDatabase
 
 }
 
+BEGIN { $TYPEINFO {HaveCommonServerCertificate} = ["function", "boolean" ]; }
+sub HaveCommonServerCertificate
+{
+    my $self = shift;
+    y2milestone("HaveCommonServerCertificate");
+
+    if (SCR->Read(".target.size", '/etc/ssl/certs/YaST-CA.pem') <= 0)
+    {
+        y2milestone("YaST-CA.pem does not exists");
+        return YaST::YCP::Boolean(0);
+    }
+
+    if (SCR->Read(".target.size", '/etc/ssl/servercerts/servercert.pem') <= 0 )
+    {
+        y2milestone("Common server certificate file does not exist");
+        return YaST::YCP::Boolean(0);
+    }
+    if ( SCR->Read(".target.size", '/etc/ssl/servercerts/serverkey.pem') <= 0 )
+    {
+        y2milestone("Common server certificate key file does not exist");
+        return YaST::YCP::Boolean(0);
+    }
+    return YaST::YCP::Boolean(1);
+}
+
 1;
 # EOF
