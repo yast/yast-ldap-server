@@ -25,19 +25,11 @@ any MainSequence() {
 
     /* FIXME: adapt to your needs */
     map aliases = $[
-    "enable"       : ``( EnableServiceDialog() ),
     "tree"         : ``( TreeDialog() )
     ];
 
     map sequence = $[
-	    "ws_start"  : "enable",
-        "enable"    : $[
-            `abort      : `abort,
-            `back       : `abort,
-            `cancel     : `abort,
-            `next       : `next,
-            `config     : "tree"
-        ],
+	    "ws_start"  : "tree",
         "tree"      : $[
             `abort      : `abort,
             `back       : `abort,
@@ -47,11 +39,12 @@ any MainSequence() {
     ];
 
     any ret = Sequencer::Run(aliases, sequence);
+    UI::CloseDialog();
     return ret;
 }
 
 any ProposalSequence() {
-    
+
     /* Initialization dialog caption */
     string caption = _("LDAP Server Configuration");
     /* Initialization dialog contents */
@@ -60,19 +53,41 @@ any ProposalSequence() {
     Wizard::CreateDialog();
     Wizard::SetContentsButtons(caption, contents, "",
            Label::BackButton(), Label::NextButton());
-    
+
     map aliases = $[
-        "propose"   : ``( ProposalDialog() )
+        "startup"   : ``( EnableServiceDialog() ),
+        "database"   : ``( ProposalDialog() ),
+        "summary"   : ``(SummaryDialog() ),
+        "advanced"  :  ``(MainSequence() ),
+	"write"	: ``( WriteDialog() )
     ];
 
     map sequence = $[
-        "ws_start"  : "propose",
-        "propose"   : $[
-            `next   : `next,
+        "ws_start"  : "startup",
+        "startup"   : $[
+            `next   : "database"
+        ],
+        "database"   : $[
+            `next   : "summary",
             `back   : `back,
             `abort  : `back,
             `cancel : `back
-        ]
+        ],
+        "summary"   : $[
+            `next   : "write",
+            `back   : `back,
+            `abort  : `back,
+            `cancel : `back,
+            `advanced : "advanced"
+        ],
+	"advanced" : $[
+	    `abort	: `abort,
+	    `next	: `next
+	],
+	"write" : $[
+	    `abort	: `abort,
+	    `next	: `next
+	]
     ];
 
     y2milestone( "--> starting ProposalSequence" );
@@ -80,7 +95,7 @@ any ProposalSequence() {
     any ret = Sequencer::Run(aliases, sequence);
 
     y2milestone( "--> ProposalSequence finished " );
-    
+
     UI::CloseDialog();
 
     return ret;
@@ -93,17 +108,21 @@ any ProposalSequence() {
 any LdapServerSequence() {
 
     map aliases = $[
-	"read"	: [ ``( ReadDialog() ), true ],
-	"main"	:   ``( MainSequence() ),
-	"write"	: [ ``( WriteDialog() ), true ]
+	"read"	: ``( ReadDialog() ),
+	"main"	: ``( MainSequence() ),
+	"write"	: ``( WriteDialog() )
     ];
 
     map sequence = $[
 	"ws_start" : "read",
 	"read" : $[
 	    `abort	: `abort,
+            `initial    : "proposal",
 	    `next	: "main"
 	],
+        "proposal" : $[
+            `next       : "write"
+        ],
 	"main" : $[
 	    `abort	: `abort,
 	    `next	: "write"
