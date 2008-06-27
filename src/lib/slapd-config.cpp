@@ -949,7 +949,7 @@ boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
         sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_BASE);
         dbEntry = sr->getNext();
     } catch (LDAPException e) {
-        log_it(0, e.getResultMsg() + ": " + e.getServerMsg() );
+        log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
         throw;
     }
     if ( dbEntry ) {
@@ -967,7 +967,7 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
         LDAPModList ml = olcg.entryDifftoMod();
         m_lc->modify( olcg.getDn(), &ml );
     } catch (LDAPException e) {
-        log_it(0, e.getResultMsg() + ": " + e.getServerMsg() );
+        log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
         throw;
     }
 }
@@ -989,7 +989,7 @@ void OlcConfig::updateEntry( const OlcConfigEntry &oce )
             }
         }
     } catch (LDAPException e) {
-        log_it(0, e.getResultMsg() + e.getServerMsg() );
+        log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
         throw;
     }
 }
@@ -1018,7 +1018,7 @@ OlcDatabaseList OlcConfig::getDatabases()
             res.push_back(olce);
         }
     } catch (LDAPException e ) {
-        log_it(0, e.getResultMsg() + e.getServerMsg() );
+        log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
         throw;
     }
     return res;
@@ -1039,7 +1039,7 @@ OlcSchemaList OlcConfig::getSchemaNames()
             res.push_back(olce);
         }
     } catch (LDAPException e ) {
-        log_it(0, e.getResultMsg() + e.getServerMsg() );
+        log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
         throw;
     }
     return res;
