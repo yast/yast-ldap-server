@@ -390,13 +390,16 @@
             )
         );
 
-    define map<string,any> AddIndexPopup( list<string> skipAttrs )
+    define map<string,any> DatabaseIndexPopup( list<string> skipAttrs, string editAttr,
+                                                map<string, boolean> currentIdx )
     {
         y2milestone("AddIndexPopup skipAttrs: %1", skipAttrs );
         term content =
             `VBox(
                 `Heading( _("Add Index") ),
-                `ComboBox( `id( `cb_attrs ), `opt( `hstretch, `notify ), "Attributetypes" ),
+                `ReplacePoint( `id( `rp_attrs ),
+                        `ComboBox( `id( `cb_attrs ), `opt( `hstretch, `notify ), "Attributetypes" )
+                ),
                 `Left(
                     `CheckBox( `id( `cb_idx_pres ), _("Presence") )
                 ),
@@ -411,19 +414,44 @@
                     `PushButton( `id( `pb_cancel ), Label::CancelButton() )
                 )
             );
+
         map <string, map<string,boolean> > attrTypes =
                 (map<string, map <string,boolean> >) SCR::Read( .ldapserver.schema.attributeTypes );
-        list<string> items = [];
-        foreach(string key, map<string,boolean> idx, attrTypes, {
-            if ( nil == find( string elem,  skipAttrs, ``( tolower(elem) == tolower(key) ) ) ) {
-                items = add( items, key );
+        if ( editAttr == "" ) {
+            list<string> items = [];
+            foreach(string key, map<string,boolean> idx, attrTypes, {
+                if ( nil == find( string elem,  skipAttrs, ``( tolower(elem) == tolower(key) ) ) ) {
+                    items = add( items, key );
+                }
+            } );
+            items = lsort(items);
+            UI::OpenDialog( `opt(`decorated), content );
+            UI::ChangeWidget( `cb_attrs, `Items, items );
+        } else {
+            UI::OpenDialog( `opt(`decorated), content );
+            UI::ReplaceWidget(`rp_attrs,
+                `Label( `id( `attr ), editAttr)
+            );
+            y2milestone("Current IDX: %1", currentIdx );
+            if ( currentIdx["eq"]:false ) {
+                UI::ChangeWidget( `cb_idx_eq, `Value, true );
             }
-        } );
-        items = lsort(items);
-        UI::OpenDialog( `opt(`decorated), content );
-        UI::ChangeWidget( `cb_attrs, `Items, items );
+            if ( currentIdx["pres"]:false ) {
+                UI::ChangeWidget( `cb_idx_pres, `Value, true );
+            }
+            if ( currentIdx["substr"]:false ) {
+                UI::ChangeWidget( `cb_idx_substr, `Value, true );
+            }
+        }
 
-        string selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+        string selectedAttr = "";
+        if ( editAttr == "" )
+        {
+            selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+        } else {
+            selectedAttr = editAttr;
+        }
+
         y2milestone("selected Attribute \"%1\"", selectedAttr );
         map <string, boolean> idxOpt = attrTypes[selectedAttr]:nil ;
         y2milestone("index opts: %1", idxOpt );
@@ -455,8 +483,11 @@
             {
                 break;
             }
-            selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
-            y2milestone("selected Attribute \"%1\"", selectedAttr );
+            if ( editAttr == "" )
+            {
+                selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+                y2milestone("selected Attribute \"%1\"", selectedAttr );
+            }
             if ( ret == `cb_attrs ) // Attribute selected in the Combobox
             {
                 map <string, boolean> idxOpt = attrTypes[selectedAttr]:nil ;
