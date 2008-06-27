@@ -4,11 +4,40 @@
 #include <LdifReader.h>
 #include <LdifWriter.h>
 #include <LDAPEntry.h>
+#include <SaslInteraction.h>
 #include <sstream>
 
 #define DEFAULT_PORT 389
 #define ANSWER	42
 #define MAX_LENGTH_ID 5
+
+class SaslExternalHandler : SaslInteractionHandler 
+{
+    public:
+        virtual void handleInteractions(const std::list<SaslInteraction*> &cb );
+        virtual ~SaslExternalHandler();
+    private:
+        std::list<SaslInteraction*> cleanupList;
+
+};
+
+void SaslExternalHandler::handleInteractions( const std::list<SaslInteraction *> &cb )
+{
+    std::list<SaslInteraction*>::const_iterator i;
+
+    for (i = cb.begin(); i != cb.end(); i++ ) {
+        cleanupList.push_back(*i);
+    }
+}
+
+SaslExternalHandler::~SaslExternalHandler()
+{
+    std::list<SaslInteraction*>::const_iterator i;
+    for (i = cleanupList.begin(); i != cleanupList.end(); i++ ) {
+        delete(*i);
+    }
+}
+
 
 SlapdConfigAgent::SlapdConfigAgent()
 {
@@ -72,6 +101,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                                     const YCPValue &arg2)
 {
     y2milestone("Execute Path %s", path->toString().c_str() );
+    if ( path->component_str(0) == "init" )
+    {
+
+        LDAPConnection *lc = new LDAPConnection("ldapi:///");
+        SaslExternalHandler sih;
+        lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+        olc = OlcConfig(lc); 
+    }
     if ( path->component_str(0) == "initFromLdif" )
     {
         std::istringstream ldifstream(arg->asString()->value_cstr());
@@ -213,25 +250,18 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
 {
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
-    std::list<boost::shared_ptr<OlcDatabase> >::const_iterator i;
+    if ( databases.size() == 0 )
+    {
+        databases = olc.getDatabases();
+    }
+    OlcDatabaseList::const_iterator i;
     YCPList dbList;
     for (i = databases.begin(); i != databases.end(); i++ )
     {
         YCPMap ymap;
-        std::map<std::string, std::list<std::string> > dbMap = (*i)->toMap();
-        std::map<std::string, std::list<std::string> >::const_iterator j;
-        for ( j = dbMap.begin(); j != dbMap.end(); j++ )
-        {
-            YCPList l;
-            YCPString type(j->first);
-            std::list<std::string> vals = j->second;
-            std::list<std::string>::const_iterator k;
-            for (k = vals.begin(); k != vals.end(); k++ )
-            {
-                l.add(YCPString(*k));
-            }
-            ymap.add(type, l);
-        }
+        ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
+        ymap.add( YCPString("type"), YCPString((*i)->getType()) );
+        ymap.add( YCPString("index"), YCPInteger((*i)->getIndex()) );
         dbList.add(ymap);
     }
     return dbList;
@@ -266,7 +296,7 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
 YCPString SlapdConfigAgent::ConfigToLdif() const
 {
     y2milestone("ConfigToLdif");
-    std::list<boost::shared_ptr<OlcDatabase> >::const_iterator i = databases.begin();
+    OlcDatabaseList::const_iterator i = databases.begin();
     std::ostringstream ldif;
     ldif << globals->toLdif() << std::endl;
     ldif << schemaBase->toLdif() << std::endl;
@@ -281,3 +311,4 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     }
     return YCPString(ldif.str());
 }
+

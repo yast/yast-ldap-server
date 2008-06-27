@@ -50,7 +50,7 @@ class SlapdConfigAgent : public SCRAgent {
 
     private:
         OlcConfig olc;
-        std::list<boost::shared_ptr<OlcDatabase> > databases;
+        OlcDatabaseList databases;
         boost::shared_ptr<OlcGlobalConfig> globals;
         boost::shared_ptr<OlcSchemaConfig> schemaBase;
 };
