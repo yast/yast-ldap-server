@@ -221,6 +221,39 @@ void OlcBdbDatabase::setDirectory( const std::string &dir )
     this->setStringValue("olcDbDirectory", dir);
 }
 
+int OlcBdbDatabase::getEntryCache() const
+{
+    return this->getIntValue( "olcDbCachesize" );
+}
+
+void OlcBdbDatabase::setEntryCache( int cachesize )
+{
+    this->setIntValue( "olcDbCachesize", cachesize );
+}
+
+int OlcBdbDatabase::getIdlCache() const
+{
+    return this->getIntValue( "olcDbIdlCachesize" );
+}
+
+void OlcBdbDatabase::setIdlCache( int cachesize )
+{
+    this->setIntValue( "olcDbIdlCachesize", cachesize );
+}
+
+void OlcBdbDatabase::setCheckPoint( int kbytes, int min )
+{
+    std::ostringstream oStr;
+    oStr << kbytes << " " << min;
+    this->setStringValue( "olcDbCheckpoint", oStr.str() );
+}
+
+//int[] OlcBdbDatabase::getCheckPoint()
+//{
+//    int[2] ret = { 0,0 };
+//    return ret;
+//}
+
 OlcGlobalConfig::OlcGlobalConfig() : OlcConfigEntry()
 {
     m_dbEntryChanged.setDN("cn=config");
@@ -746,6 +779,26 @@ void OlcConfigEntry::addStringValue(const std::string &type, const std::string &
         LDAPAttribute newAttr(type, value);
         m_dbEntryChanged.addAttribute(newAttr);
     }
+}
+
+int OlcConfigEntry::getIntValue( const std::string &type ) const
+{
+    StringList sl = this->getStringValues(type);
+    if ( sl.size() == 1 ) {
+        std::istringstream iStr(*sl.begin());
+        int value;
+        iStr >> value;
+        return value;
+    } else {
+        throw(std::runtime_error("Attribute is not single-valued") );
+    }
+}
+
+void OlcConfigEntry::setIntValue( const std::string &type, int value )
+{
+    std::ostringstream oStr;
+    oStr << value;
+    this->setStringValue( type, oStr.str() );
 }
 
 std::string OlcConfigEntry::toLdif() const
