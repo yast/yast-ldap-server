@@ -44,7 +44,7 @@ y2debug("param=%1", param);
 
 /* Create a summary*/
 if(func == "Summary") {
-    ret = (LdapServer::Summary())[0]:"";
+    ret = LdapServer::Summary();
 }
 /* Reset configuration */
 else if (func == "Reset") {
@@ -95,7 +95,7 @@ else if (func == "GetModified") {
  * return boolean
  */
 else if (func == "SetModified") {
-    LdapServer::SetModified (true);
+    //LdapServer::SetModified (true);
     ret = true;
 }
 
