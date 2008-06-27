@@ -582,10 +582,44 @@ sub ChangeDatabaseIndex
     return $rc;
 }
 
-BEGIN { $TYPEINFO {AddPasswordPolicy} = ["function", "boolean" , "integer", ["map", "string", "string" ] ]; }
+BEGIN { $TYPEINFO {GetOverlayList} = ["function", [ "list", [ "map" , "string", "string"] ], "integer" ]; }
+sub GetOverlayList
+{
+    my ($self, $index) = @_;
+    y2milestone("GetOverlayList ", $index);
+    my $rc = SCR->Read(".ldapserver.database.{".$index."}.overlays" );
+    y2milestone( "Overlays: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
+}
+
+BEGIN { $TYPEINFO {GetPpolicyOverlay} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub GetPpolicyOverlay
+{
+    my ($self, $index) = @_;
+    y2milestone("GetPpolicyOverlay ", $index);
+    my $rc = SCR->Read(".ldapserver.database.{".$index."}.ppolicy" );
+    y2milestone( "Ppolicy: ".Data::Dumper->Dump([$rc]) );
+    if ( defined $rc->{'hashClearText'} )
+    {
+        $rc->{'hashClearText'} = YaST::YCP::Boolean($rc->{'hashClearText'});
+    }
+    if ( defined $rc->{'useLockout'} )
+    {
+        $rc->{'useLockout'} = YaST::YCP::Boolean($rc->{'useLockout'});
+    }
+    return $rc;
+}
+
+BEGIN { $TYPEINFO {AddPasswordPolicy} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
 sub AddPasswordPolicy
 {
     my ($self, $dbIndex, $ppolicy ) = @_;
+    y2milestone("AddPasswordPolicy: ".Data::Dumper->Dump([$ppolicy])." ". scalar(keys %{$ppolicy}) );
+    if ( 0 < scalar(keys %{$ppolicy}) )
+    {
+        $ppolicy->{'hashClearText'} = YaST::YCP::Boolean($ppolicy->{'hashClearText'});
+        $ppolicy->{'useLockout'} = YaST::YCP::Boolean($ppolicy->{'useLockout'});
+    }
     if ( ! SCR->Write(".ldapserver.database.{".$dbIndex."}.ppolicy", $ppolicy ) ) {
         my $err = SCR->Error(".ldapserver");
         $self->SetError( $err->{'summary'}, $err->{'description'} );
