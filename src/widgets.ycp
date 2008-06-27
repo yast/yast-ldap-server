@@ -301,18 +301,9 @@
                     )
                 ),
                 `VSpacing( 0.5 ),
-                `HBox(
-//                    `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-//                    `HSpacing( 0.5 ),
-//                    `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-//                    `HSpacing( 0.5 ),
-//                    `Left(
-//                        `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types ) 
-//                    ),
                     `Left(
                         `PushButton( `id( `pb_changepw ), _("Change Password") )
-                    )
-                ),
+                    ),
                 `VSpacing( 0.5 ),
                 `Left(
                     `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
