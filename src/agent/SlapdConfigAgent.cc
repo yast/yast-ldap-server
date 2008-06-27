@@ -180,12 +180,6 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     else if ( path->component_str(0) == "initSchema" )
     {   
         schemaBase = boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig() );
-        YCPList schemaList = arg->asList();
-        for ( int i = 0; i < schemaList->size(); i++ )
-        {
-            y2milestone("Schemafile to include: %s", schemaList->value(i)->asString()->value_cstr() );
-        }
-
     }
     else if ( path->component_str(0) == "initDatabases" )
     {
@@ -918,12 +912,14 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
             {
                 LDAPEntry entry, oldEntry;
                 entry = ldif.getEntryRecord();
+                y2milestone("adding <%s> to SchemaList", entry.getDN().c_str() );
                 schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
             }
             return YCPBoolean(true);
         } catch ( std::runtime_error e ) {
+            std::string errstring = "Error while parsing LDIF file: " + filename;
             lastError->add(YCPString("summary"),
-                    YCPString("Error while parsing LDIF file") );
+                    YCPString(errstring) );
             lastError->add(YCPString("description"), 
                     YCPString(std::string( e.what() ) ) );
             return YCPBoolean(false);
@@ -1030,15 +1026,15 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
 YCPString SlapdConfigAgent::ConfigToLdif() const
 {
     y2milestone("ConfigToLdif");
-    OlcDatabaseList::const_iterator i = databases.begin();
     std::ostringstream ldif;
     ldif << globals->toLdif() << std::endl;
     ldif << schemaBase->toLdif() << std::endl;
-    LdifWriter writer(ldif);
-    writer.writeIncludeRecord("/etc/openldap/schema/core.ldif");
-    writer.writeIncludeRecord("/etc/openldap/schema/cosine.ldif");
-    writer.writeIncludeRecord("/etc/openldap/schema/inetorgperson.ldif");
-    ldif << std::endl;
+    OlcSchemaList::const_iterator j;
+    for ( j = schema.begin(); j != schema.end() ; j++ )
+    {
+        ldif << (*j)->toLdif() << std::endl;
+    }
+    OlcDatabaseList::const_iterator i = databases.begin();
     for ( ; i != databases.end(); i++ )
     {
         ldif << (*i)->toLdif() << std::endl;

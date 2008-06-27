@@ -469,8 +469,11 @@ any SummaryDialog() {
         }
         else if ( ret == `next )
         {
-            LdapServer::ReadFromDefaults();
-            ret = `next;
+            if ( ! LdapServer::ReadFromDefaults() )
+            {
+                DisplayError( LdapServer::GetError() );
+                ret = `abort;
+            }
             break;
         }
         else if ( ret == `back )
