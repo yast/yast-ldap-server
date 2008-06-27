@@ -91,22 +91,6 @@ define boolean cb_read_schema()
     return true;
 }
 
-define boolean cb_check_schema()
-``{
-    y2milestone( "calling schema check handler" );
-    //dummy check strings
-        /* error popup */
-    string invalid_schema = sformat( _("The file '%1' is not a schema file."), "dummy" );
-    return true;
-}
-
-define boolean cb_write_schema()
-``{
-    y2milestone( "calling schema write handler" );
-//    LdapServer::WriteSchemaIncludeList( (list<string>)widget_map["g_schema","inclist"]:[] );
-    return true;
-}
-
 integer find_pos( list<string> l, string s )
 {
     y2debug( "-------------- starting find_pos ----------------" );
@@ -1138,9 +1122,7 @@ widget_map = $[
         "name"      : _("Schema Files"),
         "widget"    : schemaWidget,
         "inclist"   : [],
-        "cb_check"  : ``( cb_check_schema() ),
         "cb_read"   : ``( cb_read_schema() ),
-        "cb_write"  : ``( cb_write_schema() ),
         "cb_input"  : ``( cb_input_schema() )
     ],
     "g_loglevel" : $[
