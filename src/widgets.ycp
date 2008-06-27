@@ -484,8 +484,8 @@
                 retval["name"] = selectedAttr;
                 retval["pres"] = UI::QueryWidget( `cb_idx_pres, `Value );
                 retval["eq"] = UI::QueryWidget( `cb_idx_eq, `Value );
-                retval["substr"] = UI::QueryWidget( `cb_idx_substr, `Value );
-                y2milestone("new index: %1", newidx );
+                retval["sub"] = UI::QueryWidget( `cb_idx_substr, `Value );
+                y2milestone("new index: %1", retval );
                 break;
             }
         }

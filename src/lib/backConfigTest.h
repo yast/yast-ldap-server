@@ -96,6 +96,7 @@ class OlcDatabase : public OlcConfigEntry
 
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         virtual IndexMap getIndexes() const {};
+        virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx) {};
 
     
     protected:
@@ -111,9 +112,9 @@ class OlcBdbDatabase : public  OlcDatabase
         OlcBdbDatabase( const LDAPEntry& le );
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         void setDirectory( const std::string &dir);
-        
 
         virtual IndexMap getIndexes() const;
+        virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx);
 };
 
 class OlcTlsSettings;

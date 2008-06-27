@@ -1023,9 +1023,10 @@ define boolean cb_input_bdb_index()
                 skip = add( skip, attr );
             }
         );
-        map<string,any> newIdx = AddIndexPopup(skip);
+        map<string, any> newIdx = AddIndexPopup(skip);
         if ( size(newIdx) > 0 )
         {
+            LdapServer::ChangeDatabaseIndex( index, newIdx );
         }
 
     }
