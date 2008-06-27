@@ -1,10 +1,8 @@
 @HEADER-COMMENT@
 
 @HEADER@
-BuildRequires:	perl-XML-Writer pkg-config update-desktop-files yast2 yast2-core yast2-devtools
+BuildRequires:	pkg-config update-desktop-files yast2 yast2-core-devel yast2-devtools libldapcpp-devel boost-devel gcc-c++
 Requires:	acl yast2 yast2-users yast2-ldap-client yast2-network perl perl-gettext yast2-perl-bindings yast2-ca-management perl-X500-DN perl-Digest-SHA1 net-tools
-
-BuildArchitectures:	noarch
 
 Summary:	Configuration of the OpenLDAP server
 
@@ -16,6 +14,8 @@ Summary:	Configuration of the OpenLDAP server
 @BUILD@
 
 @INSTALL@
+rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.la
+rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.so
 
 @CLEAN@
 
@@ -23,13 +23,14 @@ Summary:	Configuration of the OpenLDAP server
 %defattr(-,root,root)
 %dir @yncludedir@/ldap-server
 %dir @moduledir@/YaPI
+%{_libdir}/libslapdconfig.so.*
 @yncludedir@/ldap-server/*
 @clientdir@/ldap-server.ycp
 @clientdir@/ldap-server_*.ycp
 @moduledir@/LdapServer.*
 @moduledir@/YaPI/LdapServer.pm
 @desktopdir@/ldap-server.desktop
+@plugindir@/libpy2ag_slapdconfig.*
 @schemadir@/autoyast/rnc/ldap-server.rnc
 @scrconfdir@/*
-@agentdir@/*
 %doc @docdir@
