@@ -103,6 +103,8 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     else if ( path->component_str(0) == "initGlobals" )
     {
         globals = boost::shared_ptr<OlcGlobalConfig>(new OlcGlobalConfig());
+        globals->setStringValue("olcPidFile", "/var/run/slapd/slapd.pid");
+        globals->setStringValue("olcArgsFile", "/var/run/slapd/slapd.args");
     }
     else if ( path->component_str(0) == "initSchema" )
     {   
