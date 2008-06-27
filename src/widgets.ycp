@@ -292,36 +292,55 @@
             `HSpacing(0.25)
         );
 
-    term editDbWidget =
-        `VBox(
-            `Heading( _("Edit Database") ),
-            `VSpacing( 1 ),
-            `Frame ( _("General Settings"),
-                `VBox(
-                    `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
-                    `VSpacing( 0.5 ),
-                    `VSquash(
-                        `HBox(
-                            `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                            `HSpacing( 0.5 ),
-                            `VBox(
-                                `Bottom(
-                                    `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
-                                ),
-                                `VSpacing( 0.3 )
-                            )
-                        )
-                    ),
-                    `VSpacing( 0.5 ),
+    term generalDbWidget =
+        `Frame ( _("General Settings"),
+            `VBox(
+                `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
+                `VSpacing( 0.5 ),
+                `VSquash(
                     `HBox(
-                        `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                        `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
                         `HSpacing( 0.5 ),
-                        `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                        `HSpacing( 0.5 ),
-                        `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                        `VBox(
+                            `Bottom(
+                                `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
+                            ),
+                            `VSpacing( 0.3 )
+                        )
                     )
+                ),
+                `VSpacing( 0.5 ),
+                `HBox(
+//                    `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+//                    `HSpacing( 0.5 ),
+//                    `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+//                    `HSpacing( 0.5 ),
+//                    `Left(
+//                        `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types ) 
+//                    ),
+                    `Left(
+                        `PushButton( `id( `pb_changepw ), _("Change Password") )
+                    )
+                ),
+                `VSpacing( 0.5 ),
+                `Left(
+                    `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
+                ),
+                `Left(
+                    `CheckBox( `id( `cb_dbmonitoring ), _("Enable Monitoring"), false )
                 )
-            ),
+            )
+        );
+
+    term editBdbDatabase =
+        `VBox(
+            `Heading( _("Edit BDB Database") ),
+            `VSpacing( 1 ),
+            generalDbWidget
+        );
+
+    term editPolicy =
+        `VBox(
             `VSpacing( 1 ),
             `Frame( _("Password Policy Settings"),
                 `VBox( `VSpacing(0.25),
