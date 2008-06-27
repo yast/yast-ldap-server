@@ -1001,7 +1001,7 @@ OlcDatabaseList OlcConfig::getDatabases()
         LDAPSearchResults *sr = m_lc->search( "cn=config", 
                 LDAPConnection::SEARCH_ONE, "objectclass=olcDatabaseConfig" );
         LDAPEntry *dbEntry;
-        while ( (dbEntry = sr->getNext()) != 0 )
+        while ( (dbEntry = sr->getNext()) )
         {
             std::string dbDn(dbEntry->getDN());
             log_it(0,"Got Database Entry: " + dbDn);
@@ -1009,7 +1009,7 @@ OlcDatabaseList OlcConfig::getDatabases()
             LDAPSearchResults *overlaySearchRes = m_lc->search( dbDn, 
                     LDAPConnection::SEARCH_ONE, "objectclass=olcOverlayConfig" );
             LDAPEntry *overlayEntry;
-            while ( (overlayEntry = overlaySearchRes->getNext()) != 0 )
+            while ( (overlayEntry = overlaySearchRes->getNext()) )
             {
                 log_it(0,"Got Overlay: " + overlayEntry->getDN() );
                 boost::shared_ptr<OlcOverlay> overlay(OlcOverlay::createFromLdapEntry(*overlayEntry) );
@@ -1032,7 +1032,7 @@ OlcSchemaList OlcConfig::getSchemaNames()
         LDAPSearchResults *sr = m_lc->search( "cn=schema,cn=config", 
                 LDAPConnection::SEARCH_SUB, "objectclass=olcSchemaConfig" );
         LDAPEntry *entry;
-        while ( entry = sr->getNext() )
+        while ( (entry = sr->getNext()) )
         {
             log_it(0,"Got Schema Entry: " + entry->getDN() );
             boost::shared_ptr<OlcSchemaConfig> olce(new OlcSchemaConfig(*entry));
