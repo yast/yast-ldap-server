@@ -149,6 +149,7 @@ void OlcBdbDatabase::addIndex(const std::string& attr, const std::vector<IndexTy
         }
     }
     std::cout << "indexString: '" << indexString << "'" << std::endl;
+    this->addStringValue( "olcDbIndex", indexString );
 }
 
 void OlcBdbDatabase::setDirectory( const std::string &dir )
@@ -636,6 +637,19 @@ void OlcConfigEntry::setStringValue(const std::string &type, const std::string &
 {
     LDAPAttribute attr(type, value);
     m_dbEntryChanged.replaceAttribute(attr);
+}
+
+void OlcConfigEntry::addStringValue(const std::string &type, const std::string &value)
+{
+    const LDAPAttribute *attr =  m_dbEntryChanged.getAttributeByName(type);
+    if ( attr ) {
+        LDAPAttribute newAttr(*attr);
+        newAttr.addValue(value);
+        m_dbEntryChanged.replaceAttribute(newAttr);
+    } else {
+        LDAPAttribute newAttr(type, value);
+        m_dbEntryChanged.addAttribute(newAttr);
+    }
 }
 
 std::string OlcConfigEntry::toLdif() const

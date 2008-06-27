@@ -1000,8 +1000,15 @@ define boolean cb_read_bdb_index()
         y2milestone("index attr: %1", attr);
         if ( idx["eq"]:false )
         {
-            y2milestone("eq index");
             eqIdx = _("Yes");
+        }
+        if ( idx["pres"]:false )
+        {
+            presIdx = _("Yes");
+        }
+        if ( idx["sub"]:false )
+        {
+            substrIdx = _("Yes");
         }
         newItems = add( newItems, `item( `id(i), attr, presIdx, eqIdx, substrIdx, approxIdx ) );
     } );
@@ -1027,8 +1034,8 @@ define boolean cb_input_bdb_index()
         if ( size(newIdx) > 0 )
         {
             LdapServer::ChangeDatabaseIndex( index, newIdx );
+            cb_read_bdb_index();
         }
-
     }
     return true;
 }
