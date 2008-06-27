@@ -270,6 +270,7 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     writer.writeIncludeRecord("/etc/openldap/schema/core.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/cosine.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/inetorgperson.ldif");
+    ldif << std::endl;
     for ( ; i != databases.end(); i++ )
     {
         ldif << (*i)->toLdif() << std::endl;
