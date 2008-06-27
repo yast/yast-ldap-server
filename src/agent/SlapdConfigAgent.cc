@@ -41,6 +41,11 @@ SaslExternalHandler::~SaslExternalHandler()
 }
 
 
+bool caseIgnoreCompare( char c1, char c2)
+{
+    return toupper(c1) == toupper(c2);
+}
+
 SlapdConfigAgent::SlapdConfigAgent()
 {
     y2milestone("SlapdConfigAgent::SlapdConfigAgent");
@@ -772,20 +777,27 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 schemaLine.erase(pos+1, std::string::npos );
 
             // FIXME: should validate Schema syntax here
-            if ( ! schemaLine.compare(0, sizeof("objectidentifier")-1, "objectidentifier" ) )
+            std::string oid("objectidentifier");
+            std::string at("attributetype");
+            std::string oc("objectclasses");
+            if ( equal(schemaLine.begin(), schemaLine.begin()+sizeof("objectidentifier")-1, 
+                       oid.begin(), caseIgnoreCompare ) )
             {
                 pos = schemaLine.find_first_not_of(" \t", sizeof("objectidentifier") );
                 schemaLine.erase(0, pos );
                 y2milestone("objectIdentifier Line <%s>", schemaLine.c_str() );
                 entry.addAttribute(LDAPAttribute("olcObjectIdentifier", schemaLine) );
             } 
-            else if ( ! schemaLine.compare(0, sizeof("attributetype")-1, "attributetype" ) )
+            else if ( equal(schemaLine.begin(), schemaLine.begin()+sizeof("attributetype")-1, 
+                       at.begin(), caseIgnoreCompare ) )
             {
                 int pos = schemaLine.find_first_not_of(" \t", sizeof("attributetype") );
                 schemaLine.erase(0, pos );
                 entry.addAttribute(LDAPAttribute("olcAttributeTypes", schemaLine) );
             }
-            else if ( ! schemaLine.compare(0, sizeof("objectClass")-1, "objectClass" ) )
+
+            else if ( equal(schemaLine.begin(), schemaLine.begin()+sizeof("objectclass")-1, 
+                       oc.begin(), caseIgnoreCompare ) )
             {
                 int pos = schemaLine.find_first_not_of(" \t", sizeof("objectClass") );
                 schemaLine.erase(0, pos );
