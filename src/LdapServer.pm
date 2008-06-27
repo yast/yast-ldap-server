@@ -542,6 +542,8 @@ sub InitDbDefaults
     y2milestone("basedn: $basedn");
     $dbDefaults{'basedn'} = $basedn;
     $dbDefaults{'rootdn'} = "cn=admin,".$basedn;
+    $dbDefaults{'rootpw'} = "";
+    $dbDefaults{'rootpw_clear'} = "";
     $dbDefaults{'pwenctype'} = "SSHA";
     $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
     $dbDefaults{'slpRegister'} = YaST::YCP::Boolean(0);
@@ -551,23 +553,26 @@ sub InitDbDefaults
 BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
 sub ReadFromDefaults
 {
+    my $self = shift;
+    my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
     my $database = { 'type' => 'bdb',
                      'suffix' => $dbDefaults{'basedn'},
                      'rootdn' => $dbDefaults{'rootdn'},
+                     'rootpw' => $pwHash,
                      'directory' => '/var/lib/ldap'
                    };
     my $cfgdatabase = { 'type' => 'config',
-                     'rootdn' => 'cn=config',
-                     'rootpw' => 'secret'
+                     'rootdn' => 'cn=config'
                    };
 
     @schema = ( "core", "cosine", "inetorgperson" );
 
-    push @databases, ( $cfgdatabase, $database );
-
     SCR->Execute('.ldapserver.initGlobals' );
     SCR->Execute('.ldapserver.initSchema', \@schema );
-    SCR->Execute('.ldapserver.initDatabases', \@databases );
+    SCR->Execute('.ldapserver.initDatabases', [ $cfgdatabase, $database ] );
+    my $rc = SCR->Read('.ldapserver.databases');
+    y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
+    @databases = @{$rc};
     return 1;
 }
 
@@ -727,7 +732,14 @@ sub UpdateDatabase
     return $rc;
 
 }
-
+##
+ # Get all ldap-server settings from the first parameter
+ # (For use by autoinstallation.)
+ # @param hashalgorithm a string defining the hashing algorithm (can be one of
+ #        "CRYPT", "SMD5", "SHA", "SSHA" and "PLAIN"
+ # @param cleartext the cleartext password
+ # @return The hashed password value (Format: {hashmethod}hashedpassword )
+ #
 BEGIN { $TYPEINFO {HashPassword} = ["function", "string", "string", "string" ] ; }
 sub HashPassword
 {
