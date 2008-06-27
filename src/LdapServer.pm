@@ -605,6 +605,19 @@ sub GetSchemaList
     return $rc;
 }
 
+BEGIN { $TYPEINFO {AddSchemaToSchemaList} = ["function", "boolean", "string" ]; }
+sub AddSchemaToSchemaList
+{
+    my ($self, $file) = @_;
+
+    my $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", $file);
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+    }
+    return $rc;
+}
+
 BEGIN { $TYPEINFO {AddLdifToSchemaList} = ["function", "boolean", "string" ]; }
 sub AddLdifToSchemaList
 {

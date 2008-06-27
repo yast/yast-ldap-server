@@ -682,6 +682,25 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     return YCPBoolean(ret);
 }
 
+int getSchemaLine( std::istream &input, std::string &schemaLine)
+{
+    if ( ! getline(input, schemaLine) )
+    {
+        return -1;
+    }
+    while ( input &&
+        (input.peek() == ' ' || input.peek() == '\t'))
+    {
+        std::string cat;
+        if (input.peek() == '\t' )
+            schemaLine += ' ';
+        input.ignore();
+        getline(input, cat);
+        schemaLine += cat;
+    }
+    return 0;
+}
+
 YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &arg2)
@@ -712,8 +731,82 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                     YCPString(std::string( e.what() ) ) );
             return YCPBoolean(false);
         }
+    } 
+    else if ( subpath == "addFromSchemafile" )
+    {
+        std::string filename = arg->asString()->value_cstr();
+        y2milestone("reading Schema from File: %s", filename.c_str());
+        // build RDN for new schema entry
+        std::string::size_type pos = filename.find_last_of('/');
+        std::string rdn = filename.substr(pos+1);
+        // does file name end with .schema?
+        if ( rdn.size() >= 7 )
+        {
+            if ( rdn.substr( rdn.size()-7 ) == ".schema" )
+            {
+                rdn = rdn.substr(0, rdn.size()-7 );
+            }
+        }
+        std::string dn = "cn=";
+        dn += rdn;
+        dn += ",cn=schema,cn=config";
+        y2milestone("RDN will be: %s", dn.c_str());
+        
+        std::ifstream input(filename.c_str());
+        std::string schemaLine;
+        LDAPEntry entry(dn), oldEntry;
+        entry.addAttribute( LDAPAttribute( "objectClass", "olcSchemaConfig" ) ); 
+        entry.addAttribute( LDAPAttribute( "cn", rdn ) ); 
+
+        while ( ! getSchemaLine(input, schemaLine) )
+        {
+            y2milestone("Read schema Line: %s", schemaLine.c_str() );
+            // empty or comment?
+            if ( schemaLine[0] == '#' || schemaLine.size() == 0 )
+            {
+                y2milestone("Comment or empty" );
+                continue;
+            }
+            int pos=schemaLine.find_last_not_of(" \t\n");
+            if (pos != std::string::npos )
+                schemaLine.erase(pos+1, std::string::npos );
+
+            // FIXME: should validate Schema syntax here
+            if ( ! schemaLine.compare(0, sizeof("objectidentifier")-1, "objectidentifier" ) )
+            {
+                pos = schemaLine.find_first_not_of(" \t", sizeof("objectidentifier") );
+                schemaLine.erase(0, pos );
+                y2milestone("objectIdentifier Line <%s>", schemaLine.c_str() );
+                entry.addAttribute(LDAPAttribute("olcObjectIdentifier", schemaLine) );
+            } 
+            else if ( ! schemaLine.compare(0, sizeof("attributetype")-1, "attributetype" ) )
+            {
+                int pos = schemaLine.find_first_not_of(" \t", sizeof("attributetype") );
+                schemaLine.erase(0, pos );
+                entry.addAttribute(LDAPAttribute("olcAttributeTypes", schemaLine) );
+            }
+            else if ( ! schemaLine.compare(0, sizeof("objectClass")-1, "objectClass" ) )
+            {
+                int pos = schemaLine.find_first_not_of(" \t", sizeof("objectClass") );
+                schemaLine.erase(0, pos );
+                entry.addAttribute(LDAPAttribute("olcObjectClasses", schemaLine) );
+            }
+            else
+            {
+                lastError->add(YCPString("summary"),
+                        YCPString("Error while parsing Schema file") );
+                lastError->add(YCPString("description"), YCPString("") );
+                return YCPBoolean(false);
+            }
+        }
+        schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
+
+        //lastError->add( YCPString("summary"),
+        //        YCPString("Error while parsing Schema file") );
+        //lastError->add( YCPString("description"), YCPString("") );
+        return YCPBoolean(true);
     }
-    if ( subpath == "remove" )
+    else if ( subpath == "remove" )
     {
         std::string name = arg->asString()->value_cstr();
         y2milestone("remove Schema Entry: %s", name.c_str());
