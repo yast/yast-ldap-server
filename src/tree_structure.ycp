@@ -42,7 +42,7 @@ define symbol handler_cmd = nil;
  */
 define string current_tree_item = "";
 
-define void addDatabaseWidgetMap( string suffix, boolean new_db );
+define void addDatabaseWidgetMap( string suffix, string item_map, boolean new_db );
 
 /*********************************
  **     callback handlers       **
@@ -350,7 +350,7 @@ define boolean cb_read_tls()
 //
 //    if(     use_common_ca
 //         || haskey( importPaths, "ServerCertificateFile" )
-//         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) 
+//         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil )
 //      )
 //    {
 //        UI::ChangeWidget( `rb_yes, `Value, true );
@@ -1041,7 +1041,7 @@ widget_map = $[
  *      tree generation functions       **
  *****************************************/
 
-void addDatabaseWidgetMap( string suffix, boolean new_db )
+void addDatabaseWidgetMap( string suffix, string item_name, boolean new_db )
 {
     if( haskey( widget_map, suffix ) ) return;
 
@@ -1056,11 +1056,9 @@ void addDatabaseWidgetMap( string suffix, boolean new_db )
         "cb_write"  : ``( cb_write_db() ),
         "cb_input"  : ``( cb_input_db() )
     ];
-    y2debug( "adding database item '%1'", suffix );
-    y2debug( "adding crypted database item '%1'", cryptmd5(suffix) );
-    string crypted_suffix = cryptmd5( suffix );
-    widget_map[crypted_suffix] = item_map;
-    widget_map["databases","children"] = add( widget_map["databases","children"]:[], crypted_suffix );
+    y2milestone( "adding database item '%1' as '%2'", suffix, item_name );
+    widget_map[item_name] = item_map;
+    widget_map["databases","children"] = add( widget_map["databases","children"]:[], item_name );
 }
 
 void generateDynamicTreeItems()
@@ -1070,9 +1068,12 @@ void generateDynamicTreeItems()
 
     y2milestone( "calling databases read handler" );
     list<map<string,string> > dblist = LdapServer::GetDatabaseList();
+    integer i = 0;
     foreach( map<string,string> db, dblist, {
         string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
-        addDatabaseWidgetMap( tmp , false );
+        string name = "database-" + tostring(i);
+        addDatabaseWidgetMap( tmp , name,  false );
+        i = i+1;
     } );
     y2debug( "databases map is '%1'", (map<string,any>)widget_map["databases"]:$[] );
 }
