@@ -696,10 +696,6 @@ sub GetDatabaseList
         my $tmp = { 'type' => $db->{'type'}, 
                 'suffix' => $db->{'suffix'},
                 'index' => $db->{'index'} };
-        if (! $tmp->{'suffix'} )
-        {
-            $tmp->{'suffix'} = "unknown";
-        }
         push @{$ret}, $tmp;
     }
     y2milestone(Data::Dumper->Dump([$ret]));
