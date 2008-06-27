@@ -36,6 +36,50 @@ my $serviceEnabled = 0;
 my $registerSlp = 0;
 my $useLdapiForConfig = 0;
 my %dbDefaults = ();
+my @defaultIndexes = (
+        { "name" => "objectclass",
+          "eq" => YaST::YCP::Boolean(1) 
+        },
+        { "name" => "uidNumber",
+          "eq" => YaST::YCP::Boolean(1) 
+        },
+        { "name" => "gidNumber",
+          "eq" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "member",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "mail",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "cn",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1),
+          "sub" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "displayName",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1),
+          "sub" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "uid",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1),
+          "sub" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "sn",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1),
+          "sub" => YaST::YCP::Boolean(1)
+        },
+        { "name" => "givenName",
+          "eq" => YaST::YCP::Boolean(1),
+          "pres" => YaST::YCP::Boolean(1),
+          "sub" => YaST::YCP::Boolean(1)
+        }
+    );
 
 my @databases = ();
 my @schema = ();
@@ -545,6 +589,10 @@ sub InitDbDefaults
     $dbDefaults{'rootpw'} = "";
     $dbDefaults{'rootpw_clear'} = "";
     $dbDefaults{'pwenctype'} = "SSHA";
+    $dbDefaults{'entrycache'} = 10000;
+    $dbDefaults{'idlcache'} = 10000;
+    
+    $dbDefaults{'defaultIndex'} = YaST::YCP::Boolean(1);
     $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
     $dbDefaults{'slpRegister'} = YaST::YCP::Boolean(0);
     return 1;
@@ -559,11 +607,11 @@ sub ReadFromDefaults
                      'suffix' => $dbDefaults{'basedn'},
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,
-                     'directory' => '/var/lib/ldap'
-                   };
+                     'directory' => '/var/lib/ldap',
+                     'entrycache' => $dbDefaults{'entrycache'},
+                     'idlcache' => $dbDefaults{'idlcache'} };
     my $cfgdatabase = { 'type' => 'config',
-                     'rootdn' => 'cn=config'
-                   };
+                        'rootdn' => 'cn=config' };
 
     @schema = ( "core", "cosine", "inetorgperson" );
 
@@ -571,6 +619,13 @@ sub ReadFromDefaults
     SCR->Execute('.ldapserver.initSchema', \@schema );
     SCR->Execute('.ldapserver.initDatabases', [ $cfgdatabase, $database ] );
     my $rc = SCR->Read('.ldapserver.databases');
+    if ( $dbDefaults{'defaultIndex'} == 1 )
+    {
+        foreach my $idx ( @defaultIndexes )
+        {
+            $self->ChangeDatabaseIndex(1, $idx );
+        }
+    }
     y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
     @databases = @{$rc};
     return 1;

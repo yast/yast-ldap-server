@@ -70,8 +70,7 @@ any ProposalSequence() {
         "database"   : $[
             `next   : "summary",
             `back   : `back,
-            `abort  : `back,
-            `cancel : `back
+            `abort  : `abort,
         ],
         "summary"   : $[
             `next   : "write",

@@ -218,6 +218,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     {
                         db->setDirectory( j.value()->asString()->value_cstr() );
                     }
+                    else if (std::string("entrycache") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setStringValue( "olcDbCachesize", j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("idlcache") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setStringValue( "olcDbIdlCachesize", j.value()->asString()->value_cstr() );
+                    }
                 }
                 databases.push_back(db);
             }
