@@ -622,10 +622,15 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
         {
             if ( path->length() == 1 )
             {
-                YCPValue val =  changesMap.value( YCPString("rootdn") );
-                if ( val->isString() )
+                YCPValue val = changesMap.value( YCPString("rootdn") );
+                if ( ! val.isNull()  && val->isString() )
                 {
                     (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
+                }
+                val = changesMap.value( YCPString("rootpw") );
+                if ( ! val.isNull() && val->isString() )
+                {
+                    (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
                 }
             } else {
                 std::string dbComponent = path->component_str(1);

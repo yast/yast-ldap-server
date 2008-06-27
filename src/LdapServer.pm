@@ -16,6 +16,9 @@ use strict;
 
 use Data::Dumper;
 
+use Digest::MD5 qw(md5_hex);
+use Digest::SHA1 qw(sha1);
+use MIME::Base64;
 use X500::DN;
 use ycp;
 use YaST::YCP qw(Boolean);
@@ -612,10 +615,46 @@ BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" 
 sub UpdateDatabase 
 {
     my ($self, $index, $changes) = @_;
+    y2milestone( "UpdateDatabase: ".Data::Dumper->Dump([$changes]) );
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
-    y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
+    y2milestone( "result: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 
+}
+
+BEGIN { $TYPEINFO {HashPassword} = ["function", "string", "string", "string" ] ; }
+sub HashPassword
+{
+    my ($self, $hashAlgo, $cleartext) = @_;
+    my $hashed;
+    if( !grep( ($_ eq $hashAlgo), ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN") ) ) {
+        # unsupported password hash
+        return "";
+    }
+
+    if( $hashAlgo eq "CRYPT" ) {
+        my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
+        $hashed = crypt $cleartext,$salt;
+        $hashed = "{CRYPT}".$hashed;
+    } elsif( $hashAlgo eq "SMD5" ) {
+        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                         (int(rand 26)+65), (int(rand 26)+65));
+        my $ctx = new Digest::MD5();
+        $ctx->add($cleartext);
+        $ctx->add($salt);
+        $hashed = "{SMD5}".encode_base64($ctx->digest.$salt, "");
+    } elsif( $hashAlgo eq "SHA"){
+        my $digest = sha1($cleartext);
+        $hashed = "{SHA}".encode_base64($digest, "");
+    } elsif( $hashAlgo eq "SSHA"){
+        my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
+                         (int(rand 26)+65), (int(rand 26)+65));
+        my $digest = sha1($cleartext.$salt);
+        $hashed = "{SSHA}".encode_base64($digest.$salt, "");
+    } else {
+        $hashed = $cleartext;
+    }
+    return $hashed;
 }
 
 BEGIN { $TYPEINFO {HaveCommonServerCertificate} = ["function", "boolean" ]; }
