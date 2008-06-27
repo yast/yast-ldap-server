@@ -199,10 +199,26 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             {
                 boost::shared_ptr<OlcBdbDatabase> db(new OlcBdbDatabase() );
                 db->setIndex(i);
-                db->setSuffix(dbMap->value(YCPString("suffix"))->asString()->value_cstr());
-                db->setRootDn(dbMap->value(YCPString("rootdn"))->asString()->value_cstr());
-                db->setDirectory(dbMap->value(YCPString("directory"))->asString()->value_cstr());
-//                db->setRootPw(dbMap->value(YCPString("rootpw"))->asString()->toString());
+                YCPMapIterator j = dbMap.begin();
+                for ( ; j != dbMap.end(); j++ )
+                {
+                    if ( std::string("suffix") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setSuffix( j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setRootDn( j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setRootPw( j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("directory") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setDirectory( j.value()->asString()->value_cstr() );
+                    }
+                }
                 databases.push_back(db);
             }
             else
@@ -210,9 +226,22 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 y2error("Database Type \"%s\" not supported. Trying to use generic Database class", dbtype.c_str());
                 boost::shared_ptr<OlcDatabase> db(new OlcDatabase(dbtype.c_str()) );
                 db->setIndex(i);
-//                db->setSuffix(dbMap->value(YCPString("suffix"))->asString()->value_cstr());
-                db->setRootDn(dbMap->value(YCPString("rootdn"))->asString()->value_cstr());
-                db->setRootPw(dbMap->value(YCPString("rootpw"))->asString()->value_cstr());
+                YCPMapIterator j = dbMap.begin();
+                for ( ; j != dbMap.end(); j++ )
+                {
+                    if ( std::string("suffix") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setSuffix( j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setRootDn( j.value()->asString()->value_cstr() );
+                    }
+                    else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+                    {
+                        db->setRootPw( j.value()->asString()->value_cstr() );
+                    }
+                }
                 databases.push_back(db);
             }
         }
