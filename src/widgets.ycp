@@ -390,8 +390,9 @@
             )
         );
 
-    define boolean AddIndexPopup()
+    define map<string,any> AddIndexPopup( list<string> skipAttrs )
     {
+        y2milestone("AddIndexPopup skipAttrs: %1", skipAttrs );
         term content =
             `VBox(
                 `Heading( _("Add Index") ),
@@ -414,7 +415,9 @@
                 (map<string, map <string,boolean> >) SCR::Read( .ldapserver.schema.attributeTypes );
         list<string> items = [];
         foreach(string key, map<string,boolean> idx, attrTypes, {
-            items = add( items, key );
+            if ( nil == find( string elem,  skipAttrs, ``( tolower(elem) == tolower(key) ) ) ) {
+                items = add( items, key );
+            }
         } );
         items = lsort(items);
         UI::OpenDialog( `opt(`decorated), content );
@@ -443,14 +446,19 @@
             UI::ChangeWidget( `cb_idx_pres, `Enabled, false );
         }
 
+        map<string,any> retval = $[];
         while (true)
         {
             any ret = UI::UserInput();
             y2milestone("ret = %1", ret );
+            if (ret == `pb_cancel )
+            {
+                break;
+            }
+            selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+            y2milestone("selected Attribute \"%1\"", selectedAttr );
             if ( ret == `cb_attrs ) // Attribute selected in the Combobox
             {
-                selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
-                y2milestone("selected Attribute \"%1\"", selectedAttr );
                 map <string, boolean> idxOpt = attrTypes[selectedAttr]:nil ;
                 y2milestone("index opts: %1", idxOpt );
                 if ( idxOpt["equality"]:false )
@@ -471,15 +479,17 @@
                 } else {
                     UI::ChangeWidget( `cb_idx_pres, `Enabled, false );
                 }
-            } else if (ret == `pb_cancel )
-            {
-                break;
             } else if (ret == `pb_ok )
             {
+                retval["name"] = selectedAttr;
+                retval["pres"] = UI::QueryWidget( `cb_idx_pres, `Value );
+                retval["eq"] = UI::QueryWidget( `cb_idx_eq, `Value );
+                retval["substr"] = UI::QueryWidget( `cb_idx_substr, `Value );
+                y2milestone("new index: %1", newidx );
                 break;
             }
         }
         UI::CloseDialog();
-        return true;
+        return retval;
     }
 }

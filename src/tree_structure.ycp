@@ -1013,9 +1013,21 @@ define boolean cb_read_bdb_index()
 define boolean cb_input_bdb_index()
 {
     y2milestone("cb_input_bdb_index, handlercmd: %1", handler_cmd);
+    integer index = (integer) widget_map[current_tree_item, "index"]:nil;
     if ( handler_cmd == `pb_idx_add )
     {
-        AddIndexPopup();
+        map<string, map<string, boolean> > idxMap = LdapServer::GetDatabaseIndexes( index );
+        list<string> skip = []; // skip attribute that already have an index defined
+        foreach( string attr, map<string, boolean> idx, idxMap,
+            {
+                skip = add( skip, attr );
+            }
+        );
+        map<string,any> newIdx = AddIndexPopup(skip);
+        if ( size(newIdx) > 0 )
+        {
+        }
+
     }
     return true;
 }
