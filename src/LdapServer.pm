@@ -123,6 +123,7 @@ sub Write {
     Progress->New("Writing OpenLDAP Server Configuration", "", 4, $progressItems, $progressItems, "");
 
     Progress->NextStage();
+
     my $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND', 'ldap');
     if ( ! $rc )
     {
@@ -131,8 +132,17 @@ sub Write {
         Progress->Finish();
         return 0;
     }
+    $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+    if ( ! $rc )
+    {
+        y2error("Error while enabling LDAPI listener");
+        $self->SetError( _("Enabling thi LDAPI Protocol listener failed.") );
+        Progress->Finish();
+        return 0;
+    }
 
     Progress->NextStage();
+
     $rc = SCR->Execute('.target.bash', 'rm -rf /etc/openldap/slapd.d/cn=config*' );
     if ( $rc )
     {
@@ -171,6 +181,23 @@ sub Write {
         SCR->Execute('.target.bash', "rm -f $tmpfile" );
     }
     Progress->NextStage();
+
+    $rc = Service->Enable("ldap");
+    if ( ! $rc )
+    {
+        y2error("Error while enabing the LDAP Service: ". Service->Error() );
+        $self->SetError( _("Enabling the LDAP Service failed.") );
+        Progress->Finish();
+        return 0;
+    }
+    $rc = Service->Restart("ldap");
+    if (! $rc )
+    {
+        y2error("Error while starting the LDAP service");
+        $self->SetError( _("Starting the LDAP service failed.") );
+        Progress->Finish();
+        return 0;
+    }
 
     Progress->Finish();
     sleep(1);

@@ -122,7 +122,8 @@ any LdapServerSequence() {
 	    `next	: "main"
 	],
         "propose" : $[
-            `next       : `next
+            `next       : `next,
+	    `abort	: `abort
         ],
 	"main" : $[
 	    `abort	: `abort,
