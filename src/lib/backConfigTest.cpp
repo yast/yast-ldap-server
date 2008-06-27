@@ -285,6 +285,12 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : Olc
     }
 }
 
+void OlcSchemaConfig::clearChangedEntry()
+{
+    OlcConfigEntry::clearChangedEntry();
+    m_name = "";
+}
+
 const std::string& OlcSchemaConfig::getName() const
 {
     return m_name;
@@ -439,6 +445,12 @@ void OlcConfigEntry::updateEntryDn()
 {
 }
 
+void OlcConfigEntry::clearChangedEntry()
+{
+        m_dbEntryChanged = LDAPEntry();     
+}
+
+
 std::map<std::string, std::list<std::string> > OlcDatabase::toMap() const
 {
     std::map<std::string, std::list<std::string> > resMap;
@@ -585,6 +597,10 @@ bool OlcConfigEntry::isNewEntry() const
 {
     return ( this->getDn().empty() );
 }
+bool OlcConfigEntry::isDeletedEntry() const
+{
+    return ( (!this->getDn().empty()) && this->getUpdatedDn().empty() );
+}
 
 LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
@@ -723,6 +739,8 @@ void OlcConfig::updateEntry( const OlcConfigEntry &oce )
         if ( oce.isNewEntry () ) 
         {
             m_lc->add(&oce.getChangedEntry());
+        } else if (oce.isDeletedEntry() ) {
+            m_lc->del(oce.getDn());
         } else {
             LDAPModList ml = oce.entryDifftoMod();
             if ( ! ml.empty() ) {

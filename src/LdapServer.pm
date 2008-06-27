@@ -573,7 +573,17 @@ sub AddLdifToSchemaList
 
     my $rc = SCR->Write(".ldapserver.schema.addFromLdif", $file);
 
-    return 1;
+    return $rc;
+}
+
+BEGIN { $TYPEINFO {RemoveFromSchemaList} = ["function", "boolean", "string" ]; }
+sub RemoveFromSchemaList
+{
+    my ($self, $name) = @_;
+
+    my $rc = SCR->Write(".ldapserver.schema.remove", $name);
+
+    return $rc;
 }
 
 BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }
