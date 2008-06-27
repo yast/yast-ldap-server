@@ -140,11 +140,11 @@ const std::vector<std::string> OlcGlobalConfig::getLogLevelString() const
         std::istringstream iss(*i);
         int intlogValue;
         if ( iss >> intlogValue ) {
-            std::cerr << "IntegerValue" << *i << std::endl;
+            std::cerr << "IntegerValue " << *i << std::endl;
         }
         else
         {
-            std::cerr << "StringValue" << *i << std::endl;
+            std::cerr << "StringValue " << *i << std::endl;
             lvls.push_back(*i);
         }
     }
