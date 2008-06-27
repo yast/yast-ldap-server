@@ -46,9 +46,17 @@ bool caseIgnoreCompare( char c1, char c2)
     return toupper(c1) == toupper(c2);
 }
 
+
+static void y2LogCallback( int level, const std::string &msg,
+            const char* file=0, const int line=0, const char* function=0)
+{
+    y2_logger(LOG_MILESTONE, "libslapdconfig", file, line, function, "%s", msg.c_str());
+}
+
 SlapdConfigAgent::SlapdConfigAgent()
 {
     y2milestone("SlapdConfigAgent::SlapdConfigAgent");
+    OlcConfig::setLogCallback(y2LogCallback);
 //    LDAPConnection *lc = new LDAPConnection("ldap://localhost");
 //    lc->bind("cn=config", "secret");
 //    olc = OlcConfig(lc);
