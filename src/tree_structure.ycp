@@ -1063,7 +1063,7 @@ void addDatabaseWidgetMap( string suffix, string item_name, integer index, boole
     map<string,any> item_map = $[
         "name"      : suffix,
         "index"     : index,
-        "widget"    : editDbWidget,
+        "widget"    : editBdbDatabase,
         "new_db"    : new_db,
         "dynamic"   : true,
         "help_page" : "database_detail",
