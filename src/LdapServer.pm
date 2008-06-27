@@ -763,12 +763,35 @@ sub ReadFromDefaults
                         ]
                       };
 
-    @schema = ( "core", "cosine", "inetorgperson" );
-
     SCR->Execute('.ldapserver.initGlobals' );
-    SCR->Execute('.ldapserver.initSchema', \@schema );
+    SCR->Execute('.ldapserver.initSchema' );
+    my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return $rc;
+    }
+    $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/cosine.ldif" );
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return $rc;
+    }
+    $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/inetorgperson.ldif" );
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return $rc;
+    }
+    $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/rfc2307bis.schema" );
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return $rc;
+    }
+
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
-    my $rc = SCR->Read('.ldapserver.databases');
+    $rc = SCR->Read('.ldapserver.databases');
     if ( $dbDefaults{'defaultIndex'} == 1 )
     {
         foreach my $idx ( @defaultIndexes )
