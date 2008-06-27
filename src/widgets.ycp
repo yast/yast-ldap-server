@@ -439,7 +439,7 @@
             if ( currentIdx["pres"]:false ) {
                 UI::ChangeWidget( `cb_idx_pres, `Value, true );
             }
-            if ( currentIdx["substr"]:false ) {
+            if ( currentIdx["sub"]:false ) {
                 UI::ChangeWidget( `cb_idx_substr, `Value, true );
             }
         }
