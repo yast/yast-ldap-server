@@ -284,41 +284,43 @@
         );
 
     term generalDbWidget =
-        `Frame ( _("General Settings"),
-            `VBox(
-                `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
-                `VSpacing( 0.5 ),
-                `VSquash(
-                    `HBox(
-                        `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                        `HSpacing( 0.5 ),
-                        `VBox(
-                            `Bottom(
-                                `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
-                            ),
-                            `VSpacing( 0.3 )
-                        )
+        `VBox(
+            `InputField( `id( `te_basedn ), `opt( `disabled, `hstretch ),
+                        _("&Base DN") ),
+            `VSpacing( 0.5 ),
+            `VSquash(
+                `HBox(
+                    `InputField( `id( `te_rootdn ), `opt( `hstretch ),
+                        _("&Root DN") ),
+                    `HSpacing( 0.5 ),
+                    `VBox(
+                        `Bottom(
+                            `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
+                        ),
+                        `VSpacing( 0.3 )
                     )
-                ),
-                `VSpacing( 0.5 ),
-                `Left(
-                    `PushButton( `id( `pb_changepw ), _("Change Password") )
-                ),
-                `VSpacing( 0.5 ),
-                `Left(
-                    `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
-                ),
-                `Left(
-                    `CheckBox( `id( `cb_dbmonitoring ), _("Enable Monitoring"), false )
                 )
+            ),
+            `VSpacing( 0.5 ),
+            `Left(
+                `PushButton( `id( `pb_changepw ), _("Change Password") )
+            ),
+            `VSpacing( 0.5 ),
+            `Left(
+                `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
+            ),
+            `Left(
+                `CheckBox( `id( `cb_dbmonitoring ), _("Enable Monitoring"), false )
             )
         );
 
     term editBdbDatabase =
-        `VBox(
-            `Heading( _("Edit BDB Database") ),
-            `VSpacing( 1 ),
-            generalDbWidget
+        `Top(
+            `VBox(
+                `Heading( _("Edit BDB Database") ),
+                `VSpacing( 1 ),
+                generalDbWidget
+            )
         );
 
     term editBdbIndexes =
