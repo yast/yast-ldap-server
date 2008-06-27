@@ -723,22 +723,6 @@ define boolean cb_input_databases()
  ** database handlers
  *****************************/
 
-define boolean cb_check_db()
-``{
-    string label =(string)widget_map[current_tree_item,"name"]:nil;
-    y2milestone( "calling db check handler for suffix '%1'", label );
-
-    string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
-    if( rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
-    {
-            /* Error Popup */
-        callback_error = _("Password validation failed.");
-        return false;
-    }
-
-    return true;
-}
-
 define boolean cb_write_db()
 ``{
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
@@ -802,52 +786,6 @@ define boolean cb_write_db()
  //       db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
  //   }
 
- //   if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
- //       boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
- //       boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
- //       string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
- //       map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
- //       map<string,any> ppolicy = $[];
- //       if (hashcleartext ) {
- //           ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
- //       }
- //       if (uselockout) {
- //           ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
- //       }
- //       if (pp_default != "" ) {
- //           if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
- //           {
- //               pp_default = pp_default+","+suffix;
- //           }
- //           if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
- //               db = add(db, "ppolicy_default_changed", "1");
- //           }
- //           ppolicy = add( ppolicy, "ppolicy_default", pp_default);
- //       }
- //       list<any> pp_overlay = [ "ppolicy", ppolicy ];
- //       list<any> overlays = [ pp_overlay ];
- //       db = add( db, "overlay", overlays);
- //       list<string> inclist = LdapServer::ReadSchemaIncludeList();
- //       if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
- //           inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
- //           LdapServer::WriteSchemaIncludeList(inclist);
- //       }
- //   } else {
- //       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
- //       if ( ppolicy_map != nil ){
- //           list<any> newoverlay = [];
- //           list<any> empty_pp_ol = ["ppolicy", nil ];
- //           integer i = 0;
- //           foreach( list<any> i, db["overlay"]:[], {
- //               if ((string)i[0]:"" != "ppolicy") {
- //                   newoverlay = add(newoverlay, i);
- //               } else {
- //                   newoverlay = add(newoverlay, empty_pp_ol);
- //               }
- //           });
- //           db["overlay"] = newoverlay;
- //       }
- //   }
  //   string checkResult = LdapServer::CheckDatabase( db );
  //   if( checkResult != "" ) {
  //       callback_error = checkResult;
@@ -1109,6 +1047,58 @@ define boolean cb_read_ppolicy()
     return true;
 }
 
+define boolean cb_write_ppolicy()
+{
+    y2milestone("cb_write_policy()");
+//   if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+//       boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+//       boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+//       string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+//       map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
+//       map<string,any> ppolicy = $[];
+//       if (hashcleartext ) {
+//           ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+//       }
+//       if (uselockout) {
+//           ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+//       }
+//       if (pp_default != "" ) {
+//           if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+//           {
+//               pp_default = pp_default+","+suffix;
+//           }
+//           if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
+//               db = add(db, "ppolicy_default_changed", "1");
+//           }
+//           ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+//       }
+//       list<any> pp_overlay = [ "ppolicy", ppolicy ];
+//       list<any> overlays = [ pp_overlay ];
+//       db = add( db, "overlay", overlays);
+//       list<string> inclist = LdapServer::ReadSchemaIncludeList();
+//       if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
+//           inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
+//           LdapServer::WriteSchemaIncludeList(inclist);
+//       }
+//   } else {
+//       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
+//       if ( ppolicy_map != nil ){
+//           list<any> newoverlay = [];
+//           list<any> empty_pp_ol = ["ppolicy", nil ];
+//           integer i = 0;
+//           foreach( list<any> i, db["overlay"]:[], {
+//               if ((string)i[0]:"" != "ppolicy") {
+//                   newoverlay = add(newoverlay, i);
+//               } else {
+//                   newoverlay = add(newoverlay, empty_pp_ol);
+//               }
+//           });
+//           db["overlay"] = newoverlay;
+//       }
+//   }
+    return true;
+}
+
 /*****************************************
  **     tree structure definition       **
  *****************************************/
@@ -1198,7 +1188,8 @@ void addDatabaseWidgetMap( string label, string item_name, integer index, boolea
         "widget"    : editPolicy,
         "index"     : index,
         "cb_read"   : ``(cb_read_ppolicy() ),
-        "cb_input"  : ``(cb_input_ppolicy() )
+        "cb_input"  : ``(cb_input_ppolicy() ),
+        "cb_write"  : ``(cb_write_ppolicy() )
     ];
     map<string,any> item_map = $[
         "name"      : label,
@@ -1208,7 +1199,6 @@ void addDatabaseWidgetMap( string label, string item_name, integer index, boolea
         "new_db"    : new_db,
         "dynamic"   : true,
         "help_page" : "database_detail",
-        "cb_check"  : ``( cb_check_db() ),
         "cb_read"   : ``( cb_read_db() ),
         "cb_write"  : ``( cb_write_db() ),
         "cb_input"  : ``( cb_input_db() )
