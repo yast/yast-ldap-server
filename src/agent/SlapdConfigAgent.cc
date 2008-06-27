@@ -222,6 +222,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         if ( globals )
             olc.updateEntry( *globals );
 
+        OlcSchemaList::const_iterator j;
+        for ( j = schema.begin(); j != schema.end() ; j++ )
+        {
+            olc.updateEntry(**j);
+        }
         OlcDatabaseList::const_iterator i;
         for ( i = databases.begin(); i != databases.end() ; i++ )
         {
@@ -230,13 +235,9 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             OlcOverlayList::const_iterator k;
             for ( k = overlays.begin(); k != overlays.end(); k++ )
             {
+                y2milestone("Update overlay: %s", (*k)->getDn().c_str() );
                 olc.updateEntry(**k);
             }
-        }
-        OlcSchemaList::const_iterator j;
-        for ( j = schema.begin(); j != schema.end() ; j++ )
-        {
-            olc.updateEntry(**j);
         }
     }
     return YCPBoolean(true);
@@ -745,32 +746,45 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     {
                         if ( (*j)->getType() == "ppolicy" )
                         {
-                            YCPMap argMap = arg->asMap();
-                            y2milestone("Mapsize: %d", argMap.size());
-                            if ( argMap.size() == 0 ){
-                                y2milestone("Delete ppolicy overlay");
-                                (*j)->clearChangedEntry();
-                            } else {
-                                (*j)->setStringValue("olcPpolicyDefault", 
-                                    argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
-                                if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
-                                {
-                                    (*j)->setStringValue("olcPpolicyUseLockout", "TRUE");
-                                }
-                                else
-                                {
-                                    (*j)->setStringValue("olcPpolicyUseLockout", "FALSE");
-                                }
-                                if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
-                                {
-                                    (*j)->setStringValue("olcPpolicyHashCleartext", "TRUE");
-                                }
-                                else
-                                {
-                                    (*j)->setStringValue("olcPpolicyHashCleartext", "FALSE");
-                                }
-                            }
                             break;
+                        }
+                    }
+                    boost::shared_ptr<OlcOverlay> ppolicyOlc;
+                    if ( j == overlays.end() )
+                    {
+                        y2milestone("New Overlay added");
+                        boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
+                        ppolicyOlc = tmp;
+                        (*i)->addOverlay(ppolicyOlc);
+                    }
+                    else
+                    {
+                        y2milestone("Update existing Overlay");
+                        ppolicyOlc = *j;
+                    }
+                    YCPMap argMap = arg->asMap();
+                    y2milestone("Mapsize: %d", argMap.size());
+                    if ( argMap.size() == 0 ){
+                        y2milestone("Delete ppolicy overlay");
+                        ppolicyOlc->clearChangedEntry();
+                    } else {
+                        ppolicyOlc->setStringValue("olcPpolicyDefault", 
+                            argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
+                        if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                        {
+                            ppolicyOlc->setStringValue("olcPpolicyUseLockout", "TRUE");
+                        }
+                        else
+                        {
+                            ppolicyOlc->setStringValue("olcPpolicyUseLockout", "FALSE");
+                        }
+                        if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
+                        {
+                            ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "TRUE");
+                        }
+                        else
+                        {
+                            ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
                         }
                     }
                     ret = true;

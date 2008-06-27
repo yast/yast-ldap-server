@@ -82,6 +82,7 @@ class OlcOverlay : public OlcConfigEntry
     public:
         static OlcOverlay* createFromLdapEntry( const LDAPEntry& le);
         OlcOverlay( const LDAPEntry &le );
+        OlcOverlay( const std::string &type, const std::string &parent );
         const std::string getType() const;
 
     protected:
