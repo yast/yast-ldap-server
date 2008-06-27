@@ -516,7 +516,7 @@ sub ReadSLPEnabled {
 BEGIN { $TYPEINFO {SetSlpEnabled} = ["function", "boolean", "boolean"]; }
 sub SetSlpEnabled {
     my $self = shift;
-    y2milestone("ReadServiceEnabled");
+    y2milestone("SetSlpEnabled");
     $registerSlp = shift;
     return 1;
 }
@@ -768,24 +768,28 @@ sub ReadFromDefaults
     my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
     if ( ! $rc ) {
         my $err = SCR->Error(".ldapserver");
+        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return $rc;
     }
     $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/cosine.ldif" );
     if ( ! $rc ) {
         my $err = SCR->Error(".ldapserver");
+        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return $rc;
     }
     $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/inetorgperson.ldif" );
     if ( ! $rc ) {
         my $err = SCR->Error(".ldapserver");
+        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return $rc;
     }
     $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/rfc2307bis.schema" );
     if ( ! $rc ) {
         my $err = SCR->Error(".ldapserver");
+        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return $rc;
     }
