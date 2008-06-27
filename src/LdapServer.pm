@@ -122,6 +122,8 @@ my @globalAcl = (
     }
 );
 
+my @added_databases = ();
+
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -196,6 +198,91 @@ sub Read {
     return 1;
 }
 
+sub CreateBaseObjects()
+{
+    my $self = shift;
+    foreach my $db (@added_databases )
+    {
+        y2milestone("creating base object for ". $db->{'suffix'} );
+        my $object = X500::DN->ParseRFC2253($db->{'suffix'});
+        if(! defined $object) {
+            y2error("Error while parsing base dn");
+            return 0;
+        }
+        my @attr = $object->getRDN($object->getRDNs()-1)->getAttributeTypes();
+        my $val = $object->getRDN($object->getRDNs()-1)->getAttributeValue($attr[0]);
+        if(!defined $attr[0] || !defined $val)
+        {
+            y2error("Error while extracting RDN values");
+            return 0;
+        }
+        my $entry = {};
+        
+        if( lc($attr[0]) eq "ou") {
+            $entry = {
+                      "objectClass" => [ "organizationalUnit" ],
+                      "ou" => $val,
+                     }
+        } elsif( lc($attr[0]) eq "o") {
+            $entry = {
+                      "objectClass" => [ "organization" ],
+                      "o" => $val,
+                     }
+        } elsif( lc($attr[0]) eq "c") {
+            if($val !~ /^\w{2}$/) {
+                y2error("The countryName must be an ISO-3166 country 2-letter code.");
+                return 0;
+            }
+            $entry = {
+                      "objectClass" => [ "country" ],
+                      "c" => $val,
+                     }
+        } elsif( lc($attr[0]) eq "l") {
+            $entry = {
+                      "objectClass" => [ "locality" ],
+                      "l" => $val,
+                     }
+        } elsif( lc($attr[0]) eq "st") {
+            $entry = {
+                      "objectClass" => [ "locality" ],
+                      "st" => $val,
+                     }
+        } elsif( lc($attr[0]) eq "dc") {
+            $entry = {
+                      "objectClass" => [ "organization", "dcObject" ],
+                      "dc" => $val,
+                      "o"  => $val,
+                     }
+        } else {
+            y2error("First part of suffix must be c=, st=, l=, o=, ou= or dc=.");
+            return 0;
+        }
+
+        if(! SCR->Execute(".ldap", {"hostname" => 'localhost',
+                                    "port"     => 389})) {
+            y2error("LDAP init failed");
+            return 0;
+        }
+        
+        my $ldapERR;
+        
+        if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db->{'rootdn'},
+                                          "bind_pw" => $db->{'rootpw'}}) ) {
+            $ldapERR = SCR->Read(".ldap.error");
+            y2error( "LDAP bind failed" );
+            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+            return 0;
+        }
+        
+        if (! SCR->Write(".ldap.add", { dn => $db->{'suffix'} } , $entry)) {
+            my $ldapERR = SCR->Read(".ldap.error");
+            y2error("Can not add base entry.");
+            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        }
+        y2milestone("base entry added");
+    }
+    return 1;
+}
 ##
  # Write all ldap-server settings
  # @return true on success
@@ -210,8 +297,9 @@ sub Write {
         my $progressItems = [ _("Writing Startup Configuration"),
                 _("Cleaning up config directory"),
                 _("Creating Configuration"),
-                _("Starting OpenLDAP Server")];
-        Progress->New("Writing OpenLDAP Server Configuration", "", 4, $progressItems, $progressItems, "");
+                _("Starting OpenLDAP Server"),
+                _("Creating Base Objects") ];
+        Progress->New("Writing OpenLDAP Server Configuration", "", 5, $progressItems, $progressItems, "");
 
         Progress->NextStage();
 
@@ -296,7 +384,15 @@ sub Write {
             Progress->Finish();
             return 0;
         }
-
+        Progress->NextStage();
+        $rc = $self->CreateBaseObjects();
+        if (! $rc )
+        {
+            y2error("Error while creating base objects");
+            $self->SetError( _("Creating base objects failed.") );
+            Progress->Finish();
+            return 0;
+        }
         Progress->Finish();
     } else {
         SCR->Execute('.ldapserver.commitChanges' );
@@ -682,6 +778,9 @@ sub ReadFromDefaults
     }
     y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
     @databases = @{$rc};
+    push @added_databases, { suffix => $dbDefaults{'basedn'}, 
+                             rootdn => $dbDefaults{'rootdn'},
+                             rootpw => $dbDefaults{'rootpw_clear'} };
     return 1;
 }
 
