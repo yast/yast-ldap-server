@@ -45,6 +45,7 @@ class OlcConfigEntry
         // shortcuts for single-valued Attributes
         std::string getStringValue(const std::string &type) const;
         void setStringValue(const std::string &type, const std::string &value);
+        void addStringValue(const std::string &type, const std::string &value);
 
         void setIndex( int index );
         void getEntryDn();

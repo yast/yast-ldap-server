@@ -389,8 +389,13 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     std::vector<IndexType>::const_iterator k = j->second.begin();
                     for ( ; k != j->second.end(); k++ )
                     {
-                        if ( *k == Eq )
+                        if ( *k == Eq ){
                             ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
+                        } else if ( *k == Present ){
+                            ycpIdx.add(YCPString("pres"), YCPBoolean(true) );
+                        } else if ( *k == Sub ){
+                            ycpIdx.add(YCPString("sub"), YCPBoolean(true) );
+                        }
                     }
                     resMap.add( YCPString(j->first), ycpIdx );
                 }
