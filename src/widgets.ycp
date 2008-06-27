@@ -140,79 +140,65 @@
     term tlsWidget =
         `VBox(
             `Heading( _("TLS Settings") ),
-            `Frame(
-                _("TLS Active"),
-                `RadioButtonGroup(
-                    `id( `rbg_tls ),
-                    `HBox(
-                        `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton() ),
-                        `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton() )
-                    )
-                )
-            ),
-            `RichText( `id( `rt_tls_info ), "" ),
-            `PushButton( `id( `pb_edit ), _("&Select Certificate...") )
-        );
-
-    term tlsTypeWidget =
-        `VBox(
-            `Heading( _("Select Type") ),
-            `VSpacing( 1 ),
-            `RadioButtonGroup(
-                `id( `rbg_type ),
-                `VBox (
-                    `Left(
-                        `RadioButton( `id( `rb_import ), _("&Import Certificates") )
-                    ),
-                    `Left(
-                        `RadioButton( `id( `rb_common ), _("Use C&ommon Server Certificate"), true )
-                    )
-                )
-            ),
-            `VSpacing( 1 ),
-            `HBox(
-                `PushButton( `id( `ok ), Label::OKButton() ),
-                `PushButton( `id( `cancel ), Label::CancelButton())
-            )
-        );
-
-    term tlsImportWidget =
-        `VBox(
-            `Heading( _("Import Certificate") ),
-            `VSpacing( 1 ),
-            `VSquash(
-                `HBox(
-                    `TextEntry( `id( `te_cert_file ), _("Certificate &File (PEM Format)") ),
-                    `HSpacing( 0.5 ),
-                    `Bottom(
-                        `PushButton( `id( `pb_cert_file ), _("&Browse...") )
+            `VBox(
+                `Frame(
+                    _("Basic Settings"),
+                    `VBox(
+                        `Left(
+                            `CheckBox( `id( `cb_tls_enabled ), `opt( `notify ) ,
+                                    _("Enable TLS"), false )
+                        ),
+                        `Left(
+                            `CheckBox( `id( `cb_ssl_listener_enabled ),
+                                    _("Enable LDAP over SSL (ldaps) interface"), false )
+                        ),
+                        `Left(
+                            `CheckBox( `id( `cb_use_common_cert ), `opt( `notify ),
+                                    _("Use common Server Certificate"), false )
+                        ),
+                        `HStretch()
                     )
                 )
             ),
             `VSpacing( 0.5 ),
-            `VSquash(
-                `HBox(
-                    `TextEntry( `id( `te_key_file ), _("Certificate &Key File (PEM Format -- Unencrypted)")+"  " ),
-                    `HSpacing( 0.5 ),
-                    `Bottom(
-                        `PushButton( `id( `pb_key_file ), _("B&rowse...") )
+            `VBox(
+                `Frame( `id( `fr_import_cert ),
+                    _("Import Certificate"),
+                    `VBox(
+                        `VSquash(
+                            `HBox(
+                                `InputField( `id( `te_ca_file ), `opt( `hstretch ),
+                                        _("C&A Certificate File (PEM Format)") ),
+                                `HSpacing( 0.5 ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_ca_file ), _("Bro&wse...") )
+                                )
+                            )
+                        ),
+                        `VSpacing( 0.5 ),
+                        `VSquash(
+                            `HBox(
+                                `InputField( `id( `te_cert_file ), `opt( `hstretch ),
+                                        _("Certificate &File (PEM Format)") ),
+                                `HSpacing( 0.5 ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_cert_file ), _("&Browse...") )
+                                )
+                            )
+                        ),
+                        `VSpacing( 0.5 ),
+                        `VSquash(
+                            `HBox(
+                                `InputField( `id( `te_key_file ), `opt( `hstretch ),
+                                        _("Certificate &Key File (PEM Format -- Unencrypted)") ),
+                                `HSpacing( 0.5 ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_key_file ), _("B&rowse...") )
+                                )
+                            )
+                        )
                     )
                 )
-            ),
-            `VSpacing( 0.5 ),
-            `VSquash(
-                `HBox(
-                    `TextEntry( `id( `te_ca_file ), _("C&A Certificate File (PEM Format)") ),
-                    `HSpacing( 0.5 ),
-                    `Bottom(
-                        `PushButton( `id( `pb_ca_file ), _("Bro&wse...") )
-                    )
-                )
-            ),
-            `VSpacing( 1 ),
-            `HBox(
-                `PushButton( `id( `ok ), Label::OKButton() ),
-                `PushButton( `id( `cancel ), Label::CancelButton() )
             )
         );
 

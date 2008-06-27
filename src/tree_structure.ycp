@@ -382,18 +382,49 @@ define boolean cb_input_tls()
 ``{
     y2milestone( "calling tls input handler" );
 
-//    boolean common_ca_available = LdapServer::ReadCommonServerCertificateAvailable();
-//
-//    if( handler_cmd == `rb_yes )
-//    {
-//        UI::ChangeWidget( `rt_tls_info, `Enabled, true );
-//        UI::ChangeWidget( `pb_edit, `Enabled, true );
-//    } else if( handler_cmd == `rb_no )
-//    {
-//        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
-//        UI::ChangeWidget( `pb_edit, `Enabled, false );
-//    } else if( handler_cmd == `pb_edit )
-//    {
+    boolean common_cert_available = LdapServer::HaveCommonServerCertificate();
+
+    if( handler_cmd == `cb_tls_enabled )
+    {
+        boolean tls_enabled_cb = (boolean)UI::QueryWidget( `cb_tls_enabled, `Value );
+        if ( tls_enabled_cb )
+        {
+            UI::ChangeWidget( `cb_ssl_listener_enabled, `Enabled, true );
+            if ( common_cert_available )
+            {
+                UI::ChangeWidget( `cb_use_common_cert, `Enabled, true );
+            } else {
+                UI::ChangeWidget( `fr_import_cert, `Enabled, true );
+            }
+
+        } else {
+            UI::ChangeWidget( `cb_ssl_listener_enabled, `Enabled, false );
+            UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
+            UI::ChangeWidget( `fr_import_cert, `Enabled, false );
+        }
+    }
+    else if( handler_cmd == `cb_use_common_cert )
+    {
+        boolean use_common_cert = (boolean)UI::QueryWidget( `cb_use_common_cert, `Value );
+        if ( use_common_cert )
+        {
+            if ( common_cert_available )
+            {
+                UI::ChangeWidget( `te_ca_file, `Value, "/etc/ssl/certs/YaST-CA.pem");
+                UI::ChangeWidget( `te_cert_file, `Value, "/etc/ssl/servercerts/servercert.pem");
+                UI::ChangeWidget( `te_key_file, `Value, "/etc/ssl/servercerts/servercert.pem");
+                UI::ChangeWidget( `fr_import_cert, `Enabled, false );
+            } else {
+                Popup::Error( _("A common server certificate is not available") );
+                UI::ChangeWidget( `cb_use_common_cert, `Value, false );
+                UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
+            }
+        } else {
+            UI::ChangeWidget( `fr_import_cert, `Enabled, true );
+        }
+    }
+    else if( handler_cmd == `pb_edit )
+    {
 //        //show edit popup
 //        any ret = nil;
 //        string dlg_name = common_ca_available ? "type" : "import";
@@ -513,7 +544,7 @@ define boolean cb_input_tls()
 //
 //        UI::CloseDialog();
 //        eval( cb_read_tls() );
-//    }
+    }
     //reread tls page
     return true;
 }
@@ -1030,10 +1061,6 @@ widget_map = $[
                     /* Tree item */
         "name"      : _("TLS Settings"),
         "widget"    : tlsWidget,
-        "dialogs"   : $[
-            "type"  : tlsTypeWidget,
-            "import": tlsImportWidget,
-        ],
         "cb_check"  : ``( cb_check_tls() ),
         "cb_read"   : ``( cb_read_tls() ),
         "cb_write"  : ``( cb_write_tls() ),
