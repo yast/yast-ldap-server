@@ -75,8 +75,8 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     if ( path->component_str(0) == "initFromLdif" )
     {
         std::istringstream ldifstream(arg->asString()->value_cstr());
-        LdifReader ldif(&ldifstream);
-        while ( ldif.readRecord() == LDAPMsg::SEARCH_ENTRY )
+        LdifReader ldif(ldifstream);
+        while ( ldif.readNextRecord() )
         {   
             LDAPEntry currentEntry = ldif.getEntryRecord();
             y2milestone( "EntryDN: %s", ldif.getEntryRecord().getDN().c_str() );
@@ -261,7 +261,7 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     std::ostringstream ldif;
     ldif << globals->toLdif();
     ldif << schemaBase->toLdif();
-    LdifWriter writer(&ldif);
+    LdifWriter writer(ldif);
     writer.writeIncludeRecord("/etc/openldap/schema/core.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/cosine.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/inetorgperson.ldif");
