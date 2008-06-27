@@ -615,11 +615,37 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     {
         if ( (*i)->getIndex() == dbIndex ) 
         {
-            YCPValue val =  changesMap.value( YCPString("rootdn") );
-            if ( val->isString() )
+            if ( path->length() == 1 )
             {
-                (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
+                YCPValue val =  changesMap.value( YCPString("rootdn") );
+                if ( val->isString() )
+                {
+                    (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
+                }
+            } else {
+                std::string dbComponent = path->component_str(1);
+                y2milestone("Component '%s'", dbComponent.c_str());
+                if ( dbComponent == "index" )
+                {
+                    std::vector<IndexType> idx;
+                    std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
+                    y2milestone("New Index for Attribute: '%s'", attr.c_str() );
+                    if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
+                    {
+                        idx.push_back(Present);
+                    }
+                    if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
+                    {
+                        idx.push_back(Eq);
+                    }
+                    if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
+                    {
+                        idx.push_back(Sub);
+                    }
+                    (*i)->addIndex(attr, idx);
+                }
             }
+            break;
         }
     }
     return YCPBoolean(false);

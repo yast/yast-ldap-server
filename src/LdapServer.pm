@@ -566,6 +566,18 @@ sub GetDatabaseIndexes
     return $rc;
 }
 
+BEGIN { $TYPEINFO {ChangeDatabaseIndex} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
+sub ChangeDatabaseIndex
+{
+    my ($self, $dbIndex, $newIdx ) = @_;
+    y2milestone("ChangeDatabaseIndex: ".Data::Dumper->Dump([$newIdx]) );
+    $newIdx->{'pres'} = YaST::YCP::Boolean($newIdx->{'pres'});
+    $newIdx->{'eq'} = YaST::YCP::Boolean($newIdx->{'eq'});
+    $newIdx->{'sub'} = YaST::YCP::Boolean($newIdx->{'sub'});
+    my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.index", $newIdx );
+}
+
+
 BEGIN { $TYPEINFO {GetSchemaList} = ["function", [ "list" , "string"] ]; }
 sub GetSchemaList
 {

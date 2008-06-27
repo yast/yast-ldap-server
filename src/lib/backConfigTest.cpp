@@ -122,6 +122,35 @@ IndexMap OlcBdbDatabase::getIndexes() const
     return res;
 }
 
+void OlcBdbDatabase::addIndex(const std::string& attr, const std::vector<IndexType>& idx)
+{
+    std::string indexString = attr;
+    std::vector<IndexType>::const_iterator i;
+    bool first = true;
+    for ( i = idx.begin(); i != idx.end(); i++ )
+    {
+        if (! first)
+        {
+            indexString += ",";
+        } else {
+            indexString += " ";
+            first = false;
+        }
+        if ( *i == Present ) {
+            indexString += "pres";
+        }
+        else if ( *i == Eq )
+        {
+            indexString += "eq";
+        }
+        else if ( *i == Sub )
+        {
+            indexString += "sub";
+        }
+    }
+    std::cout << "indexString: '" << indexString << "'" << std::endl;
+}
+
 void OlcBdbDatabase::setDirectory( const std::string &dir )
 {   
     this->setStringValue("olcDbDirectory", dir);
