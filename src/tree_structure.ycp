@@ -1049,6 +1049,19 @@ define boolean cb_input_bdb_index()
             cb_read_bdb_index();
         }
     }
+    else if ( handler_cmd == `pb_idx_del )
+    {
+        any current_item_id = UI::QueryWidget(`tab_idx, `CurrentItem );
+        string editAttr = (string)UI::QueryWidget(`tab_idx, `Cell( current_item_id, 0 ) );
+        y2milestone("Selected Attr: %1 %2", current_item_id, editAttr );
+        map<string, any> delIdx = $[];
+        delIdx["name"] = editAttr;
+        delIdx["sub"] = false;
+        delIdx["pres"] = false;
+        delIdx["eq"] = false;
+        LdapServer::ChangeDatabaseIndex( index, delIdx );
+        cb_read_bdb_index();
+    }
     return true;
 }
 
