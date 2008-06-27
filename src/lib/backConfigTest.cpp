@@ -617,7 +617,11 @@ void OlcConfig::updateEntry( const OlcConfigEntry &oce )
 {
     try {
         LDAPModList ml = oce.entryDifftoMod();
-        m_lc->modify( oce.getDn(), &ml );
+        if ( ! ml.empty() ) {
+            m_lc->modify( oce.getDn(), &ml );
+        } else {
+            std::cout << oce.getDn() << ": no changes" << std::endl;
+        }
     } catch (LDAPException e) {
         std::cout << e << std::endl;
         throw;
