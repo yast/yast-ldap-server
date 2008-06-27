@@ -105,7 +105,7 @@ class OlcGlobalConfig : public OlcConfigEntry
 {
     public:
         OlcGlobalConfig();
-        inline OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le) {}
+        explicit OlcGlobalConfig( const LDAPEntry &le);
 
         const std::vector<std::string> getLogLevelString() const;
         void setLogLevel(const std::list<std::string> &level);
@@ -117,6 +117,7 @@ class OlcGlobalConfig : public OlcConfigEntry
         void setDisallowFeatures( const std::list<std::string> &features );
 
         OlcTlsSettings getTlsSettings() const;
+        void setTlsSettings( const OlcTlsSettings& tls);
         virtual std::map<std::string, std::list<std::string> > toMap() const;
 };
 
@@ -140,19 +141,34 @@ class OlcConfig {
 
 class OlcTlsSettings {
     public :
-        OlcTlsSettings( const OlcGlobalConfig &le );
+        OlcTlsSettings( const OlcGlobalConfig &ogc );
+
+        void applySettings( OlcGlobalConfig &ogc ) const;
+
         int getCrlCheck() const;
-        void setCrlCheck();
         int getVerifyClient() const;
-        void setVerifyClient();
         const std::string& getCaCertDir() const;
         const std::string& getCaCertFile() const;
+        const std::string& getCertFile() const;
+        const std::string& getCertKeyFile() const;
+        const std::string& getCrlFile() const;
+
+        void setCrlCheck();
+        void setVerifyClient();
+        void setCaCertDir(const std::string& dir);
+        void setCaCertFile(const std::string& file);
+        void setCertFile(const std::string& file);
+        void setCertKeyFile(const std::string& file);
+        void setCrlFile(const std::string& file);
 
     private:
         int m_crlCheck;
         int m_verifyCient;
         std::string m_caCertDir;
         std::string m_caCertFile;
+        std::string m_certFile;
+        std::string m_certKeyFile;
+        std::string m_crlFile;
 };
 
 #endif /* BACK_CONFIG_TEST_H */

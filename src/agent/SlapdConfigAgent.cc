@@ -285,6 +285,11 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
             const OlcTlsSettings tls( globals->getTlsSettings() );
             ymap.add(YCPString("crlCheck"), YCPInteger( tls.getCrlCheck() ) );
             ymap.add(YCPString("verifyClient"), YCPInteger( tls.getVerifyClient() ) );
+            ymap.add(YCPString("caCertDir"), YCPString( tls.getCaCertDir() ) );
+            ymap.add(YCPString("caCertFile"), YCPString( tls.getCaCertFile() ) );
+            ymap.add(YCPString("certFile"), YCPString( tls.getCertFile() ) );
+            ymap.add(YCPString("certKeyFile"), YCPString( tls.getCertKeyFile() ) );
+            ymap.add(YCPString("crlFile"), YCPString( tls.getCrlFile() ) );
             return ymap;
         }
     }
@@ -366,7 +371,8 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
     if ( path->length() == 0 ) {
         return YCPNull();
     } else {
-        if ( path->component_str(0) == "loglevel" ) {
+        if ( path->component_str(0) == "loglevel" )
+        {
             y2milestone("Write loglevel");
             YCPList levels = arg->asList();
             std::list<std::string> levelList;
@@ -377,7 +383,8 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             globals->setLogLevel( levelList );
             return YCPBoolean(true);
         }
-        if ( path->component_str(0) == "allow" ) {
+        if ( path->component_str(0) == "allow" )
+        {
             y2milestone("Write allow Features");
             YCPList features = arg->asList();
             std::list<std::string> featureList;
@@ -388,8 +395,9 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             globals->setAllowFeatures( featureList );
             return YCPBoolean(true);
         }
-        if ( path->component_str(0) == "disallow" ) {
-            y2milestone("Write allow Features");
+        if ( path->component_str(0) == "disallow" )
+        {
+            y2milestone("Write disallow Features");
             YCPList features = arg->asList();
             std::list<std::string> featureList;
             for ( int i = 0; i < features->size(); i++ )
@@ -397,6 +405,54 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                 featureList.push_back( features->value(i)->asString()->value_cstr() );
             }
             globals->setDisallowFeatures( featureList );
+            return YCPBoolean(true);
+        }
+        if ( path->component_str(0) == "tlsSettings" )
+        {
+            y2milestone("Write TLS Settings");
+            YCPMap tlsMap = arg->asMap();
+            OlcTlsSettings tls( globals->getTlsSettings() );
+            YCPMapIterator i= tlsMap.begin();
+            for ( ; i != tlsMap.end(); i++ )
+            {
+                std::string key(i.key()->asString()->value_cstr() );
+                y2milestone("tlsMap Key: %s", key.c_str() );
+                if ( key == "caCertDir" )
+                {
+                    if ( ! i.value().isNull() )
+                        tls.setCaCertDir(i.value()->asString()->value_cstr() );
+                } 
+                else if ( key == "caCertFile" )
+                {
+                    if ( ! i.value().isNull() )
+                        tls.setCaCertFile(i.value()->asString()->value_cstr() );
+                }
+                else if ( key == "certFile" )
+                {
+                    if ( ! i.value().isNull() )
+                        tls.setCertFile(i.value()->asString()->value_cstr() );
+                }
+                else if ( key == "certKeyFile" )
+                {
+                    if ( ! i.value().isNull() )
+                        tls.setCertKeyFile(i.value()->asString()->value_cstr() );
+                }
+                else if ( key == "crlCheck" )
+                {
+                }
+                else if ( key == "crlFile" )
+                {
+                    if ( ! i.value().isNull() )
+                        tls.setCrlFile (i.value()->asString()->value_cstr() );
+                }
+                else if ( key == "verifyClient" )
+                {
+                }
+                else
+                {
+                }
+            }
+            globals->setTlsSettings(tls);
             return YCPBoolean(true);
         }
     }

@@ -399,6 +399,21 @@ sub SetDisallowFeatures
     return 1;
 }
 
+BEGIN { $TYPEINFO {GetTlsConfig} = ["function", [ "map", "string", "any" ] ]; }
+sub GetTlsConfig
+{
+    return SCR->Read('.ldapserver.global.tlsSettings' );
+}
+
+BEGIN { $TYPEINFO {SetTlsConfig} = ["function", "boolean", [ "map", "string", "any" ] ]; }
+sub SetTlsConfig
+{
+    my $self = shift;
+    my $tls = shift;
+    my $rc = SCR->Write('.ldapserver.global.tlsSettings', $tls );
+    return 1;
+}
+
 BEGIN { $TYPEINFO {MigrateSlapdConf} = ["function", "boolean"]; }
 sub MigrateSlapdConf
 {
