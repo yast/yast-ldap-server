@@ -13,6 +13,22 @@ static bool nocase_compare( char c1, char c2){
     return toupper(c1) == toupper(c2);
 }
 
+static int splitIndexFromString(const std::string &in, std::string &out)
+{
+    int index=0;
+    if ( in[0] == '{' )
+    {
+        std::string::size_type pos = in.find('}');
+        std::istringstream indexstr(in.substr(1, pos-1));
+        indexstr >> index;
+        out = in.substr( pos+1, std::string::npos );
+    } else {
+        out = in;
+        index = 0;
+    }
+    return index;
+}
+
 static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
 {
     if(s1.size() == s2.size()){
@@ -27,16 +43,7 @@ static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {
     std::string type(this->getStringValue("olcdatabase"));
-    if ( type[0] == '{' )
-    {
-        std::string::size_type pos = type.find('}');
-        std::istringstream indexstr(type.substr(1, pos-1));
-        indexstr >> entryIndex;
-        m_type = type.substr( pos+1, std::string::npos );
-    } else {
-        m_type = type;
-        entryIndex = 0;
-    }
+    entryIndex = splitIndexFromString( type, m_type );
 }
 
 OlcDatabase::OlcDatabase( const std::string& type ) : m_type(type) 
@@ -364,16 +371,7 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : Olc
 {
     std::cout << "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)" << std::endl;
     std::string name(this->getStringValue("cn"));
-    if ( name[0] == '{' )
-    {
-        std::string::size_type pos = name.find('}');
-        std::istringstream indexstr(name.substr(1, pos-1));
-        indexstr >> entryIndex;
-        m_name = name.substr( pos+1, std::string::npos );
-    } else {
-        m_name = name;
-        entryIndex = 0;
-    }
+    entryIndex = splitIndexFromString( name, m_name );
 }
 
 void OlcSchemaConfig::clearChangedEntry()
@@ -395,13 +393,9 @@ const std::vector<LDAPAttrType> OlcSchemaConfig::getAttributeTypes() const
     for ( j = types.begin(); j != types.end(); j++ )
     {
         LDAPAttrType currentAttr;
-        if ( (*j)[0] == '{' )
-        {
-            std::string::size_type pos = j->find('}');
-            currentAttr = LDAPAttrType( j->substr( pos+1, std::string::npos ) );
-        } else {
-            currentAttr = LDAPAttrType( *j );
-        }
+        std::string tmp;
+        splitIndexFromString( *j, tmp );
+        currentAttr = LDAPAttrType( tmp );
         res.push_back(currentAttr);
     }
     return res;
@@ -418,35 +412,35 @@ void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
     tls.applySettings( *this );
 }
 
-std::map<std::string, std::list<std::string> > OlcGlobalConfig::toMap() const
-{
-    std::map<std::string, std::list<std::string> > resMap;
-    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
-    if ( at ) 
-    {
-        StringList values = at->getValues();
-        StringList::const_iterator j;
-        std::list<std::string> valList;
-        for ( j = values.begin(); j != values.end(); j++ )
-        {
-            valList.push_back(*j);
-        }
-        resMap.insert(std::make_pair("suffix", valList));
-    }
-    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
-    if ( at ) 
-    {
-        StringList values = at->getValues();
-        StringList::const_iterator j;
-        std::list<std::string> valList;
-        for ( j = values.begin(); j != values.end(); j++ )
-        {
-            valList.push_back(*j);
-        }
-        resMap.insert(std::make_pair("type", valList));
-    }
-    return resMap;
-}
+//std::map<std::string, std::list<std::string> > OlcGlobalConfig::toMap() const
+//{
+//    std::map<std::string, std::list<std::string> > resMap;
+//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
+//    if ( at ) 
+//    {
+//        StringList values = at->getValues();
+//        StringList::const_iterator j;
+//        std::list<std::string> valList;
+//        for ( j = values.begin(); j != values.end(); j++ )
+//        {
+//            valList.push_back(*j);
+//        }
+//        resMap.insert(std::make_pair("suffix", valList));
+//    }
+//    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
+//    if ( at ) 
+//    {
+//        StringList values = at->getValues();
+//        StringList::const_iterator j;
+//        std::list<std::string> valList;
+//        for ( j = values.begin(); j != values.end(); j++ )
+//        {
+//            valList.push_back(*j);
+//        }
+//        resMap.insert(std::make_pair("type", valList));
+//    }
+//    return resMap;
+//}
 
 bool OlcConfigEntry::isDatabaseEntry ( const LDAPEntry& e )
 {
@@ -529,17 +523,17 @@ OlcConfigEntry* OlcConfigEntry::createFromLdapEntry( const LDAPEntry& e )
     }
 }
 
-std::map<std::string, std::list<std::string> > OlcConfigEntry::toMap() const
-{
-    std::map<std::string, std::list<std::string> > resMap;
-//    std::string value = this->getStringValue("olcConcurrency");
-//    resMap.insert( std::make_pair( "concurrency", value ) );
+//std::map<std::string, std::list<std::string> > OlcConfigEntry::toMap() const
+//{
+//    std::map<std::string, std::list<std::string> > resMap;
+////    std::string value = this->getStringValue("olcConcurrency");
+////    resMap.insert( std::make_pair( "concurrency", value ) );
+////
+////    value = this->getStringValue("olcThreads");
+////    resMap.insert( std::make_pair("threads", value ) );
 //
-//    value = this->getStringValue("olcThreads");
-//    resMap.insert( std::make_pair("threads", value ) );
-
-    return resMap;
-}
+//    return resMap;
+//}
 
 void OlcConfigEntry::setIndex( int index )
 {
@@ -561,36 +555,53 @@ void OlcConfigEntry::clearChangedEntry()
         m_dbEntryChanged = LDAPEntry();     
 }
 
-
-std::map<std::string, std::list<std::string> > OlcDatabase::toMap() const
+OlcOverlay* OlcOverlay::createFromLdapEntry( const LDAPEntry& e)
 {
-    std::map<std::string, std::list<std::string> > resMap;
-    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
-    if ( at ) 
-    {
-        StringList values = at->getValues();
-        StringList::const_iterator j;
-        std::list<std::string> valList;
-        for ( j = values.begin(); j != values.end(); j++ )
-        {
-            valList.push_back(*j);
-        }
-        resMap.insert(std::make_pair("suffix", valList));
-    }
-    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
-    if ( at ) 
-    {
-        StringList values = at->getValues();
-        StringList::const_iterator j;
-        std::list<std::string> valList;
-        for ( j = values.begin(); j != values.end(); j++ )
-        {
-            valList.push_back(*j);
-        }
-        resMap.insert(std::make_pair("type", valList));
-    }
-    return resMap;
+    return new OlcOverlay(e);
 }
+
+OlcOverlay::OlcOverlay( const LDAPEntry& e) : OlcConfigEntry(e)
+{
+    std::cerr << "OlcOverlay::OlcOverlay()" << std::endl;
+    std::string type(this->getStringValue("olcoverlay"));
+    entryIndex = splitIndexFromString( type, m_type );
+}
+
+const std::string OlcOverlay::getType() const
+{
+    return m_type;
+}
+
+
+//std::map<std::string, std::list<std::string> > OlcDatabase::toMap() const
+//{
+//    std::map<std::string, std::list<std::string> > resMap;
+//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
+//    if ( at ) 
+//    {
+//        StringList values = at->getValues();
+//        StringList::const_iterator j;
+//        std::list<std::string> valList;
+//        for ( j = values.begin(); j != values.end(); j++ )
+//        {
+//            valList.push_back(*j);
+//        }
+//        resMap.insert(std::make_pair("suffix", valList));
+//    }
+//    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
+//    if ( at ) 
+//    {
+//        StringList values = at->getValues();
+//        StringList::const_iterator j;
+//        std::list<std::string> valList;
+//        for ( j = values.begin(); j != values.end(); j++ )
+//        {
+//            valList.push_back(*j);
+//        }
+//        resMap.insert(std::make_pair("type", valList));
+//    }
+//    return resMap;
+//}
 
 void OlcDatabase::setSuffix( const std::string &suffix)
 {
@@ -617,25 +628,35 @@ const std::string OlcDatabase::getType() const
     return this->m_type;
 }
 
-std::map<std::string, std::list<std::string> > OlcBdbDatabase::toMap() const
+void OlcDatabase::addOverlay(boost::shared_ptr<OlcOverlay> overlay)
 {
-    std::map<std::string, std::list<std::string> > resMap = 
-            OlcDatabase::toMap();
-
-    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcDbNoSync");
-    if ( at )
-    {
-        StringList values = at->getValues();
-        StringList::const_iterator j;
-        std::list<std::string> valList;
-        for ( j = values.begin(); j != values.end(); j++ )
-        {
-            valList.push_back(*j);
-        }
-        resMap.insert(std::make_pair("nosync", valList));
-    }
-    return resMap;
+    m_overlays.push_back(overlay);
 }
+
+OlcOverlayList& OlcDatabase::getOverlays()
+{
+    return m_overlays;
+}
+
+//std::map<std::string, std::list<std::string> > OlcBdbDatabase::toMap() const
+//{
+//    std::map<std::string, std::list<std::string> > resMap = 
+//            OlcDatabase::toMap();
+//
+//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcDbNoSync");
+//    if ( at )
+//    {
+//        StringList values = at->getValues();
+//        StringList::const_iterator j;
+//        std::list<std::string> valList;
+//        for ( j = values.begin(); j != values.end(); j++ )
+//        {
+//            valList.push_back(*j);
+//        }
+//        resMap.insert(std::make_pair("nosync", valList));
+//    }
+//    return resMap;
+//}
 
 bool OlcDatabase::isBdbDatabase( const LDAPEntry& e )
 {
@@ -692,8 +713,16 @@ void OlcConfigEntry::setStringValues(const std::string &type, const StringList &
 
 void OlcConfigEntry::setStringValue(const std::string &type, const std::string &value)
 {
-    LDAPAttribute attr(type, value);
-    m_dbEntryChanged.replaceAttribute(attr);
+    std::cerr << "setStringValue() " << type << " " << value << std::endl;
+    if ( value.empty() )
+    {
+        m_dbEntryChanged.delAttribute(type);
+    }
+    else
+    {
+        LDAPAttribute attr(type, value);
+        m_dbEntryChanged.replaceAttribute(attr);
+    }
 }
 
 void OlcConfigEntry::addStringValue(const std::string &type, const std::string &value)
@@ -886,10 +915,20 @@ OlcDatabaseList OlcConfig::getDatabases()
         LDAPSearchResults *sr = m_lc->search( "cn=config", 
                 LDAPConnection::SEARCH_ONE, "objectclass=olcDatabaseConfig" );
         LDAPEntry *dbEntry;
-        while ( dbEntry = sr->getNext() )
+        while ( (dbEntry = sr->getNext()) != 0 )
         {
-            std::cout << "Got Database Entry: " << dbEntry->getDN() << std::endl;
+            std::string dbDn(dbEntry->getDN());
+            std::cout << "Got Database Entry: " << dbDn << std::endl;
             boost::shared_ptr<OlcDatabase> olce(OlcDatabase::createFromLdapEntry(*dbEntry));
+            LDAPSearchResults *overlaySearchRes = m_lc->search( dbDn, 
+                    LDAPConnection::SEARCH_ONE, "objectclass=olcOverlayConfig" );
+            LDAPEntry *overlayEntry;
+            while ( (overlayEntry = overlaySearchRes->getNext()) != 0 )
+            {
+                std::cout << "Got Overlay: " << overlayEntry->getDN() << std::endl;
+                boost::shared_ptr<OlcOverlay> overlay(OlcOverlay::createFromLdapEntry(*overlayEntry) );
+                olce->addOverlay(overlay);
+            }
             res.push_back(olce);
         }
     } catch (LDAPException e ) {

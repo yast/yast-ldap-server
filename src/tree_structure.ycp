@@ -995,19 +995,21 @@ define boolean cb_input_ppolicy()
 define boolean cb_read_ppolicy()
 {
     y2milestone("cb_read_ppolicy()");
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     // Check for ppolicy overlay
-    //map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
-    string suffix = "";
-    map<string,string> ppolicy_map = nil;
-    if ( ppolicy_map != nil ){
+    map<string,any> ppolicy_map = LdapServer::GetPpolicyOverlay(index);
+    if ( size(ppolicy_map) != 0 ){
         UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
-        string pp_hash_cleartext = ppolicy_map["ppolicy_hash_cleartext"]:nil;
-        string pp_use_lockout = ppolicy_map["ppolicy_use_lockout"]:nil;
-        string pp_default = ppolicy_map["ppolicy_default"]:nil;
+        boolean pp_hash_cleartext = (boolean)ppolicy_map["hashClearText"]:nil;
+        boolean pp_use_lockout = (boolean)ppolicy_map["useLockout"]:nil;
+        string pp_default = (string)ppolicy_map["defaultPolicy"]:nil;
         boolean pp_append_checked = false;
+        map<string,string> olddb = LdapServer::GetDatabase(index);
+        string suffix =  olddb["suffix"]:"";
         integer pos = search( pp_default, suffix );
         if( pos > -1 )
         {
+
             string chkSuffix = substring( pp_default, pos );
             if ( chkSuffix == suffix )
             {
@@ -1015,17 +1017,17 @@ define boolean cb_read_ppolicy()
                 pp_append_checked = true;
             }
         }
-        if ( pp_hash_cleartext != nil ){
+        if ( pp_hash_cleartext ){
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
         } else {
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
         }
-        if ( pp_use_lockout != nil ){
+        if ( pp_use_lockout ){
             UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
         } else {
             UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
         }
-        if ( pp_default != nil ){
+        if ( pp_default != "" ){
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
             UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
         } else {
@@ -1051,13 +1053,22 @@ define boolean cb_write_ppolicy()
         boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
         boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
         string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-//       map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
-        map<string,string> ppolicy = $[];
-        if (hashcleartext ) {
-            ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+        map<string,any> ppolicy = $[];
+        if (hashcleartext )
+        {
+            ppolicy = add( ppolicy, "hashClearText", true);
         }
-        if (uselockout) {
-            ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+        else
+        {
+            ppolicy = add( ppolicy, "hashClearText", false);
+        }
+        if (uselockout)
+        {
+            ppolicy = add( ppolicy, "useLockout", true);
+        }
+        else
+        {
+            ppolicy = add( ppolicy, "useLockout", false);
         }
         if (pp_default != "" ) {
             if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
@@ -1066,10 +1077,11 @@ define boolean cb_write_ppolicy()
                 string suffix =  db["suffix"]:"";
                 pp_default = pp_default+","+suffix;
             }
-//            if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
-//                db = add(db, "ppolicy_default_changed", "1");
-//            }
-            ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+            ppolicy = add( ppolicy, "defaultPolicy", pp_default);
+        }
+        else
+        {
+            ppolicy = add( ppolicy, "defaultPolicy", "");
         }
         y2milestone("Policy: %1", ppolicy);
         result = LdapServer::AddPasswordPolicy( index, ppolicy );
@@ -1086,6 +1098,13 @@ define boolean cb_write_ppolicy()
 //           LdapServer::WriteSchemaIncludeList(inclist);
 //       }
     } else {
+        // delete ppolicy
+        result = LdapServer::AddPasswordPolicy( index, $[] );
+        if ( ! result ) {
+            map<string, string> err = LdapServer::GetError();
+            callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+        }
+
 //       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
 //       if ( ppolicy_map != nil ){
 //           list<any> newoverlay = [];

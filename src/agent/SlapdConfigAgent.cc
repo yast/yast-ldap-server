@@ -226,6 +226,12 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         for ( i = databases.begin(); i != databases.end() ; i++ )
         {
             olc.updateEntry(**i);
+            OlcOverlayList overlays = (*i)->getOverlays();
+            OlcOverlayList::const_iterator k;
+            for ( k = overlays.begin(); k != overlays.end(); k++ )
+            {
+                olc.updateEntry(**k);
+            }
         }
         OlcSchemaList::const_iterator j;
         for ( j = schema.begin(); j != schema.end() ; j++ )
@@ -391,26 +397,84 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
             } else {
                 std::string dbComponent = path->component_str(1);
                 y2milestone("Component %s ", dbComponent.c_str());
-                IndexMap idx = (*i)->getDatabaseIndexes();
-                IndexMap::const_iterator j = idx.begin();
-                for ( ; j != idx.end(); j++ )
+                if ( dbComponent == "indexes" )
                 {
-                    YCPMap ycpIdx;
-                    y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
-                    std::vector<IndexType>::const_iterator k = j->second.begin();
-                    for ( ; k != j->second.end(); k++ )
+                    IndexMap idx = (*i)->getDatabaseIndexes();
+                    IndexMap::const_iterator j = idx.begin();
+                    for ( ; j != idx.end(); j++ )
                     {
-                        if ( *k == Eq ){
-                            ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
-                        } else if ( *k == Present ){
-                            ycpIdx.add(YCPString("pres"), YCPBoolean(true) );
-                        } else if ( *k == Sub ){
-                            ycpIdx.add(YCPString("sub"), YCPBoolean(true) );
+                        YCPMap ycpIdx;
+                        y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
+                        std::vector<IndexType>::const_iterator k = j->second.begin();
+                        for ( ; k != j->second.end(); k++ )
+                        {
+                            if ( *k == Eq ){
+                                ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
+                            } else if ( *k == Present ){
+                                ycpIdx.add(YCPString("pres"), YCPBoolean(true) );
+                            } else if ( *k == Sub ){
+                                ycpIdx.add(YCPString("sub"), YCPBoolean(true) );
+                            }
+                        }
+                        resMap.add( YCPString(j->first), ycpIdx );
+                    }
+                    return resMap;
+                }
+                else if ( dbComponent == "overlays" )
+                {
+                    OlcOverlayList overlays = (*i)->getOverlays();
+                    OlcOverlayList::const_iterator j = overlays.begin();
+                    YCPList resList;
+                    for (; j != overlays.end(); j++ )
+                    {
+                        y2milestone("Overlay: %s", (*j)->getType().c_str() );
+                        YCPMap overlayMap;
+                        overlayMap.add( YCPString("type"), YCPString( (*j)->getType() ) );
+                        overlayMap.add( YCPString("index"), YCPInteger( (*j)->getEntryIndex() ) );
+                        resList.add(overlayMap);
+                    }
+                    return resList;
+                }
+                else if ( dbComponent == "ppolicy" )
+                {
+                    OlcOverlayList overlays = (*i)->getOverlays();
+                    OlcOverlayList::const_iterator j = overlays.begin();
+                    YCPList resList;
+                    for (; j != overlays.end(); j++ )
+                    {
+                        if ( (*j)->getType() == "ppolicy" )
+                        {
+                            resMap.add(YCPString("defaultPolicy"), 
+                                    YCPString((*j)->getStringValue("olcPpolicyDefault") ) );
+                            if ( (*j)->getStringValue("olcPPolicyHashCleartext") == "TRUE" )
+                            {
+                                resMap.add(YCPString("hashClearText"), YCPBoolean(true) );
+                            }
+                            else
+                            {
+                                resMap.add(YCPString("hashClearText"), YCPBoolean(false) );
+                            }
+                            if ( (*j)->getStringValue("olcPPolicyUseLockout") == "TRUE" )
+                            {
+                                resMap.add(YCPString("useLockout"), YCPBoolean(true) );
+                            }
+                            else
+                            {
+                                resMap.add(YCPString("useLockout"), YCPBoolean(false) );
+                            }
+                            break;
                         }
                     }
-                    resMap.add( YCPString(j->first), ycpIdx );
+                    return resMap;
+                } 
+                else
+                {
+                    lastError->add(YCPString("summary"), YCPString("Read Failed") );
+                    std::string msg = "Unsupported SCR path: `.ldapserver.database.";
+                    msg += path->toString().c_str();
+                    msg += "`";
+                    lastError->add(YCPString("description"), YCPString(msg) );
                 }
-                return resMap;
             }
         }
     }
@@ -672,7 +736,47 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         (*i)->addIndex(attr, idx);
                     }
                     ret = true;
-                } else {
+                }
+                else if (dbComponent == "ppolicy" )
+                {
+                    OlcOverlayList overlays = (*i)->getOverlays();
+                    OlcOverlayList::const_iterator j = overlays.begin();
+                    for (; j != overlays.end(); j++ )
+                    {
+                        if ( (*j)->getType() == "ppolicy" )
+                        {
+                            YCPMap argMap = arg->asMap();
+                            y2milestone("Mapsize: %d", argMap.size());
+                            if ( argMap.size() == 0 ){
+                                y2milestone("Delete ppolicy overlay");
+                                (*j)->clearChangedEntry();
+                            } else {
+                                (*j)->setStringValue("olcPpolicyDefault", 
+                                    argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
+                                if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                                {
+                                    (*j)->setStringValue("olcPpolicyUseLockout", "TRUE");
+                                }
+                                else
+                                {
+                                    (*j)->setStringValue("olcPpolicyUseLockout", "FALSE");
+                                }
+                                if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
+                                {
+                                    (*j)->setStringValue("olcPpolicyHashCleartext", "TRUE");
+                                }
+                                else
+                                {
+                                    (*j)->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    ret = true;
+                }
+                else
+                {
                     lastError->add(YCPString("summary"), YCPString("Write Failed") );
                     std::string msg = "Unsupported SCR path: `.ldapserver.database.";
                     msg += path->toString().c_str();
@@ -772,7 +876,7 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 y2milestone("Comment or empty" );
                 continue;
             }
-            int pos=schemaLine.find_last_not_of(" \t\n");
+            std::string::size_type pos=schemaLine.find_last_not_of(" \t\n");
             if (pos != std::string::npos )
                 schemaLine.erase(pos+1, std::string::npos );
 

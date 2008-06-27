@@ -48,11 +48,10 @@ class OlcConfigEntry
         void addStringValue(const std::string &type, const std::string &value);
 
         void setIndex( int index );
-        void getEntryDn();
 
         int getEntryIndex() const;
 
-        virtual std::map<std::string, std::list<std::string> > toMap() const;
+//        virtual std::map<std::string, std::list<std::string> > toMap() const;
         virtual std::string toLdif() const;
 
     protected:
@@ -78,6 +77,18 @@ enum IndexType {
 
 typedef std::map<std::string, std::vector<IndexType> > IndexMap;
 
+class OlcOverlay : public OlcConfigEntry
+{
+    public:
+        static OlcOverlay* createFromLdapEntry( const LDAPEntry& le);
+        OlcOverlay( const LDAPEntry &le );
+        const std::string getType() const;
+
+    protected:
+        std::string m_type;
+};
+
+typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 class OlcDatabase : public OlcConfigEntry
 {
     public :
@@ -95,15 +106,19 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getSuffix() const;
         const std::string getType() const;
 
-        virtual std::map<std::string, std::list<std::string> > toMap() const;
+        //virtual std::map<std::string, std::list<std::string> > toMap() const;
         virtual IndexMap getDatabaseIndexes() const {};
         virtual std::vector<IndexType> getDatabaseIndex( const std::string &attr ) const {};
         virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx) {};
         virtual void deleteIndex(const std::string& attr) {};
-    
+
+        void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
+        OlcOverlayList& getOverlays() ;
+
     protected:
         virtual void updateEntryDn();
         std::string m_type;
+        OlcOverlayList m_overlays;
 
 };
 
@@ -112,7 +127,7 @@ class OlcBdbDatabase : public  OlcDatabase
     public:
         OlcBdbDatabase();
         OlcBdbDatabase( const LDAPEntry& le );
-        virtual std::map<std::string, std::list<std::string> > toMap() const;
+        //virtual std::map<std::string, std::list<std::string> > toMap() const;
         void setDirectory( const std::string &dir);
 
         virtual IndexMap getDatabaseIndexes() const;
@@ -140,7 +155,7 @@ class OlcGlobalConfig : public OlcConfigEntry
 
         OlcTlsSettings getTlsSettings() const;
         void setTlsSettings( const OlcTlsSettings& tls);
-        virtual std::map<std::string, std::list<std::string> > toMap() const;
+        //virtual std::map<std::string, std::list<std::string> > toMap() const;
 };
 
 class OlcSchemaConfig : public OlcConfigEntry
@@ -191,6 +206,7 @@ class OlcTlsSettings {
 
 typedef std::list<boost::shared_ptr<OlcDatabase> > OlcDatabaseList;
 typedef std::list<boost::shared_ptr<OlcSchemaConfig> > OlcSchemaList;
+
 class OlcConfig {
 
     public:
