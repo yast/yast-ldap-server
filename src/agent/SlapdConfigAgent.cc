@@ -195,6 +195,9 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     }
     else if ( path->component_str(0) == "commitChanges" )
     {
+        if ( globals )
+            olc.updateEntry( *globals );
+
         OlcDatabaseList::const_iterator i;
         for ( i = databases.begin(); i != databases.end() ; i++ )
         {
@@ -236,6 +239,10 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
     } 
     else
     {
+        if ( globals == 0 )
+        {
+            globals = olc.getGlobals();
+        }
         if ( path->component_str(0) == "loglevel" )
         {
             y2milestone("Read loglevel");
@@ -247,6 +254,30 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
                 yLevelList.add(YCPString(*i) );
             }
             return yLevelList;
+        }
+        if ( path->component_str(0) == "allow" )
+        {
+            y2milestone("Read allow Features");
+            YCPList yFeatureList;
+            const std::vector<std::string> loglevel = globals->getAllowFeatures();
+            std::vector<std::string>::const_iterator i;
+            for ( i = loglevel.begin(); i != loglevel.end(); i++ )
+            {
+                yFeatureList.add(YCPString(*i) );
+            }
+            return yFeatureList;
+        }
+        if ( path->component_str(0) == "disallow" )
+        {
+            y2milestone("Read allow Features");
+            YCPList yFeatureList;
+            const std::vector<std::string> loglevel = globals->getDisallowFeatures();
+            std::vector<std::string>::const_iterator i;
+            for ( i = loglevel.begin(); i != loglevel.end(); i++ )
+            {
+                yFeatureList.add(YCPString(*i) );
+            }
+            return yFeatureList;
         }
         if ( path->component_str(0) == "tlsSettings" )
         {
@@ -344,7 +375,28 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                 levelList.push_back( levels->value(i)->asString()->value_cstr() );
             }
             globals->setLogLevel( levelList );
-            //olc.setGlobals(olcg);
+            return YCPBoolean(true);
+        }
+        if ( path->component_str(0) == "allow" ) {
+            y2milestone("Write allow Features");
+            YCPList features = arg->asList();
+            std::list<std::string> featureList;
+            for ( int i = 0; i < features->size(); i++ )
+            {
+                featureList.push_back( features->value(i)->asString()->value_cstr() );
+            }
+            globals->setAllowFeatures( featureList );
+            return YCPBoolean(true);
+        }
+        if ( path->component_str(0) == "disallow" ) {
+            y2milestone("Write allow Features");
+            YCPList features = arg->asList();
+            std::list<std::string> featureList;
+            for ( int i = 0; i < features->size(); i++ )
+            {
+                featureList.push_back( features->value(i)->asString()->value_cstr() );
+            }
+            globals->setDisallowFeatures( featureList );
             return YCPBoolean(true);
         }
     }

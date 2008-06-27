@@ -118,13 +118,23 @@
         );
 
     term allowWidget =
-        `MultiSelectionBox(
-            `id( `msb_allow ), _("Select &Allow Flags:"), [
-                `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
-                `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
-                `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
-                `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
-            ]
+        `VBox (
+            `MultiSelectionBox(
+                `id( `msb_allow ), _("Select &Allow Flags:"), [
+                    `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
+                    `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
+                    `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
+                    `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
+                ]
+            ),
+            `MultiSelectionBox(
+                `id( `msb_disallow ), _("Select &Disallow Flags:"), [
+                    `item( `id( "bind_anon" ), _("Disable acceptance of anonymous Bind Requests (does not prohibit anonymous directory access)") ),
+                    `item( `id( "bind_simple" ), _("Disable Simple Bind authentication") ),
+                    `item( `id( "tls_2_anon" ), _("Disable forcing session to anonymous status upon StartTLS operation receipt") ),
+                    `item( `id( "tls_authc" ), _("Disallow the StartTLS operation if authenticated") )
+                ]
+            )
         );
 
     term tlsWidget =

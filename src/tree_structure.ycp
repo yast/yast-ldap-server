@@ -261,8 +261,10 @@ define boolean cb_check_allow()
 define boolean cb_read_allow()
 ``{
     y2milestone( "calling allow read handler" );
-//    list<string> allowlist = LdapServer::ReadAllowList();
-//    UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
+    list<string> allowlist = LdapServer::GetAllowFeatures();
+    list<string> disallowlist = LdapServer::GetDisallowFeatures();
+    UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
+    UI::ChangeWidget( `msb_disallow, `SelectedItems, disallowlist );
     return true;
 }
 
@@ -270,10 +272,13 @@ define boolean cb_write_allow()
 ``{
     y2milestone( "calling allow write handler" );
     list<string> allowlist = [];
+    list<string> disallowlist = [];
     allowlist = (list<string>)UI::QueryWidget( `msb_allow, `SelectedItems );
+    disallowlist = (list<string>)UI::QueryWidget( `msb_disallow, `SelectedItems );
 
     y2milestone( "writing allowlist: '%1'", allowlist );
-//    LdapServer::WriteAllowList( allowlist );
+    LdapServer::SetAllowFeatures( allowlist );
+    LdapServer::SetDisallowFeatures( disallowlist );
     return true;
 }
 
@@ -1015,7 +1020,7 @@ widget_map = $[
     ],
     "g_allow" : $[
                     /* Tree item */
-        "name"      : _("Allow Settings"),
+        "name"      : _("Allow/Disallow Features"),
         "widget"    : allowWidget,
         "cb_check"  : ``( cb_check_allow() ),
         "cb_read"   : ``( cb_read_allow() ),

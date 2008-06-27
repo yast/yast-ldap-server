@@ -130,20 +130,6 @@ OlcGlobalConfig::OlcGlobalConfig() : OlcConfigEntry()
     m_dbEntryChanged.addAttribute(LDAPAttribute("cn", "config"));
 }
 
-int OlcGlobalConfig::getLogLevel() const 
-{
-    const LDAPAttribute *attr = m_dbEntryChanged.getAttributeByName("olcloglevel");
-    if (attr) {
-        StringList sl = attr->getValues();
-        StringList::const_iterator i;
-        for (i = sl.begin(); i != sl.end(); i++ ) {
-            std::cout << "loglevel: " << *i << std::endl;
-        }
-    } else {
-        return 0;
-    }
-}
-
 const std::vector<std::string> OlcGlobalConfig::getLogLevelString() const
 {
     StringList lvalues = this->getStringValues("olcLogLevel");
@@ -170,20 +156,6 @@ const std::vector<std::string> OlcGlobalConfig::getLogLevelString() const
 //
 //}
 
-void OlcGlobalConfig::setLogLevel(int level) {
-    const LDAPAttribute *sattr = m_dbEntryChanged.getAttributeByName("olcloglevel");
-    LDAPAttribute attr;
-    if ( sattr ) {
-        attr = *sattr;
-    }
-    std::ostringstream o;
-    StringList values;
-    o << level;
-    values.add(o.str());
-    attr.setValues(values);
-    m_dbEntryChanged.replaceAttribute(attr);
-}
-
 void OlcGlobalConfig::setLogLevel(const std::list<std::string> &level) {
     const LDAPAttribute *sattr = m_dbEntryChanged.getAttributeByName("olcloglevel");
     LDAPAttribute attr( "olcloglevel" );
@@ -209,6 +181,65 @@ void OlcGlobalConfig::addLogLevel(std::string level) {
     attr.addValue(level);
     m_dbEntryChanged.replaceAttribute(attr);
 }
+
+const std::vector<std::string> OlcGlobalConfig::getAllowFeatures() const
+{
+    StringList values = this->getStringValues("olcAllows");
+    StringList::const_iterator i;
+    std::vector<std::string> allow;
+    for ( i = values.begin(); i != values.end(); i++ )
+    {
+        allow.push_back(*i);
+    }
+    return allow;
+}
+
+void OlcGlobalConfig::setAllowFeatures(const std::list<std::string> &allow )
+{
+    const LDAPAttribute *sattr = m_dbEntryChanged.getAttributeByName("olcAllows");
+    LDAPAttribute attr( "olcAllows" );
+    if ( sattr ) {
+        attr = *sattr;
+    }
+    StringList values;
+    std::list<std::string>::const_iterator i = allow.begin();
+    for(; i != allow.end(); i++ )
+    {
+        values.add(*i);
+    }
+    attr.setValues(values);
+    m_dbEntryChanged.replaceAttribute(attr);
+}
+
+const std::vector<std::string> OlcGlobalConfig::getDisallowFeatures() const
+{
+    StringList values = this->getStringValues("olcDisallows");
+    StringList::const_iterator i;
+    std::vector<std::string> allow;
+    for ( i = values.begin(); i != values.end(); i++ )
+    {
+        allow.push_back(*i);
+    }
+    return allow;
+}
+
+void OlcGlobalConfig::setDisallowFeatures(const std::list<std::string> &disallow )
+{
+    const LDAPAttribute *sattr = m_dbEntryChanged.getAttributeByName("olcDisallows");
+    LDAPAttribute attr( "olcDisallows" );
+    if ( sattr ) {
+        attr = *sattr;
+    }
+    StringList values;
+    std::list<std::string>::const_iterator i = disallow.begin();
+    for(; i != disallow.end(); i++ )
+    {
+        values.add(*i);
+    }
+    attr.setValues(values);
+    m_dbEntryChanged.replaceAttribute(attr);
+}
+
 
 OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
 {
@@ -547,7 +578,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
             }
             bool replace = false;
             if ( delValues.size() > 0 ) {
-                if ( (int) delValues.size() == i->getNumValues() ) {
+                if ( (addValues.size() > 0) && ( (int)delValues.size() == i->getNumValues()) ) {
                     std::cout << "All Values deleted, this is a replace" << std::endl;
                     modifications.addModification(
                             LDAPModification( LDAPAttribute(i->getName(), addValues), 
@@ -575,6 +606,22 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                     );
         }
     }
+    i = m_dbEntryChanged.getAttributes()->begin();
+    for(; i != m_dbEntryChanged.getAttributes()->end(); i++ )
+    {
+        std::cout << i->getName() << std::endl;
+        const LDAPAttribute *old =  m_dbEntry.getAttributeByName(i->getName());
+        if (! old ) {
+            std::cout << "Attribute added: " << i->getName() << std::endl;
+            if (! i->getValues().empty() )
+            {
+                modifications.addModification(
+                        LDAPModification( LDAPAttribute(i->getName(), i->getValues()), 
+                                    LDAPModification::OP_ADD) 
+                        );
+            }
+        }
+    }
     return modifications;
 }
 
@@ -583,7 +630,7 @@ OlcConfig::OlcConfig(LDAPConnection *lc) : m_lc(lc)
     
 }
 
-OlcGlobalConfig OlcConfig::getGlobals()
+boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
 {
     LDAPSearchResults *sr;
     LDAPEntry *dbEntry;
@@ -596,10 +643,11 @@ OlcGlobalConfig OlcConfig::getGlobals()
     }
     if ( dbEntry ) {
         std::cout << "Got GlobalConfig: " << dbEntry->getDN() << std::endl;
-        OlcGlobalConfig gc(*dbEntry);
+        boost::shared_ptr<OlcGlobalConfig> gc( new OlcGlobalConfig(*dbEntry) );
         return gc;
     }
-    return OlcGlobalConfig();
+    boost::shared_ptr<OlcGlobalConfig> gc( new OlcGlobalConfig() );
+    return gc;
 }
 
 void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
