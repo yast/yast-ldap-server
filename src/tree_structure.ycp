@@ -86,7 +86,6 @@ define boolean cb_read_schema()
 ``{
     y2milestone( "calling schema read handler" );
     list<string> inclist = LdapServer::GetSchemaList();
-//    //store current include list for later order changes
     update_schemalist( inclist );
     return true;
 }
@@ -134,8 +133,13 @@ define boolean cb_input_schema()
         }
         if ( regexpmatch( new_item, ".*\.schema$" ) ) 
         {
-            callback_error = _(".schema Files not supported yet");
-            return false;
+            if (! LdapServer::AddSchemaToSchemaList(new_item) ) {
+                map<string, string> err = LdapServer::GetError();
+                callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+                return false;
+            }
+            list<string> inclist = LdapServer::GetSchemaList();
+            update_schemalist( inclist );
         }
         else if (! LdapServer::AddLdifToSchemaList(new_item) )
         {
