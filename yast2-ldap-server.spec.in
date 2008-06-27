@@ -27,7 +27,6 @@ Summary:	Configuration of the OpenLDAP server
 @clientdir@/ldap-server.ycp
 @clientdir@/ldap-server_*.ycp
 @moduledir@/LdapServer.*
-@moduledir@/LdapServerConf.*
 @moduledir@/YaPI/LdapServer.pm
 @desktopdir@/ldap-server.desktop
 @schemadir@/autoyast/rnc/ldap-server.rnc

@@ -29,7 +29,8 @@ YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("Service");
 
 my %error = ( msg => undef, details => undef );
-
+my $usingDefaults = 1;
+my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $serviceEnabled = 0;
@@ -398,6 +399,7 @@ sub Write {
         SCR->Execute('.ldapserver.commitChanges' );
     }
     sleep(1);
+    $configured = $ret;
     return $ret;
 }
 
@@ -460,6 +462,17 @@ sub Overview {
     return ();
 }
 
+BEGIN { $TYPEINFO{Configured} = ["function", "boolean"]; }
+sub Configured
+{
+    return YaST::YCP::Boolean($configured);
+}
+
+BEGIN { $TYPEINFO{UseDefaults} = ["function", "boolean"]; }
+sub UseDefaults
+{
+    return YaST::YCP::Boolean($usingDefaults);
+}
 ##
  # Return packages needed to be installed and removed during
  # Autoinstallation to insure module has all needed software
@@ -513,8 +526,8 @@ sub ReadSLPEnabled {
     return $registerSlp;
 }
 
-BEGIN { $TYPEINFO {SetSlpEnabled} = ["function", "boolean", "boolean"]; }
-sub SetSlpEnabled {
+BEGIN { $TYPEINFO {SetSLPEnabled} = ["function", "boolean", "boolean"]; }
+sub SetSLPEnabled {
     my $self = shift;
     y2milestone("SetSlpEnabled");
     $registerSlp = shift;
@@ -607,6 +620,31 @@ sub SetTlsConfig
     return 1;
 }
 
+BEGIN { $TYPEINFO {SetTlsConfigCommonCert} = ["function", "boolean" ]; }
+sub SetTlsConfigCommonCert
+{
+    my $self = shift;
+    my $ret = SCR->Execute(".target.bash", 
+                           "/usr/bin/setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem");
+    if($ret != 0) {
+        return $self->SetError(_("Can not set a filesystem acl on the private key"),
+                               "setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem failed.\n".
+                               "Do you have filesystem acl support disabled?" );
+        return 0;
+    }
+
+    my $tlsSettings = {
+                "certKeyFile"  => "/etc/ssl/servercerts/serverkey.pem",
+                "certFile"     => "/etc/ssl/servercerts/servercert.pem",
+                "caCertFile"   => "/etc/ssl/certs/YaST-CA.pem",
+                "caCertDir"    => "",
+                "crlFile"      => "",
+                "crlCheck"     => 0,
+                "verifyClient" => 0
+    };
+    return $self->SetTlsConfig( $tlsSettings );
+}
+
 BEGIN { $TYPEINFO {MigrateSlapdConf} = ["function", "boolean"]; }
 sub MigrateSlapdConf
 {
@@ -683,6 +721,7 @@ sub GetInitialDefaults
         $self->InitDbDefaults();
     }
     y2milestone(Data::Dumper->Dump([\%dbDefaults]));
+   $usingDefaults = 1;
     return \%dbDefaults;
 }
 
@@ -742,6 +781,7 @@ BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
 sub ReadFromDefaults
 {
     my $self = shift;
+    
     my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
     my $database = { 'type' => 'bdb',
                      'suffix' => $dbDefaults{'basedn'},
@@ -808,6 +848,7 @@ sub ReadFromDefaults
     push @added_databases, { suffix => $dbDefaults{'basedn'}, 
                              rootdn => $dbDefaults{'rootdn'},
                              rootpw => $dbDefaults{'rootpw_clear'} };
+    $usingDefaults = 0;
     return 1;
 }
 
