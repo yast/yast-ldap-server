@@ -77,9 +77,7 @@
     term schemaWidget =
         `HBox(
             `VBox(
-                `ReplacePoint(
-                    `id( `rp_schemalist ), `Empty()
-                ),
+                `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), [] ),
                 `Left(
                     `HBox(
                         `PushButton( `id( `pb_add ), Label::AddButton() ),

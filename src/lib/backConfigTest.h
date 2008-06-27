@@ -125,18 +125,11 @@ class OlcSchemaConfig : public OlcConfigEntry
 {
     public:
         OlcSchemaConfig();
-};
+        OlcSchemaConfig(const LDAPEntry &e);
+        const std::string& getName() const;
 
-typedef std::list<boost::shared_ptr<OlcDatabase> > OlcDatabaseList;
-class OlcConfig {
-    public:
-        OlcConfig(LDAPConnection *lc=0 );
-        boost::shared_ptr<OlcGlobalConfig> getGlobals();
-        void setGlobals( OlcGlobalConfig &olcg);
-        void updateEntry( const OlcConfigEntry &oce );
-        OlcDatabaseList getDatabases();
     private:
-        LDAPConnection *m_lc;
+        std::string m_name;
 };
 
 class OlcTlsSettings {
@@ -170,5 +163,24 @@ class OlcTlsSettings {
         std::string m_certKeyFile;
         std::string m_crlFile;
 };
+
+typedef std::list<boost::shared_ptr<OlcDatabase> > OlcDatabaseList;
+typedef std::list<boost::shared_ptr<OlcSchemaConfig> > OlcSchemaList;
+class OlcConfig {
+
+    public:
+        OlcConfig(LDAPConnection *lc=0 );
+
+        boost::shared_ptr<OlcGlobalConfig> getGlobals();
+        OlcDatabaseList getDatabases();
+        OlcSchemaList getSchemaNames();
+
+        void setGlobals( OlcGlobalConfig &olcg);
+        void updateEntry( const OlcConfigEntry &oce );
+
+    private:
+        LDAPConnection *m_lc;
+};
+
 
 #endif /* BACK_CONFIG_TEST_H */

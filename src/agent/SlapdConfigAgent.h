@@ -37,12 +37,17 @@ class SlapdConfigAgent : public SCRAgent {
 
     protected:
         YCPValue ReadGlobal( const YCPPath &path,
-                             const YCPValue &arg = YCPNull(),
-                             const YCPValue &opt = YCPNull());
+                            const YCPValue &arg = YCPNull(),
+                            const YCPValue &opt = YCPNull());
 
         YCPValue ReadDatabases( const YCPPath &path,
-                             const YCPValue &arg = YCPNull(),
-                             const YCPValue &opt = YCPNull());
+                            const YCPValue &arg = YCPNull(),
+                            const YCPValue &opt = YCPNull());
+
+        YCPValue ReadSchemaList( const YCPPath &path,
+                            const YCPValue &arg = YCPNull(),
+                            const YCPValue &opt = YCPNull());
+
         YCPValue ReadDatabase( const YCPPath &path,
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
