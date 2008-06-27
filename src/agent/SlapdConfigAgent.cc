@@ -389,7 +389,10 @@ YCPValue SlapdConfigAgent::ReadSchemaList( const YCPPath &path,
     YCPList resultList;
     for (i = schema.begin(); i != schema.end(); i++ )
     {
-        resultList.add( YCPString( (*i)->getName() ) );
+        if (! (*i)->getName().empty() )
+        {
+            resultList.add( YCPString( (*i)->getName() ) );
+        }
     }
     return resultList;
 }
@@ -553,6 +556,21 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
             entry = ldif.getEntryRecord();
             schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
         }
+        return YCPBoolean(true);
+    }
+    if ( subpath == "remove" )
+    {
+        std::string name = arg->asString()->value_cstr();
+        y2milestone("remove Schema Entry: %s", name.c_str());
+        OlcSchemaList::const_iterator i;
+        for (i = schema.begin(); i != schema.end(); i++ )
+        {
+            if ( (*i)->getName() == name )
+            {
+                (*i)->clearChangedEntry();
+            }
+        }
+        return YCPBoolean(true);
     }
     return YCPBoolean(false);
 }

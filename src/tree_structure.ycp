@@ -159,7 +159,7 @@ define boolean cb_input_schema()
     } else if( handler_cmd == `pb_delete )
     {
         if( current_item == nil ) return true;
-//        inclist = remove( inclist, find_pos( inclist, current_item ) );
+        LdapServer::RemoveFromSchemaList(current_item);
         list<string> inclist = LdapServer::GetSchemaList();
         update_schemalist( inclist, nil );
     }
