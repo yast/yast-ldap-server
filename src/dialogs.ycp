@@ -88,6 +88,7 @@ list<map> generateTree()
 
 boolean callHandler( string item, string handler )
 {
+    y2milestone("callhandler %1 for item %2", handler, item );
     if( haskey( widget_map[item]:$[], handler ) )
     {
         any function = widget_map[item,handler]:nil;
