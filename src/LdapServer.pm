@@ -347,6 +347,7 @@ sub SetError
 {
     my $self = shift;
     my ( $msg, $details ) = @_;
+    y2milestone("Error: $msg, $details");
     $error{'msg'} = $msg;
     $error{'details'} = $details;
 }
@@ -610,7 +611,10 @@ sub AddLdifToSchemaList
     my ($self, $file) = @_;
 
     my $rc = SCR->Write(".ldapserver.schema.addFromLdif", $file);
-
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+    }
     return $rc;
 }
 

@@ -5,6 +5,7 @@
 #include <LdifWriter.h>
 #include <LDAPEntry.h>
 #include <SaslInteraction.h>
+#include <exception>
 #include <sstream>
 #include <fstream>
 
@@ -695,14 +696,22 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
         std::string filename = arg->asString()->value_cstr();
         y2milestone("adding Ldif File: %s", filename.c_str());
         std::ifstream ldifFile(filename.c_str());
-        LdifReader ldif(ldifFile);
-        if ( ldif.readNextRecord() )
-        {
-            LDAPEntry entry, oldEntry;
-            entry = ldif.getEntryRecord();
-            schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
+        try {
+            LdifReader ldif(ldifFile);
+            if ( ldif.readNextRecord() )
+            {
+                LDAPEntry entry, oldEntry;
+                entry = ldif.getEntryRecord();
+                schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
+            }
+            return YCPBoolean(true);
+        } catch ( std::runtime_error e ) {
+            lastError->add(YCPString("summary"),
+                    YCPString("Error while parsing LDIF file") );
+            lastError->add(YCPString("description"), 
+                    YCPString(std::string( e.what() ) ) );
+            return YCPBoolean(false);
         }
-        return YCPBoolean(true);
     }
     if ( subpath == "remove" )
     {

@@ -74,16 +74,12 @@ define boolean cb_write_default()
  ** global schema handlers
  *****************************/
 
-void update_schemalist( list<string> l, string select_item )
+void update_schemalist( list<string> l )
 {
     if( l == nil ) l = [];
     //widget_map["g_schema","inclist"] = l;
     UI::ChangeWidget( `sb_schemalist, `Items, l );
     UI::ChangeWidget( `pb_delete, `Enabled, false );
-    if( select_item != nil )
-    {
-        UI::ChangeWidget( `sb_schemalist, `CurrentItem, select_item );
-    }
 }
 
 define boolean cb_read_schema()
@@ -91,7 +87,7 @@ define boolean cb_read_schema()
     y2milestone( "calling schema read handler" );
     list<string> inclist = LdapServer::GetSchemaList();
 //    //store current include list for later order changes
-    update_schemalist( inclist, nil );
+    update_schemalist( inclist );
     return true;
 }
 
@@ -152,17 +148,27 @@ define boolean cb_input_schema()
             callback_error = _("The schema file is already in the list.");
             return false;
         }
-
-        LdapServer::AddLdifToSchemaList(new_item);
-        list<string> inclist = LdapServer::GetSchemaList();
-        update_schemalist( inclist, new_item );
+        if ( regexpmatch( new_item, ".*\.schema$" ) ) 
+        {
+            callback_error = _(".schema Files not supported yet");
+            return false;
+        }
+        else if (! LdapServer::AddLdifToSchemaList(new_item) )
+        {
+            map<string, string> err = LdapServer::GetError();
+            callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+            return false;
+        } else {
+            list<string> inclist = LdapServer::GetSchemaList();
+            update_schemalist( inclist );
+        }
 
     } else if( handler_cmd == `pb_delete )
     {
         if( current_item == nil ) return true;
         LdapServer::RemoveFromSchemaList(current_item);
         list<string> inclist = LdapServer::GetSchemaList();
-        update_schemalist( inclist, nil );
+        update_schemalist( inclist );
     }
     return true;
 }
