@@ -27,6 +27,8 @@ class SlapdConfigAgent : public SCRAgent {
                                 const YCPValue &arg,
                                 const YCPValue &arg2 = YCPNull());
 
+        virtual YCPMap Error( const YCPPath &path );
+
         virtual YCPValue Execute( const YCPPath &path,
                                   const YCPValue &arg = YCPNull(),
                                   const YCPValue &arg2 = YCPNull());
@@ -68,6 +70,7 @@ class SlapdConfigAgent : public SCRAgent {
         YCPString ConfigToLdif() const;
 
     private:
+        YCPMap lastError;
         OlcConfig olc;
         OlcDatabaseList databases;
         OlcSchemaList schema;

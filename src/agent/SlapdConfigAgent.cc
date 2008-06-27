@@ -117,6 +117,11 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     }
 }
 
+YCPMap SlapdConfigAgent::Error( const YCPPath &path )
+{
+    return lastError;
+}
+
 YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &arg2)
@@ -606,16 +611,17 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
         indexstr >> dbIndex;
     } else {
         y2error("Database Index expected, got: %s", dbIndexStr.c_str() );
-        return YCPNull();
+        return YCPBoolean(false);
     }
     if ( dbIndex < -1 )
     {
         y2error("Invalid database index: %d", dbIndex );
-        return YCPNull();
+        return YCPBoolean(false);
     }
 
     y2milestone("Database to write: %d", dbIndex);
     OlcDatabaseList::const_iterator i;
+    bool ret = false;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
         if ( (*i)->getEntryIndex() == dbIndex ) 
@@ -632,6 +638,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 {
                     (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
                 }
+                ret = true;
             } else {
                 std::string dbComponent = path->component_str(1);
                 y2milestone("Component '%s'", dbComponent.c_str());
@@ -658,12 +665,20 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     if ( ! idx.empty() ) {
                         (*i)->addIndex(attr, idx);
                     }
+                    ret = true;
+                } else {
+                    lastError->add(YCPString("summary"), YCPString("Write Failed") );
+                    std::string msg = "Unsupported SCR path: `.ldapserver.database.";
+                    msg += path->toString().c_str();
+                    msg += "`";
+                    lastError->add(YCPString("description"), YCPString(msg) );
+                    ret = false;
                 }
             }
             break;
         }
     }
-    return YCPBoolean(false);
+    return YCPBoolean(ret);
 }
 
 YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
