@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <LDAPEntry.h>
+#include <LDAPAttrType.h>
 #include <boost/shared_ptr.hpp>
 
 class OlcConfigEntry
@@ -61,6 +62,21 @@ class OlcConfigEntry
         LDAPEntry m_dbEntryChanged;
 };
 
+enum IndexType {
+    Default,
+    Present,
+    Eq,
+    Approx,
+    Sub,
+    SpecialSubInitial,
+    SpecialSubAny,
+    SpecialSubFinal,
+    SpecialNoLang,
+    SpecialNoSubTypes,
+};
+
+typedef std::map<std::string, std::vector<IndexType> > IndexMap;
+
 class OlcDatabase : public OlcConfigEntry
 {
     public :
@@ -79,6 +95,8 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getType() const;
 
         virtual std::map<std::string, std::list<std::string> > toMap() const;
+        virtual IndexMap getIndexes() const {};
+
     
     protected:
         virtual void updateEntryDn();
@@ -94,21 +112,8 @@ class OlcBdbDatabase : public  OlcDatabase
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         void setDirectory( const std::string &dir);
         
-        enum IndexType {
-            Default,
-            Present,
-            Eq,
-            Approx,
-            Sub,
-            SpecialSubInitial,
-            SpecialSubAny,
-            SpecialSubFinal,
-            SpecialNoLang,
-            SpecialNoSubTypes,
-        };
 
-        typedef std::map<std::string, std::vector<OlcBdbDatabase::IndexType> > IndexMap;
-        IndexMap getIndexes();
+        virtual IndexMap getIndexes() const;
 };
 
 class OlcTlsSettings;
@@ -141,6 +146,7 @@ class OlcSchemaConfig : public OlcConfigEntry
         OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2);
         virtual void clearChangedEntry();     
         const std::string& getName() const;
+        const std::vector<LDAPAttrType> getAttributeTypes() const;
 
     private:
         std::string m_name;

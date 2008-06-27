@@ -74,8 +74,12 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
     }
     else if ( path->component_str(0) == "schemaList" )
     {
-        y2milestone("read databases");
+        y2milestone("read schemalist");
         return ReadSchemaList(path->at(1), arg, opt);
+    }
+    else if ( path->component_str(0) == "schema" )
+    {
+        return ReadSchema( path->at(1), arg, opt );
     }
     else if ( path->component_str(0) == "database" ) 
     {
@@ -340,6 +344,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
     std::string dbIndexStr = path->component_str(0);
+    y2milestone("Component %s ", dbIndexStr.c_str());
     int dbIndex = -2;
     if ( dbIndexStr[0] == '{' )
     {
@@ -363,14 +368,92 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
         if ( (*i)->getIndex() == dbIndex ) 
         {
             YCPMap resMap;
-            resMap.add( YCPString("suffix"), 
-                        YCPString( (*i)->getStringValue("olcSuffix") ));
-            resMap.add( YCPString("directory"), 
-                        YCPString( (*i)->getStringValue("olcDbDirectory") ));
-            resMap.add( YCPString("rootdn"), 
-                        YCPString( (*i)->getStringValue("olcRootDn") ));
-            return resMap;
+            if ( path->length() == 1 )
+            {
+                resMap.add( YCPString("suffix"), 
+                            YCPString( (*i)->getStringValue("olcSuffix") ));
+                resMap.add( YCPString("directory"), 
+                            YCPString( (*i)->getStringValue("olcDbDirectory") ));
+                resMap.add( YCPString("rootdn"), 
+                            YCPString( (*i)->getStringValue("olcRootDn") ));
+                return resMap;
+            } else {
+                std::string dbComponent = path->component_str(1);
+                y2milestone("Component %s ", dbComponent.c_str());
+                IndexMap idx = (*i)->getIndexes();
+                IndexMap::const_iterator j = idx.begin();
+                for ( ; j != idx.end(); j++ )
+                {
+                    YCPMap ycpIdx;
+                    y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
+                    std::vector<IndexType>::const_iterator k = j->second.begin();
+                    for ( ; k != j->second.end(); k++ )
+                    {
+                        if ( *k == Eq )
+                            ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
+                    }
+                    resMap.add( YCPString(j->first), ycpIdx );
+                }
+                return resMap;
+            }
         }
+    }
+    return YCPNull();
+}
+
+bool comparesAttrTypes( const LDAPAttrType& a1, const LDAPAttrType& a2 )
+{
+    return ( a1.getName() < a2.getName() );
+}
+
+YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
+                                    const YCPValue &arg,
+                                    const YCPValue &opt)
+{
+    if ( path->length() !=1 )
+    {
+        y2milestone("Unsupported Path: %s", path->toString().c_str() );
+        return YCPNull();
+    } 
+    else if ( path->component_str(0) == "attributeTypes" )
+    {
+        if ( schema.size() == 0 )
+        {
+            schema = olc.getSchemaNames();
+        }
+        OlcSchemaList::const_iterator i;
+        YCPList resList;
+        for (i = schema.begin(); i != schema.end(); i++ )
+        {
+            y2milestone("Schema: %s", (*i)->getName().c_str() );
+            std::vector<LDAPAttrType> types = (*i)->getAttributeTypes();
+            std::sort( types.begin(), types.end(), comparesAttrTypes );
+            std::vector<LDAPAttrType>::const_iterator j;
+            for ( j = types.begin(); j != types.end(); j++ )
+            {
+                YCPMap attrMap;
+                attrMap.add( YCPString("name"), YCPString( j->getName() ) );
+                if ( j->getEqualityOid() != "" )
+                {
+                    attrMap.add( YCPString("equality"), YCPBoolean( true ) );
+                } else {
+                    attrMap.add( YCPString("equality"), YCPBoolean( false ) );
+                }
+                if ( j->getSubstringOid() != "" )
+                {
+                    attrMap.add( YCPString("substring"), YCPBoolean( true ) );
+                } else {
+                    attrMap.add( YCPString("substring"), YCPBoolean( false ) );
+                }
+                attrMap.add( YCPString("presence"), YCPBoolean( true ) );
+
+                // FIXME: how should "approx" indexing be handled, create 
+                //        whitelist based upon syntaxes?
+                
+                resList.add( attrMap );
+            }
+        }
+        return resList;
     }
     return YCPNull();
 }

@@ -985,6 +985,40 @@ define boolean cb_input_db()
     return true;
 }
 
+define boolean cb_read_bdb_index()
+{
+    integer index = (integer) widget_map[current_tree_item, "index"]:nil;
+    y2milestone("cb_read_bdb_index current item: %1, index %2", current_tree_item, index);
+    map<string, map<string, boolean> > idxMap = LdapServer::GetDatabaseIndexes( index );
+    integer i=0;
+    list newItems = [];
+    foreach( string attr, map<string, boolean> idx, idxMap, {
+        string eqIdx = _("No");
+        string presIdx  = _("No");
+        string substrIdx = _("No");
+        string approxIdx = _("No");
+        y2milestone("index attr: %1", attr);
+        if ( idx["eq"]:false )
+        {
+            y2milestone("eq index");
+            eqIdx = _("Yes");
+        }
+        newItems = add( newItems, `item( `id(i), attr, presIdx, eqIdx, substrIdx, approxIdx ) );
+    } );
+    UI::ChangeWidget( `tab_idx, `Items , newItems );
+
+    return true;
+}
+
+define boolean cb_input_bdb_index()
+{
+    y2milestone("cb_input_bdb_index, handlercmd: %1", handler_cmd);
+    if ( handler_cmd == `pb_idx_add )
+    {
+        AddIndexPopup();
+    }
+    return true;
+}
 
 /*****************************************
  **     tree structure definition       **
@@ -1063,9 +1097,16 @@ widget_map = $[
 void addDatabaseWidgetMap( string suffix, string item_name, integer index, boolean new_db )
 {
     if( haskey( widget_map, item_name ) ) return;
-
+    map<string, any> dbIndex = $[
+        "name"      : _("Index Configuration"),
+        "widget"    : editBdbIndexes,
+        "index"     : index,
+        "cb_read"   : ``(cb_read_bdb_index() ),
+        "cb_input"  : ``(cb_input_bdb_index() )
+    ];
     map<string,any> item_map = $[
         "name"      : suffix,
+        "children"  : [ item_name + "_index" ],
         "index"     : index,
         "widget"    : editBdbDatabase,
         "new_db"    : new_db,
@@ -1078,6 +1119,8 @@ void addDatabaseWidgetMap( string suffix, string item_name, integer index, boole
     ];
     y2milestone( "adding database item '%1' as '%2'", suffix, item_name );
     widget_map[item_name] = item_map;
+    widget_map[item_name + "_index"] = dbIndex;
+
     widget_map["databases","children"] = add( widget_map["databases","children"]:[], item_name );
 }
 

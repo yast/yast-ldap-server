@@ -65,11 +65,15 @@ OlcBdbDatabase::OlcBdbDatabase() : OlcDatabase("bdb")
 
 OlcBdbDatabase::OlcBdbDatabase( const LDAPEntry& le) : OlcDatabase(le) { }
 
-OlcBdbDatabase::IndexMap OlcBdbDatabase::getIndexes()
+IndexMap OlcBdbDatabase::getIndexes() const
 {
-    const LDAPAttributeList *al = m_dbEntry.getAttributes();
+    const LDAPAttributeList *al = m_dbEntryChanged.getAttributes();
     const LDAPAttribute *attr = al->getAttributeByName("olcdbindex");
-    OlcBdbDatabase::IndexMap res;
+    IndexMap res;
+    if (! attr ) {
+        return res;
+    };
+
     StringList sl = attr->getValues();
     StringList::const_iterator i;
     for (i = sl.begin(); i != sl.end(); i++ ) {
@@ -84,7 +88,7 @@ OlcBdbDatabase::IndexMap OlcBdbDatabase::getIndexes()
                 indexes = i->substr( pos, std::string::npos );
                 std::cout << "Indexes: <" << indexes << ">" << std::endl;
                 std::string::size_type oldpos = 0;
-                std::vector<OlcBdbDatabase::IndexType> idx;
+                std::vector<IndexType> idx;
                 do {
                     pos = indexes.find( ',', oldpos );
                     std::string index = indexes.substr( oldpos, 
@@ -92,23 +96,23 @@ OlcBdbDatabase::IndexMap OlcBdbDatabase::getIndexes()
                     std::cout << "Index: <" << index << ">" << std::endl;
                     oldpos = indexes.find_first_not_of( ", ", pos );
                     if ( index == "pres" ) {
-                        idx.push_back(OlcBdbDatabase::Present);
+                        idx.push_back(Present);
                     } else if (index == "eq" ) {
-                        idx.push_back(OlcBdbDatabase::Eq);
+                        idx.push_back(Eq);
                     } else if (index == "approx" ) {
-                        idx.push_back(OlcBdbDatabase::Approx);
+                        idx.push_back(Approx);
                     } else if (index == "sub" ) {
-                        idx.push_back(OlcBdbDatabase::Sub);
+                        idx.push_back(Sub);
                     } else if (index == "subinital" ) {
-                        idx.push_back(OlcBdbDatabase::SpecialSubInitial);
+                        idx.push_back(SpecialSubInitial);
                     } else if (index == "subany" ) {
-                        idx.push_back(OlcBdbDatabase::SpecialSubAny);
+                        idx.push_back(SpecialSubAny);
                     } else if (index == "subfinal" ) {
-                        idx.push_back(OlcBdbDatabase::SpecialSubFinal);
+                        idx.push_back(SpecialSubFinal);
                     } else if (index == "nolang" ) {
-                        idx.push_back(OlcBdbDatabase::SpecialNoLang);
+                        idx.push_back(SpecialNoLang);
                     } else if (index == "nosubtypes" ) {
-                        idx.push_back(OlcBdbDatabase::SpecialNoSubTypes);
+                        idx.push_back(SpecialNoSubTypes);
                     }
                 } while (pos != std::string::npos);
                 res.insert(make_pair(attrType, idx));
@@ -294,6 +298,26 @@ void OlcSchemaConfig::clearChangedEntry()
 const std::string& OlcSchemaConfig::getName() const
 {
     return m_name;
+}
+
+const std::vector<LDAPAttrType> OlcSchemaConfig::getAttributeTypes() const
+{
+    std::vector<LDAPAttrType> res;
+    StringList types = this->getStringValues("olcAttributeTypes");
+    StringList::const_iterator j;
+    for ( j = types.begin(); j != types.end(); j++ )
+    {
+        LDAPAttrType currentAttr;
+        if ( (*j)[0] == '{' )
+        {
+            std::string::size_type pos = j->find('}');
+            currentAttr = LDAPAttrType( j->substr( pos+1, std::string::npos ) );
+        } else {
+            currentAttr = LDAPAttrType( *j );
+        }
+        res.push_back(currentAttr);
+    }
+    return res;
 }
 
 OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
@@ -780,9 +804,8 @@ OlcSchemaList OlcConfig::getSchemaNames()
     OlcSchemaList res;
     try {
         StringList attrs;
-        attrs.add("cn");
         LDAPSearchResults *sr = m_lc->search( "cn=schema,cn=config", 
-                LDAPConnection::SEARCH_ONE, "objectclass=olcSchemaConfig", attrs );
+                LDAPConnection::SEARCH_SUB, "objectclass=olcSchemaConfig" );
         LDAPEntry *entry;
         while ( entry = sr->getNext() )
         {

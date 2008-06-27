@@ -1,6 +1,7 @@
 
 {
     textdomain "ldap-server";
+
     map<string, any> firewall_settings = $[
             "services": [ "ldap" , "ldaps" ],
             "display_details": true,
@@ -329,6 +330,22 @@
             generalDbWidget
         );
 
+    term editBdbIndexes =
+        `VBox(
+            `Heading( _("Edit Index Configuration") ),
+            `Table(
+                `id( `tab_idx ),
+                `header( "Attrbute", "pres", "eq", "sub", "approx"),
+                [ ]
+            ),
+            `HSquash(
+                `HBox(
+                    `PushButton( `id( `pb_idx_add ), _("Add") ),
+                    `PushButton( `id( `pb_idx_edit ), _("Edit") ),
+                    `PushButton( `id( `pb_idx_del ), _("Delete") )
+                )
+            )
+        );
     term editPolicy =
         `VBox(
             `VSpacing( 1 ),
@@ -372,5 +389,39 @@
                 )
             )
         );
-}
 
+    define boolean AddIndexPopup()
+    {
+        term content =
+            `VBox(
+                `Heading( _("Add Index") ),
+                `ComboBox( `id( `cb_attrs ), `opt( `hstretch ), "Attributetypes" ),
+                `HBox(
+                    `PushButton( `id( `pb_ok ), Label::OKButton() ),
+                    `PushButton( `id( `pb_cancel ), Label::CancelButton() )
+                )
+            );
+        list<map<string,any> > attrTypes = (list<map <string,any> >) SCR::Read( .ldapserver.schema.attributeTypes );
+        list<string> items = [];
+        foreach( map<string,any> attr, attrTypes, {
+            items = add( items, (string)attr["name"]:"" );
+            y2milestone( "%1 (eq:%2)", (string)attr["name"]:"", (boolean)attr["equality"]:false );
+        } );
+        UI::OpenDialog( `opt(`decorated), content );
+        UI::ChangeWidget( `cb_attrs, `Items, items );
+        while (true)
+        {
+            any ret = UI::UserInput();
+            if (ret == `pb_cancel )
+            {
+                break;
+            }
+            if (ret == `pb_ok )
+            {
+                break;
+            }
+        }
+        UI::CloseDialog();
+        return true;
+    }
+}
