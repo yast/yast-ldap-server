@@ -395,28 +395,86 @@
         term content =
             `VBox(
                 `Heading( _("Add Index") ),
-                `ComboBox( `id( `cb_attrs ), `opt( `hstretch ), "Attributetypes" ),
+                `ComboBox( `id( `cb_attrs ), `opt( `hstretch, `notify ), "Attributetypes" ),
+                `Left(
+                    `CheckBox( `id( `cb_idx_pres ), _("Presence") )
+                ),
+                `Left(
+                    `CheckBox( `id( `cb_idx_eq ), _("Equality") )
+                ),
+                `Left(
+                    `CheckBox( `id( `cb_idx_substr ), _("Substring") )
+                ),
                 `HBox(
                     `PushButton( `id( `pb_ok ), Label::OKButton() ),
                     `PushButton( `id( `pb_cancel ), Label::CancelButton() )
                 )
             );
-        list<map<string,any> > attrTypes = (list<map <string,any> >) SCR::Read( .ldapserver.schema.attributeTypes );
+        map <string, map<string,boolean> > attrTypes =
+                (map<string, map <string,boolean> >) SCR::Read( .ldapserver.schema.attributeTypes );
         list<string> items = [];
-        foreach( map<string,any> attr, attrTypes, {
-            items = add( items, (string)attr["name"]:"" );
-            y2milestone( "%1 (eq:%2)", (string)attr["name"]:"", (boolean)attr["equality"]:false );
+        foreach(string key, map<string,boolean> idx, attrTypes, {
+            items = add( items, key );
         } );
+        items = lsort(items);
         UI::OpenDialog( `opt(`decorated), content );
         UI::ChangeWidget( `cb_attrs, `Items, items );
+
+        string selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+        y2milestone("selected Attribute \"%1\"", selectedAttr );
+        map <string, boolean> idxOpt = attrTypes[selectedAttr]:nil ;
+        y2milestone("index opts: %1", idxOpt );
+        if ( idxOpt["equality"]:false )
+        {
+            UI::ChangeWidget( `cb_idx_eq, `Enabled, true );
+        } else {
+            UI::ChangeWidget( `cb_idx_eq, `Enabled, false );
+        }
+        if ( idxOpt["substring"]:false )
+        {
+            UI::ChangeWidget( `cb_idx_substr, `Enabled, true );
+        } else {
+            UI::ChangeWidget( `cb_idx_substr, `Enabled, false );
+        }
+        if ( idxOpt["presence"]:false )
+        {
+            UI::ChangeWidget( `cb_idx_pres, `Enabled, true );
+        } else {
+            UI::ChangeWidget( `cb_idx_pres, `Enabled, false );
+        }
+
         while (true)
         {
             any ret = UI::UserInput();
-            if (ret == `pb_cancel )
+            y2milestone("ret = %1", ret );
+            if ( ret == `cb_attrs ) // Attribute selected in the Combobox
+            {
+                selectedAttr = (string) UI::QueryWidget( `cb_attrs, `Value );
+                y2milestone("selected Attribute \"%1\"", selectedAttr );
+                map <string, boolean> idxOpt = attrTypes[selectedAttr]:nil ;
+                y2milestone("index opts: %1", idxOpt );
+                if ( idxOpt["equality"]:false )
+                {
+                    UI::ChangeWidget( `cb_idx_eq, `Enabled, true );
+                } else {
+                    UI::ChangeWidget( `cb_idx_eq, `Enabled, false );
+                }
+                if ( idxOpt["substring"]:false )
+                {
+                    UI::ChangeWidget( `cb_idx_substr, `Enabled, true );
+                } else {
+                    UI::ChangeWidget( `cb_idx_substr, `Enabled, false );
+                }
+                if ( idxOpt["presence"]:false )
+                {
+                    UI::ChangeWidget( `cb_idx_pres, `Enabled, true );
+                } else {
+                    UI::ChangeWidget( `cb_idx_pres, `Enabled, false );
+                }
+            } else if (ret == `pb_cancel )
             {
                 break;
-            }
-            if (ret == `pb_ok )
+            } else if (ret == `pb_ok )
             {
                 break;
             }

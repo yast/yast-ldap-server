@@ -401,11 +401,6 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     return YCPNull();
 }
 
-bool comparesAttrTypes( const LDAPAttrType& a1, const LDAPAttrType& a2 )
-{
-    return ( a1.getName() < a2.getName() );
-}
-
 YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &opt)
@@ -422,38 +417,50 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
             schema = olc.getSchemaNames();
         }
         OlcSchemaList::const_iterator i;
-        YCPList resList;
+        YCPMap resMap;
         for (i = schema.begin(); i != schema.end(); i++ )
         {
             y2milestone("Schema: %s", (*i)->getName().c_str() );
             std::vector<LDAPAttrType> types = (*i)->getAttributeTypes();
-            std::sort( types.begin(), types.end(), comparesAttrTypes );
             std::vector<LDAPAttrType>::const_iterator j;
             for ( j = types.begin(); j != types.end(); j++ )
             {
                 YCPMap attrMap;
-                attrMap.add( YCPString("name"), YCPString( j->getName() ) );
-                if ( j->getEqualityOid() != "" )
-                {
-                    attrMap.add( YCPString("equality"), YCPBoolean( true ) );
+
+                // Handling derived AttributeTypes.
+                // Attention! This code assumes that supertypes have been 
+                // read prior to their subtypes
+                if ( j->getSuperiorOid() != "" ){
+                    y2milestone("'%s' is a subtype of '%s'",j->getName().c_str(), j->getSuperiorOid().c_str() );
+                    // locate Supertype
+
+                    YCPMap supMap = resMap->value(YCPString(j->getSuperiorOid()))->asMap();
+                    attrMap.add( YCPString("equality"), supMap->value(YCPString("equality")) );
+                    attrMap.add( YCPString("substring"), supMap->value(YCPString("substring")) );
+                    attrMap.add( YCPString("presence"), supMap->value(YCPString("presence")) );
                 } else {
-                    attrMap.add( YCPString("equality"), YCPBoolean( false ) );
+                    if ( j->getEqualityOid() != "" )
+                    {
+                        attrMap.add( YCPString("equality"), YCPBoolean( true ) );
+                    } else {
+                        attrMap.add( YCPString("equality"), YCPBoolean( false ) );
+                    }
+                    if ( j->getSubstringOid() != "" )
+                    {
+                        attrMap.add( YCPString("substring"), YCPBoolean( true ) );
+                    } else {
+                        attrMap.add( YCPString("substring"), YCPBoolean( false ) );
+                    }
+                    attrMap.add( YCPString("presence"), YCPBoolean( true ) );
                 }
-                if ( j->getSubstringOid() != "" )
-                {
-                    attrMap.add( YCPString("substring"), YCPBoolean( true ) );
-                } else {
-                    attrMap.add( YCPString("substring"), YCPBoolean( false ) );
-                }
-                attrMap.add( YCPString("presence"), YCPBoolean( true ) );
 
                 // FIXME: how should "approx" indexing be handled, create 
                 //        whitelist based upon syntaxes?
                 
-                resList.add( attrMap );
+                resMap.add( YCPString( j->getName() ), attrMap );
             }
         }
-        return resList;
+        return resMap;
     }
     return YCPNull();
 }
