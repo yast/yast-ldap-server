@@ -1011,6 +1011,7 @@ define boolean cb_read_bdb_index()
             substrIdx = _("Yes");
         }
         newItems = add( newItems, `item( `id(i), attr, presIdx, eqIdx, substrIdx, approxIdx ) );
+        i = i+1;
     } );
     UI::ChangeWidget( `tab_idx, `Items , newItems );
 
@@ -1021,16 +1022,27 @@ define boolean cb_input_bdb_index()
 {
     y2milestone("cb_input_bdb_index, handlercmd: %1", handler_cmd);
     integer index = (integer) widget_map[current_tree_item, "index"]:nil;
-    if ( handler_cmd == `pb_idx_add )
+    if ( handler_cmd == `pb_idx_add || handler_cmd == `pb_idx_edit )
     {
+        list<string> skip = [];
+        string editAttr = "";
+        map<string, boolean> idx = $[];
         map<string, map<string, boolean> > idxMap = LdapServer::GetDatabaseIndexes( index );
-        list<string> skip = []; // skip attribute that already have an index defined
-        foreach( string attr, map<string, boolean> idx, idxMap,
-            {
-                skip = add( skip, attr );
-            }
-        );
-        map<string, any> newIdx = AddIndexPopup(skip);
+        if (handler_cmd == `pb_idx_add ) {
+            // skip attribute that already have an index defined
+            foreach( string attr, map<string, boolean> idx, idxMap,
+                {
+                    skip = add( skip, attr );
+                }
+            );
+        } else {
+            any current_item_id = UI::QueryWidget(`tab_idx, `CurrentItem );
+            editAttr = (string)UI::QueryWidget(`tab_idx, `Cell( current_item_id, 0 ) );
+            idx = idxMap[editAttr]:$[];
+            y2milestone("Selected Attr: %1 %2 %3", current_item_id, editAttr, idx );
+        }
+
+        map<string, any> newIdx = DatabaseIndexPopup(skip, editAttr, idx);
         if ( size(newIdx) > 0 )
         {
             LdapServer::ChangeDatabaseIndex( index, newIdx );

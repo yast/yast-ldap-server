@@ -647,7 +647,12 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     {
                         idx.push_back(Sub);
                     }
-                    (*i)->addIndex(attr, idx);
+                    if ( ( idx.empty()) || ( ! (*i)->getDatabaseIndex(attr).empty() ) ) {
+                        (*i)->deleteIndex( attr );
+                    }
+                    if ( ! idx.empty() ) {
+                        (*i)->addIndex(attr, idx);
+                    }
                 }
             }
             break;
