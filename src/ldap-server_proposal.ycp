@@ -15,7 +15,6 @@
 textdomain "ldap-server";
 
 import "LdapServer";
-import "LdapServerConf";
 import "Ldap";
 import "HTML";
 import "Label";
@@ -47,9 +46,9 @@ if(func == "MakeProposal") {
     map <string,any> defaults = nil;
 
 
-    if( force_reset || !LdapServerConf::proposal_changed )
+    if( force_reset || LdapServer::UseDefaults() )
     {
-        if (force_reset && LdapServerConf::wroteDatabase)
+        if ( force_reset && LdapServer::Configured() )
         {
             /* error popup */
             Report::Warning( _("The LDAP database has already been created. You can change the settings later in the installed system.") );
@@ -88,7 +87,7 @@ if(func == "MakeProposal") {
             warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
             warning_level = `blocker;
         }
-        // Try to get Firewall status 
+        // Try to get Firewall status
         string fw_text = "";
         if ( SuSEFirewall::GetEnableService()) {
                 list<string> known_interfaces = SuSEFirewall::GetListOfKnownInterfaces();
@@ -124,7 +123,7 @@ if(func == "MakeProposal") {
                                    _("LDAP Password: ") + rootPWString
                                  ] ) +
                    _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
-                   _("Register at SLP Daemon: ") + HTML::Bold( LdapServerConf::registerSLP ? _("YES") : _("NO") ) +
+                   _("Register at SLP Daemon: ") + HTML::Bold( LdapServer::ReadSLPEnabled() ? _("YES") : _("NO") ) +
                    HTML::Newline() +
                   fw_text;
     } else {
@@ -142,7 +141,7 @@ if(func == "MakeProposal") {
 else if(func == "AskUser") {
     map stored = nil;
     symbol seq = nil;
-    if( LdapServerConf::wroteDatabase )
+    if( LdapServer::Configured() )
     {
                     /* error popup */
         Report::Warning( _("The LDAP database has already been created. You can change the settings later in the installed system.") );
@@ -171,8 +170,7 @@ else if(func == "Description") {
 }
 /* write the proposal */
 else if(func == "Write") {
-    if( LdapServerConf::wroteDatabase ) return ret;
-    LdapServerConf::wroteDatabase = true;
+    if( LdapServer::Configured() ) return ret;
 
     if( LdapServer::ReadServiceEnabled() )
     {
@@ -195,58 +193,20 @@ without installing the required packages."));
         Progress::off();
         LdapServer::ReadFromDefaults();
         LdapServer::SetServiceEnabled( true );
-//        LdapServer::WriteLoglevel( 0 );
+        LdapServer::SetLogLevels( ["none"] );
         Progress::on();
-//        map ldap_defaults = Ldap::Export();
-//        y2debug( "ldap settings map: %1", ldap_defaults );
-//
-//        //map bash_out = (map<string,any>)SCR::Execute( .target.bash_output, "/bin/hostname --long" );
-//        //string fqdn = (string)bash_out["stdout"]:"";
-//        //fqdn = substring( fqdn, 0, size(fqdn)-1 );
-//
-//        ldap_defaults["ldap_server"] = "localhost";
-//        ldap_defaults["base_config_dn"] = "ou=ldapconfig,"+LdapServerConf::baseDN;
-//        ldap_defaults["bind_dn"] = LdapServerConf::rootDN;
-//        ldap_defaults["ldap_domain"] = LdapServerConf::baseDN;
-//        ldap_defaults["ldap_tls"] = false;
-//        ldap_defaults["file_server"] = true;
-//        ldap_defaults["create_ldap"] = true;
-//
-//        if( LdapServerConf::useCommonCA )
-//        {
-//            if( !YaPI::LdapServer::CheckCommonServerCertificate() )
-//            {
-//                               /* Error popup */
-//                Report::Error( _("OpenLDAP Server: Common server certificate not available.
-//StartTLS is disabled.") );
-//                LdapServerConf::useCommonCA = false;
-//                ldap_defaults["ldap_tls"] = false;
-//            } else
-//            {
-//                LdapServer::WriteConfigureCommonServerCertificate( true );
-//                ldap_defaults["ldap_tls"] = true;
-//            }
-//        }
-//
-//        LdapServer::WriteSLPEnabled( LdapServerConf::registerSLP );
-//
-//        LdapServer::AddDatabase( $[ "database":"bdb",
-//                                    "suffix": LdapServerConf::baseDN,
-//                                    "rootdn" : LdapServerConf::rootDN,
-//                                    "passwd" : LdapServerConf::rootPW,
-//                                    "cryptmethod" : LdapServerConf::enctype,
-//                                    "directory" : "/var/lib/ldap"
-//                                  ] );
-//        y2debug( "ldap settings map after setting: %1", ldap_defaults );
-//        Ldap::SetDefaults( ldap_defaults );
-//        Ldap::SetBindPassword( LdapServerConf::rootPW );
-//    }
-//
+        if( !LdapServer::HaveCommonServerCertificate() )
+        {
+            Report::Error( _("OpenLDAP Server: Common server certificate not available.
+StartTLS is disabled.") );
+        }
+        else
+        {
+            LdapServer::SetTlsConfigCommonCert();
+        }
+        LdapServer::SetSLPEnabled( true );
         LdapServer::Write();
     }
-//
-//    //be paranoid
-//    LdapServerConf::rootPW = "";
 }
 /* unknown function */
 else {

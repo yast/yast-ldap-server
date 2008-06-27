@@ -15,7 +15,6 @@ import "CWMFirewallInterfaces";
 import "Label";
 import "Wizard";
 import "LdapServer";
-//import "LdapServerConf";
 import "HTML";
 import "DNS";
 import "CaMgm";
@@ -298,13 +297,6 @@ any ProposalDialog()
     Wizard::SetContentsButtons( caption, dlg_propose, HELPS["propose"]:"<p><b>no proposal help text</b></p>",
         Label::BackButton(), Label::NextButton() );
 
-//    if( !LdapServerConf::proposal_changed )
-//    {
-//                /* notify message */
-//        Popup::Notify( _("Changing anything in this dialog disables the automatic
-//generation of base DN, root DN, and LDAP password.
-//") );
-//    }
     if ( ! (boolean)defaults["serviceEnabled"]:false )
     {
         UI::ChangeWidget( `id( `te_basedn ), `Enabled, false );

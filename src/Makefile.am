@@ -21,8 +21,7 @@ desktop_DATA =			\
 	ldap-server.desktop
 
 module_DATA =			\
-	LdapServer.pm       \
-    	LdapServerConf.ycp
+	LdapServer.pm
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
 
