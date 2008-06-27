@@ -49,6 +49,9 @@ class SlapdConfigAgent : public SCRAgent {
         YCPBoolean WriteGlobal( const YCPPath &path,
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
+        YCPBoolean WriteDatabase( const YCPPath &path,
+                             const YCPValue &arg = YCPNull(),
+                             const YCPValue &opt = YCPNull());
         YCPString ConfigToLdif() const;
 
     private:

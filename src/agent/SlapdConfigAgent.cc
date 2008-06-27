@@ -96,6 +96,9 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     } else if ( path->component_str(0) == "global" ) {
         y2milestone("Global Write");
         return WriteGlobal(path->at(1), arg, arg2);
+    } else if ( path->component_str(0) == "database" ) {
+        y2milestone("Database Write");
+        return WriteDatabase(path->at(1), arg, arg2);
     } else {
         return YCPNull();
     }
@@ -190,6 +193,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             }
         }
     }
+    else if ( path->component_str(0) == "commitChanges" )
+    {
+        OlcDatabaseList::const_iterator i;
+        for ( i = databases.begin(); i != databases.end() ; i++ )
+        {
+            olc.updateEntry(**i);
+        }
+    }
     return YCPBoolean(true);
 }
 
@@ -278,12 +289,28 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
 {
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
-    int index = arg->asInteger()->value();
-    y2milestone("Database to read: %d", index);
+    std::string dbIndexStr = path->component_str(0);
+    int dbIndex = -2;
+    if ( dbIndexStr[0] == '{' )
+    {
+        std::string::size_type pos = dbIndexStr.find('}');
+        std::istringstream indexstr(dbIndexStr.substr(1, pos-1));
+        indexstr >> dbIndex;
+    } else {
+        y2error("Database Index expected, got: %s", dbIndexStr.c_str() );
+        return YCPNull();
+    }
+    if ( dbIndex < -1 )
+    {
+        y2error("Invalid database index: %d", dbIndex );
+        return YCPNull();
+    }
+
+    y2milestone("Database to read: %d", dbIndex);
     OlcDatabaseList::const_iterator i;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
-        if ( (*i)->getIndex() == index ) 
+        if ( (*i)->getIndex() == dbIndex ) 
         {
             YCPMap resMap;
             resMap.add( YCPString("suffix"), 
@@ -319,6 +346,46 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             globals->setLogLevel( levelList );
             //olc.setGlobals(olcg);
             return YCPBoolean(true);
+        }
+    }
+    return YCPBoolean(false);
+}
+
+YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
+                                    const YCPValue &arg,
+                                    const YCPValue &arg2)
+{
+    y2milestone("Path %s Length %ld ", path->toString().c_str(),
+                                      path->length());
+    std::string dbIndexStr = path->component_str(0);
+    YCPMap changesMap= arg->asMap();
+    int dbIndex = -2;
+    if ( dbIndexStr[0] == '{' )
+    {
+        std::string::size_type pos = dbIndexStr.find('}');
+        std::istringstream indexstr(dbIndexStr.substr(1, pos-1));
+        indexstr >> dbIndex;
+    } else {
+        y2error("Database Index expected, got: %s", dbIndexStr.c_str() );
+        return YCPNull();
+    }
+    if ( dbIndex < -1 )
+    {
+        y2error("Invalid database index: %d", dbIndex );
+        return YCPNull();
+    }
+
+    y2milestone("Database to write: %d", dbIndex);
+    OlcDatabaseList::const_iterator i;
+    for ( i = databases.begin(); i != databases.end() ; i++ )
+    {
+        if ( (*i)->getIndex() == dbIndex ) 
+        {
+            YCPValue val =  changesMap.value( YCPString("rootdn") );
+            if ( val->isString() )
+            {
+                (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
+            }
         }
     }
     return YCPBoolean(false);
