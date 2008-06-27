@@ -130,6 +130,12 @@ OlcGlobalConfig::OlcGlobalConfig() : OlcConfigEntry()
     m_dbEntryChanged.addAttribute(LDAPAttribute("cn", "config"));
 }
 
+OlcGlobalConfig::OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le)
+{
+    std::cout << "OlcGlobalConfig::OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le)" << std::endl;
+
+}
+
 const std::vector<std::string> OlcGlobalConfig::getLogLevelString() const
 {
     StringList lvalues = this->getStringValues("olcLogLevel");
@@ -248,8 +254,15 @@ OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
     m_dbEntryChanged.addAttribute(LDAPAttribute("cn", "schema"));
 }
 
-OlcTlsSettings OlcGlobalConfig::getTlsSettings() const {
-    return OlcTlsSettings( m_dbEntryChanged );
+OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
+{
+    std::cout << "OlcTlsSettings OlcGlobalConfig::getTlsSettings() const " << std::endl;
+    return OlcTlsSettings( *this );
+}
+
+void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
+{
+    tls.applySettings( *this );
 }
 
 std::map<std::string, std::list<std::string> > OlcGlobalConfig::toMap() const
@@ -697,7 +710,9 @@ OlcDatabaseList OlcConfig::getDatabases()
 }
 
 OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
+    : m_crlCheck(0), m_verifyCient(0)
 {
+    std::cout << "OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )" << std::endl;
     std::string value = ogc.getStringValue("olcTLSCRLCheck");
     if ( value == "none" )
     {
@@ -731,6 +746,19 @@ OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
 
     m_caCertDir = ogc.getStringValue("olcTlsCaCertificatePath");
     m_caCertFile = ogc.getStringValue("olcTlsCaCertificateFile");
+    m_certFile = ogc.getStringValue("olcTlsCertificateFile");
+    m_certKeyFile = ogc.getStringValue("olcTlsCertificateKeyFile");
+    m_crlFile = ogc.getStringValue("olcTlsCrlFile");
+}
+
+void OlcTlsSettings::applySettings( OlcGlobalConfig &ogc ) const
+{
+    std::cout << "OlcTlsSettings::applySettings( OlcGlobalConfig &ogc )" << std::endl;
+    ogc.setStringValue("olcTlsCaCertificatePath", m_caCertDir);
+    ogc.setStringValue("olcTlsCaCertificateFile", m_caCertFile);
+    ogc.setStringValue("olcTlsCertificateFile", m_certFile);
+    ogc.setStringValue("olcTlsCertificateKeyFile", m_certKeyFile);
+    ogc.setStringValue("olcTlsCrlFile", m_crlFile);
 }
 
 int OlcTlsSettings::getCrlCheck() const
@@ -759,6 +787,44 @@ const std::string& OlcTlsSettings::getCaCertDir() const
 const std::string& OlcTlsSettings::getCaCertFile() const 
 {
     return m_caCertFile;
+}
+
+const std::string& OlcTlsSettings::getCertFile() const 
+{
+    return m_certFile;
+}
+const std::string& OlcTlsSettings::getCertKeyFile() const 
+{
+    return m_certKeyFile;
+}
+const std::string& OlcTlsSettings::getCrlFile() const 
+{
+    return m_crlFile;
+}
+
+void OlcTlsSettings::setCaCertDir(const std::string& dir)
+{
+    m_caCertDir = dir;
+}
+
+void OlcTlsSettings::setCaCertFile(const std::string& file)
+{
+    m_caCertFile = file;
+}
+
+void OlcTlsSettings::setCertFile(const std::string& file)
+{
+    m_certFile = file;
+}
+
+void OlcTlsSettings::setCertKeyFile(const std::string& file)
+{
+    m_certKeyFile = file;
+}
+
+void OlcTlsSettings::setCrlFile(const std::string& file)
+{
+    m_crlFile = file;
 }
 
 /*

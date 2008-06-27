@@ -311,6 +311,7 @@ define boolean cb_check_tls()
 define boolean cb_read_tls()
 ``{
     y2milestone( "calling tls read handler" );
+    LdapServer::GetTlsConfig();
 //    map<string,string> importPaths = LdapServer::ReadImportCertificates();
 //    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
 //    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
@@ -361,19 +362,37 @@ define boolean cb_read_tls()
 define boolean cb_write_tls()
 ``{
     y2milestone( "calling tls write handler" );
-    symbol tls_active = (symbol)UI::QueryWidget( `rbg_tls, `CurrentButton );
-    if( tls_active == `rb_no )
+    boolean tls_active = (boolean)UI::QueryWidget( `cb_tls_enabled, `Value );
+    if( tls_active == true )
     {
-    y2milestone( "calling tls write handler" );
+        string cafile = (string)UI::QueryWidget( `te_ca_file, `Value );
+
+        map<string,any> tlsSettings = $[
+                "certKeyFile" : (string)UI::QueryWidget( `te_key_file, `Value ),
+                "certFile"    : (string)UI::QueryWidget( `te_cert_file, `Value ),
+                "caCertFile"  : (string)UI::QueryWidget( `te_ca_file, `Value ),
+                "caCertDir"  : "",
+                "crlFile"    : "",
+                "crlCheck"   : 0,
+                "verifyClient" : 0
+            ];
+        LdapServer::SetTlsConfig( tlsSettings );
+    }
+    else
+    {
 //        LdapServer::WriteConfigureCommonServerCertificate( false );
 //        LdapServer::WriteImportCertificates( $[] );
-//        map<string,string> tlsSettings = $[
-//                "TLSCertificateKeyFile" : nil,
-//                "TLSCertificateFile"    : nil,
-//                "TLSCACertificateFile"  : nil,
-//                "TLSCACertificatePath"  : nil ];
-//
-//        LdapServer::WriteTlsSettings( tlsSettings );
+        map<string,any> tlsSettings = $[
+                "certKeyFIle" : "",
+                "certFile"    : "",
+                "caCertFile"  : "",
+                "caCertDir"  : "",
+                "crlFile"    : "",
+                "crlCheck"   : 0,
+                "verifyClient" : 0
+            ];
+
+        LdapServer::SetTlsConfig( tlsSettings );
     }
     return true;
 }
@@ -423,10 +442,28 @@ define boolean cb_input_tls()
             UI::ChangeWidget( `fr_import_cert, `Enabled, true );
         }
     }
+    else if( handler_cmd == `pb_ca_file )
+    {
+                                                /* file selection headline */
+        string name = UI::AskForExistingFile( "/etc/ssl/certs", "*.pem *.crt *", _("Select CA Certificate File") );
+        if( name != nil ) UI::ChangeWidget( `te_ca_file, `Value, name );
+    }
+    else if( handler_cmd == `pb_cert_file )
+    {
+                                                /* file selection headline */
+        string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate File") );
+        if( name != nil ) UI::ChangeWidget( `te_cert_file, `Value, name );
+    }
+    else if( handler_cmd == `pb_key_file )
+    {
+                                                /* file selection headline */
+        string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate Key File") );
+        if( name != nil ) UI::ChangeWidget( `te_key_file, `Value, name );
+    }
     else if( handler_cmd == `pb_edit )
     {
 //        //show edit popup
-//        any ret = nil;
+        any ret = nil;
 //        string dlg_name = common_ca_available ? "type" : "import";
 //        term dlg = (term)widget_map["g_tls","dialogs",dlg_name]:nil;
 //        if( dlg == nil )
