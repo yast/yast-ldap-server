@@ -301,9 +301,9 @@
                     )
                 ),
                 `VSpacing( 0.5 ),
-                    `Left(
-                        `PushButton( `id( `pb_changepw ), _("Change Password") )
-                    ),
+                `Left(
+                    `PushButton( `id( `pb_changepw ), _("Change Password") )
+                ),
                 `VSpacing( 0.5 ),
                 `Left(
                     `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
