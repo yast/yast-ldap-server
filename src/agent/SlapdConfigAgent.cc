@@ -844,42 +844,48 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             break;
                         }
                     }
-                    boost::shared_ptr<OlcOverlay> ppolicyOlc;
-                    if ( j == overlays.end() )
-                    {
-                        y2milestone("New Overlay added");
-                        boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
-                        ppolicyOlc = tmp;
-                        (*i)->addOverlay(ppolicyOlc);
-                    }
-                    else
-                    {
-                        y2milestone("Update existing Overlay");
-                        ppolicyOlc = *j;
-                    }
                     YCPMap argMap = arg->asMap();
-                    y2milestone("Mapsize: %ld", argMap.size());
-                    if ( argMap.size() == 0 ){
-                        y2milestone("Delete ppolicy overlay");
-                        ppolicyOlc->clearChangedEntry();
-                    } else {
-                        ppolicyOlc->setStringValue("olcPpolicyDefault", 
-                            argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
-                        if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                    if ( j == overlays.end() && argMap.size() == 0 )
+                    {
+                        y2milestone("Empty overlay nothing to do");
+                    }
+                    else 
+                    {
+                        boost::shared_ptr<OlcOverlay> ppolicyOlc;
+                        if ( j == overlays.end() )
                         {
-                            ppolicyOlc->setStringValue("olcPpolicyUseLockout", "TRUE");
+                            y2milestone("New Overlay added");
+                            boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
+                            ppolicyOlc = tmp;
+                            (*i)->addOverlay(ppolicyOlc);
                         }
                         else
                         {
-                            ppolicyOlc->setStringValue("olcPpolicyUseLockout", "FALSE");
+                            y2milestone("Update existing Overlay");
+                            ppolicyOlc = *j;
                         }
-                        if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
-                        {
-                            ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "TRUE");
-                        }
-                        else
-                        {
-                            ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                        if ( argMap.size() == 0 ){
+                            y2milestone("Delete ppolicy overlay");
+                            ppolicyOlc->clearChangedEntry();
+                        } else {
+                            ppolicyOlc->setStringValue("olcPpolicyDefault", 
+                                argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
+                            if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                            {
+                                ppolicyOlc->setStringValue("olcPpolicyUseLockout", "TRUE");
+                            }
+                            else
+                            {
+                                ppolicyOlc->setStringValue("olcPpolicyUseLockout", "FALSE");
+                            }
+                            if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
+                            {
+                                ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "TRUE");
+                            }
+                            else
+                            {
+                                ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                            }
                         }
                     }
                     ret = true;
