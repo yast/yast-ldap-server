@@ -264,15 +264,15 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     y2milestone("ConfigToLdif");
     std::list<boost::shared_ptr<OlcDatabase> >::const_iterator i = databases.begin();
     std::ostringstream ldif;
-    ldif << globals->toLdif();
-    ldif << schemaBase->toLdif();
+    ldif << globals->toLdif() << std::endl;
+    ldif << schemaBase->toLdif() << std::endl;
     LdifWriter writer(ldif);
     writer.writeIncludeRecord("/etc/openldap/schema/core.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/cosine.ldif");
     writer.writeIncludeRecord("/etc/openldap/schema/inetorgperson.ldif");
     for ( ; i != databases.end(); i++ )
     {
-        ldif << (*i)->toLdif();
+        ldif << (*i)->toLdif() << std::endl;
     }
     return YCPString(ldif.str());
 }
