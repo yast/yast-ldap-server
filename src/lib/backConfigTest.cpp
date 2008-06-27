@@ -171,14 +171,18 @@ void OlcGlobalConfig::setLogLevel(int level) {
     m_dbEntryChanged.replaceAttribute(attr);
 }
 
-void OlcGlobalConfig::setLogLevel(std::string level) {
+void OlcGlobalConfig::setLogLevel(const std::list<std::string> &level) {
     const LDAPAttribute *sattr = m_dbEntryChanged.getAttributeByName("olcloglevel");
-    LDAPAttribute attr;
+    LDAPAttribute attr( "olcloglevel" );
     if ( sattr ) {
         attr = *sattr;
     }
     StringList values;
-    values.add(level);
+    std::list<std::string>::const_iterator i = level.begin();
+    for(; i != level.end(); i++ )
+    {
+        values.add(*i);
+    }
     attr.setValues(values);
     m_dbEntryChanged.replaceAttribute(attr);
 }

@@ -319,6 +319,17 @@ sub GetLogLevels
     return \@loglevel;
 }
 
+BEGIN { $TYPEINFO {SetLogLevels} = ["function", "boolean", [ "list", "string" ] ]; }
+sub SetLogLevels
+{
+    my $self = shift;
+    my $lvls = shift;
+    @loglevel = @{$lvls};
+
+    SCR->Write('.ldapserver.global.loglevel', $lvls );
+    return 1;
+}
+
 BEGIN { $TYPEINFO {MigrateSlapdConf} = ["function", "boolean"]; }
 sub MigrateSlapdConf
 {
