@@ -57,11 +57,15 @@ class SlapdConfigAgent : public SCRAgent {
         YCPBoolean WriteDatabase( const YCPPath &path,
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
+        YCPBoolean WriteSchema( const YCPPath &path,
+                             const YCPValue &arg = YCPNull(),
+                             const YCPValue &opt = YCPNull());
         YCPString ConfigToLdif() const;
 
     private:
         OlcConfig olc;
         OlcDatabaseList databases;
+        OlcSchemaList schema;
         boost::shared_ptr<OlcGlobalConfig> globals;
         boost::shared_ptr<OlcSchemaConfig> schemaBase;
 };

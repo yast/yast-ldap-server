@@ -6,6 +6,7 @@
 #include <LDAPEntry.h>
 #include <SaslInteraction.h>
 #include <sstream>
+#include <fstream>
 
 #define DEFAULT_PORT 389
 #define ANSWER	42
@@ -104,6 +105,9 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     } else if ( path->component_str(0) == "database" ) {
         y2milestone("Database Write");
         return WriteDatabase(path->at(1), arg, arg2);
+    } else if ( path->component_str(0) == "schema" ) {
+        y2milestone("Schema Write");
+        return WriteSchema(path->at(1), arg, arg2);
     } else {
         return YCPNull();
     }
@@ -207,6 +211,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         for ( i = databases.begin(); i != databases.end() ; i++ )
         {
             olc.updateEntry(**i);
+        }
+        OlcSchemaList::const_iterator j;
+        for ( j = schema.begin(); j != schema.end() ; j++ )
+        {
+            olc.updateEntry(**j);
         }
     }
     return YCPBoolean(true);
@@ -372,20 +381,19 @@ YCPValue SlapdConfigAgent::ReadSchemaList( const YCPPath &path,
 {
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
-
-    OlcSchemaList schemaList = olc.getSchemaNames();
-//    if ( databases.size() == 0 )
-//    {
-//        databases = olc.getDatabases();
-//    }
-    OlcSchemaList::const_iterator i;
-    YCPList schema;
-    for (i = schemaList.begin(); i != schemaList.end(); i++ )
+    if ( schema.size() == 0 )
     {
-        schema.add( YCPString( (*i)->getName() ) );
+        schema = olc.getSchemaNames();
     }
-    return schema;
+    OlcSchemaList::const_iterator i;
+    YCPList resultList;
+    for (i = schema.begin(); i != schema.end(); i++ )
+    {
+        resultList.add( YCPString( (*i)->getName() ) );
+    }
+    return resultList;
 }
+
 YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &arg2)
@@ -519,6 +527,31 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
             {
                 (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
             }
+        }
+    }
+    return YCPBoolean(false);
+}
+
+YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
+                                    const YCPValue &arg,
+                                    const YCPValue &arg2)
+{
+    y2milestone("Path %s Length %ld ", path->toString().c_str(),
+                                      path->length());
+
+    y2milestone("WriteSchema");
+    std::string subpath = path->component_str(0);
+    if ( subpath == "addFromLdif" )
+    {
+        std::string filename = arg->asString()->value_cstr();
+        y2milestone("adding Ldif File: %s", filename.c_str());
+        std::ifstream ldifFile(filename.c_str());
+        LdifReader ldif(ldifFile);
+        if ( ldif.readNextRecord() )
+        {
+            LDAPEntry entry, oldEntry;
+            entry = ldif.getEntryRecord();
+            schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
         }
     }
     return YCPBoolean(false);

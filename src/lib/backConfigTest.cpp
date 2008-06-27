@@ -269,6 +269,21 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
         entryIndex = 0;
     }
 }
+OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : OlcConfigEntry(e1, e2)
+{
+    std::cout << "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)" << std::endl;
+    std::string name(this->getStringValue("cn"));
+    if ( name[0] == '{' )
+    {
+        std::string::size_type pos = name.find('}');
+        std::istringstream indexstr(name.substr(1, pos-1));
+        indexstr >> entryIndex;
+        m_name = name.substr( pos+1, std::string::npos );
+    } else {
+        m_name = name;
+        entryIndex = 0;
+    }
+}
 
 const std::string& OlcSchemaConfig::getName() const
 {
@@ -566,9 +581,16 @@ std::string OlcConfigEntry::toLdif() const
     return ldifStream.str();
 }
 
+bool OlcConfigEntry::isNewEntry() const
+{
+    return ( this->getDn().empty() );
+}
+
 LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
     LDAPModList modifications;
+    std::cout << "Old Entry DN: " << m_dbEntry.getDN() << std::endl;
+    std::cout << "New Entry DN: " << m_dbEntryChanged.getDN() << std::endl;
     for(; i != m_dbEntry.getAttributes()->end(); i++ )
     {
         std::cout << i->getName() << std::endl;
@@ -698,11 +720,16 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
 void OlcConfig::updateEntry( const OlcConfigEntry &oce )
 {
     try {
-        LDAPModList ml = oce.entryDifftoMod();
-        if ( ! ml.empty() ) {
-            m_lc->modify( oce.getDn(), &ml );
+        if ( oce.isNewEntry () ) 
+        {
+            m_lc->add(&oce.getChangedEntry());
         } else {
-            std::cout << oce.getDn() << ": no changes" << std::endl;
+            LDAPModList ml = oce.entryDifftoMod();
+            if ( ! ml.empty() ) {
+                m_lc->modify( oce.getDn(), &ml );
+            } else {
+                std::cout << oce.getDn() << ": no changes" << std::endl;
+            }
         }
     } catch (LDAPException e) {
         std::cout << e << std::endl;
