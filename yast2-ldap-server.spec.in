@@ -16,8 +16,14 @@ Summary:	Configuration of the OpenLDAP server
 @INSTALL@
 rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.la
 rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.so
+rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.la
+rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.so
 
 @CLEAN@
+
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
 
 %files
 %defattr(-,root,root)

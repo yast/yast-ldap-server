@@ -1,8 +1,8 @@
 #
 # Makefile.am for SlapdConfig agent
 #
-AM_CPPFLAGS= -I$(top_srcdir)/src/lib
-AM_CXXFLAGS = -DY2LOG=\"agent-slapdconfig\" -Wall -I/usr/include/YaST2
+AM_CPPFLAGS= -I$(top_srcdir)/src/lib  -I/usr/include/YaST2
+AM_CXXFLAGS = -DY2LOG=\"agent-slapdconfig\" -Wall
 plugin_LTLIBRARIES = libpy2ag_slapdconfig.la
 noinst_LTLIBRARIES = liby2ag_slapdconfig.la
 
