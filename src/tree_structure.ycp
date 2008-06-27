@@ -79,6 +79,7 @@ void update_schemalist( list<string> l, string select_item )
     if( l == nil ) l = [];
     //widget_map["g_schema","inclist"] = l;
     UI::ChangeWidget( `sb_schemalist, `Items, l );
+    UI::ChangeWidget( `pb_delete, `Enabled, false );
     if( select_item != nil )
     {
         UI::ChangeWidget( `sb_schemalist, `CurrentItem, select_item );
