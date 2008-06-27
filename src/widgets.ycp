@@ -338,9 +338,10 @@
             )
         );
     term editPolicy =
-        `VBox(
-            `VSpacing( 1 ),
-            `Frame( _("Password Policy Settings"),
+        `Top(
+            `VBox(
+                `VSpacing( 1 ),
+                `Heading( _("Password Policy Settings") ),
                 `VBox( `VSpacing(0.25),
                     `HBox(
                         `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
@@ -362,7 +363,8 @@
                     ),
                     `VSquash(
                         `HBox(
-                            `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                            `InputField( `id( `te_ppolicy_defaultpolicy ),
+                                `opt( `hstretch ),
                                 _("Default Policy Object DN"), "cn=Default Policy"
                             ),
                             `HSpacing( 0.5 ),
