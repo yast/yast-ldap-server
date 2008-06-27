@@ -195,63 +195,71 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             YCPMap dbMap = dbList->value(i)->asMap();
             std::string dbtype(dbMap->value(YCPString("type"))->asString()->value_cstr());
             y2milestone("Database Type: %s", dbtype.c_str());
+            boost::shared_ptr<OlcDatabase> db;
             if ( dbtype == "bdb" )
             {
-                boost::shared_ptr<OlcBdbDatabase> db(new OlcBdbDatabase() );
-                db->setIndex(i);
-                YCPMapIterator j = dbMap.begin();
-                for ( ; j != dbMap.end(); j++ )
+                db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase() );
+            } 
+            else
+            {
+                db = boost::shared_ptr<OlcDatabase>( new OlcDatabase(dbtype.c_str()) );
+            }
+            db->setIndex(i-1);
+            YCPMapIterator j = dbMap.begin();
+            for ( ; j != dbMap.end(); j++ )
+            {
+                y2milestone("Key: %s, Valuetype: %s",
+                    j.key()->asString()->value_cstr(),
+                    j.value()->valuetype_str() );
+                if ( std::string("suffix") == j.key()->asString()->value_cstr() )
                 {
-                    if ( std::string("suffix") == j.key()->asString()->value_cstr() )
+                    db->setSuffix( j.value()->asString()->value_cstr() );
+                    continue;
+                }
+                else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+                {
+                    db->setRootDn( j.value()->asString()->value_cstr() );
+                    continue;
+                }
+                else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+                {
+                    db->setRootPw( j.value()->asString()->value_cstr() );
+                    continue;
+                }
+                else if (std::string("access") == j.key()->asString()->value_cstr() )
+                {
+                    YCPList aclList = j.value()->asList();
+                    for ( int k=0 ; k < aclList.size(); k++ )
                     {
-                        db->setSuffix( j.value()->asString()->value_cstr() );
+                        db->addStringValue( "olcAccess", aclList.value(k)->asString()->value_cstr() );
                     }
-                    else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+                    continue;
+                }
+                if ( dbtype == "bdb" )
+                {
+                    boost::shared_ptr<OlcBdbDatabase> bdb = 
+                        boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
+                    if (std::string("directory") == j.key()->asString()->value_cstr() )
                     {
-                        db->setRootDn( j.value()->asString()->value_cstr() );
-                    }
-                    else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
-                    {
-                        db->setRootPw( j.value()->asString()->value_cstr() );
-                    }
-                    else if (std::string("directory") == j.key()->asString()->value_cstr() )
-                    {
-                        db->setDirectory( j.value()->asString()->value_cstr() );
+                        bdb->setDirectory( j.value()->asString()->value_cstr() );
                     }
                     else if (std::string("entrycache") == j.key()->asString()->value_cstr() )
                     {
-                        db->setStringValue( "olcDbCachesize", j.value()->asString()->value_cstr() );
+                        bdb->setEntryCache( j.value()->asInteger()->value() );
                     }
                     else if (std::string("idlcache") == j.key()->asString()->value_cstr() )
                     {
-                        db->setStringValue( "olcDbIdlCachesize", j.value()->asString()->value_cstr() );
+                        bdb->setIdlCache( j.value()->asInteger()->value() );
+                    }
+                    else if (std::string("checkpoint") == j.key()->asString()->value_cstr() )
+                    {
+                        YCPList cpList = j.value()->asList();
+                        bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
+                                cpList->value(1)->asInteger()->value() );
                     }
                 }
-                databases.push_back(db);
             }
-            else
-            {
-                y2error("Database Type \"%s\" not supported. Trying to use generic Database class", dbtype.c_str());
-                boost::shared_ptr<OlcDatabase> db(new OlcDatabase(dbtype.c_str()) );
-                db->setIndex(i);
-                YCPMapIterator j = dbMap.begin();
-                for ( ; j != dbMap.end(); j++ )
-                {
-                    if ( std::string("suffix") == j.key()->asString()->value_cstr() )
-                    {
-                        db->setSuffix( j.value()->asString()->value_cstr() );
-                    }
-                    else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
-                    {
-                        db->setRootDn( j.value()->asString()->value_cstr() );
-                    }
-                    else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
-                    {
-                        db->setRootPw( j.value()->asString()->value_cstr() );
-                    }
-                }
-                databases.push_back(db);
-            }
+            databases.push_back(db);
         }
     }
     else if ( path->component_str(0) == "commitChanges" )
@@ -829,7 +837,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         ppolicyOlc = *j;
                     }
                     YCPMap argMap = arg->asMap();
-                    y2milestone("Mapsize: %d", argMap.size());
+                    y2milestone("Mapsize: %ld", argMap.size());
                     if ( argMap.size() == 0 ){
                         y2milestone("Delete ppolicy overlay");
                         ppolicyOlc->clearChangedEntry();
