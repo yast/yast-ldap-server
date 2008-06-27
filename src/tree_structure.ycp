@@ -725,8 +725,8 @@ define boolean cb_input_databases()
 
 define boolean cb_check_db()
 ``{
-    string suffix =(string)widget_map[current_tree_item,"name"]:nil;
-    y2milestone( "calling db check handler for suffix '%1'", suffix );
+    string label =(string)widget_map[current_tree_item,"name"]:nil;
+    y2milestone( "calling db check handler for suffix '%1'", label );
 
     string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
     if( rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
@@ -757,7 +757,8 @@ define boolean cb_write_db()
 
     if( db["rootdn"]:"" != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
     {
-        string suffix = (string)widget_map[current_tree_item,"name"]:"";
+        map<string,string> olddb = LdapServer::GetDatabase(index);
+        string suffix =  olddb["suffix"]:"";
         db["rootdn"] = db["rootdn"]:"" + "," + suffix;
     }
 
@@ -971,6 +972,7 @@ define boolean cb_input_db()
 ``{
     string suffix = current_tree_item;
     y2milestone( "calling db input handler for suffix '%1'", suffix );
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     if ( handler_cmd == `cb_ppolicy_overlay ) {
         if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
@@ -981,7 +983,21 @@ define boolean cb_input_db()
             UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
         }
+    } else if ( handler_cmd == `pb_changepw ) {
+        map<string,string> newpw = ChangeAdminPassword();
+        if ( newpw != nil )
+        {
+            y2milestone("set password");
+            string newhash = LdapServer::HashPassword(newpw["hashAlgo"]:"", newpw["password"]:"");
+            y2milestone("new hash: %1", newhash );
+            LdapServer::UpdateDatabase( index, $[ "rootpw" : newhash] );
+        }
+        else
+        {
+            y2milestone("password change cancelled");
+        }
     }
+
     return true;
 }
 
@@ -1139,7 +1155,7 @@ widget_map = $[
  *      tree generation functions       **
  *****************************************/
 
-void addDatabaseWidgetMap( string suffix, string item_name, integer index, boolean new_db )
+void addDatabaseWidgetMap( string label, string item_name, integer index, boolean new_db )
 {
     if( haskey( widget_map, item_name ) ) return;
     map<string, any> dbIndex = $[
@@ -1150,7 +1166,7 @@ void addDatabaseWidgetMap( string suffix, string item_name, integer index, boole
         "cb_input"  : ``(cb_input_bdb_index() )
     ];
     map<string,any> item_map = $[
-        "name"      : suffix,
+        "name"      : label,
         "children"  : [ item_name + "_index" ],
         "index"     : index,
         "widget"    : editBdbDatabase,
@@ -1162,7 +1178,7 @@ void addDatabaseWidgetMap( string suffix, string item_name, integer index, boole
         "cb_write"  : ``( cb_write_db() ),
         "cb_input"  : ``( cb_input_db() )
     ];
-    y2milestone( "adding database item '%1' as '%2'", suffix, item_name );
+    y2milestone( "adding database item '%1' as '%2'", label, item_name );
     widget_map[item_name] = item_map;
     widget_map[item_name + "_index"] = dbIndex;
 

@@ -390,6 +390,60 @@
             )
         );
 
+    define map<string,string> ChangeAdminPassword()
+    {
+        map<string,string> result = nil;
+        term content =
+            `VBox(
+                `Heading( _("Change Administrator Password") ),
+                `Password( `id( `te_rootpw ), _("New Administrator &Password") ),
+                `HSpacing( 0.5 ),
+                `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                `HSpacing( 0.5 ),
+                `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types ),
+                `HBox(
+                    `PushButton( `id( `pb_ok ), Label::OKButton() ),
+                    `PushButton( `id( `pb_cancel ), Label::CancelButton() )
+                )
+            );
+        UI::OpenDialog( `opt(`decorated), content );
+        while ( true )
+        {
+            any ret = UI::UserInput();
+            if (ret == `pb_cancel )
+            {
+                break;
+            }
+            else if ( ret == `pb_ok )
+            {
+                string pw = (string)UI::QueryWidget( `te_rootpw, `Value );
+                string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
+                string hashAlgo = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+                if ( size(pw) == 0 )
+                {
+                    Popup::Error( _("Please enter a password") );
+                    UI::ChangeWidget( `te_rootpw, `Value, "" );
+                    UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                }
+                else if ( pw == verifypw )
+                {
+                    result = $[];
+                    result["password"] = pw;
+                    result["hashAlgo"] = hashAlgo;
+                    break;
+                }
+                else
+                {
+                    Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                    UI::ChangeWidget( `te_rootpw, `Value, "" );
+                    UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                }
+            }
+        }
+        UI::CloseDialog();
+        return result;
+    }
+
     define map<string,any> DatabaseIndexPopup( list<string> skipAttrs, string editAttr,
                                                 map<string, boolean> currentIdx )
     {
