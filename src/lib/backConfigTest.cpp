@@ -65,6 +65,52 @@ OlcBdbDatabase::OlcBdbDatabase() : OlcDatabase("bdb")
 
 OlcBdbDatabase::OlcBdbDatabase( const LDAPEntry& le) : OlcDatabase(le) { }
 
+inline void splitIndexString( const std::string &indexString, std::string &attr, std::string &indexes )
+{
+    std::string::size_type pos = indexString.find_first_of(" \t");
+    attr = indexString.substr(0, pos);
+    std::cout << "AttributeType: <" << attr << ">" << std::endl;
+    if ( pos != std::string::npos ) {
+        pos = indexString.find_first_not_of(" \t", pos);
+        if ( pos != std::string::npos ) {
+            indexes = indexString.substr( pos, std::string::npos );
+        }
+    }
+}
+
+inline std::vector<IndexType> indexString2Type( const std::string &indexes )
+{
+    std::string::size_type pos, oldpos = 0;
+    std::vector<IndexType> idx;
+    do {
+        pos = indexes.find( ',', oldpos );
+        std::string index = indexes.substr( oldpos, 
+                    (pos == std::string::npos ? std::string::npos : pos - oldpos) );
+        std::cout << "Index: <" << index << ">" << std::endl;
+        oldpos = indexes.find_first_not_of( ", ", pos );
+        if ( index == "pres" ) {
+            idx.push_back(Present);
+        } else if (index == "eq" ) {
+            idx.push_back(Eq);
+        } else if (index == "approx" ) {
+            idx.push_back(Approx);
+        } else if (index == "sub" ) {
+            idx.push_back(Sub);
+        } else if (index == "subinital" ) {
+            idx.push_back(SpecialSubInitial);
+        } else if (index == "subany" ) {
+            idx.push_back(SpecialSubAny);
+        } else if (index == "subfinal" ) {
+            idx.push_back(SpecialSubFinal);
+        } else if (index == "nolang" ) {
+            idx.push_back(SpecialNoLang);
+        } else if (index == "nosubtypes" ) {
+            idx.push_back(SpecialNoSubTypes);
+        }
+    } while (pos != std::string::npos);
+    return idx;
+}
+
 IndexMap OlcBdbDatabase::getDatabaseIndexes() const
 {
     const LDAPAttributeList *al = m_dbEntryChanged.getAttributes();
@@ -77,46 +123,35 @@ IndexMap OlcBdbDatabase::getDatabaseIndexes() const
     StringList sl = attr->getValues();
     StringList::const_iterator i;
     for (i = sl.begin(); i != sl.end(); i++ ) {
-        std::cout << "Index Value: " << *i << std::endl;
-        std::string::size_type pos = i->find_first_of(" \t");
-        std::string attrType = i->substr(0, pos);
-        std::cout << "AttributeType: <" << attrType << ">" << std::endl;
+        std::string attrType;
         std::string indexes;
-        if ( pos != std::string::npos ) {
-            pos = i->find_first_not_of(" \t", pos);
-            if ( pos != std::string::npos ) {
-                indexes = i->substr( pos, std::string::npos );
-                std::cout << "Indexes: <" << indexes << ">" << std::endl;
-                std::string::size_type oldpos = 0;
-                std::vector<IndexType> idx;
-                do {
-                    pos = indexes.find( ',', oldpos );
-                    std::string index = indexes.substr( oldpos, 
-                                (pos == std::string::npos ? std::string::npos : pos - oldpos) );
-                    std::cout << "Index: <" << index << ">" << std::endl;
-                    oldpos = indexes.find_first_not_of( ", ", pos );
-                    if ( index == "pres" ) {
-                        idx.push_back(Present);
-                    } else if (index == "eq" ) {
-                        idx.push_back(Eq);
-                    } else if (index == "approx" ) {
-                        idx.push_back(Approx);
-                    } else if (index == "sub" ) {
-                        idx.push_back(Sub);
-                    } else if (index == "subinital" ) {
-                        idx.push_back(SpecialSubInitial);
-                    } else if (index == "subany" ) {
-                        idx.push_back(SpecialSubAny);
-                    } else if (index == "subfinal" ) {
-                        idx.push_back(SpecialSubFinal);
-                    } else if (index == "nolang" ) {
-                        idx.push_back(SpecialNoLang);
-                    } else if (index == "nosubtypes" ) {
-                        idx.push_back(SpecialNoSubTypes);
-                    }
-                } while (pos != std::string::npos);
-                res.insert(make_pair(attrType, idx));
-            }
+        splitIndexString(*i, attrType, indexes );
+        std::cout << "Indexes: <" << indexes << ">" << std::endl;
+        std::vector<IndexType> idx = indexString2Type(indexes);
+        res.insert(make_pair(attrType, idx));
+    }
+    return res;
+}
+
+std::vector<IndexType> OlcBdbDatabase::getDatabaseIndex( const std::string &type ) const
+{
+    const LDAPAttributeList *al = m_dbEntryChanged.getAttributes();
+    const LDAPAttribute *attr = al->getAttributeByName("olcdbindex");
+    std::vector<IndexType> res;
+    if (! attr ) {
+        return res;
+    };
+
+    StringList sl = attr->getValues();
+    StringList::const_iterator i;
+    for (i = sl.begin(); i != sl.end(); i++ ) {
+        std::string attrType;
+        std::string indexes;
+        splitIndexString(*i, attrType, indexes );
+        if ( attrType == type )
+        {
+            res = indexString2Type(indexes);
+            break;
         }
     }
     return res;
@@ -150,6 +185,10 @@ void OlcBdbDatabase::addIndex(const std::string& attr, const std::vector<IndexTy
     }
     std::cout << "indexString: '" << indexString << "'" << std::endl;
     this->addStringValue( "olcDbIndex", indexString );
+}
+
+void OlcBdbDatabase::deleteIndex(const std::string& attr)
+{
 }
 
 void OlcBdbDatabase::setDirectory( const std::string &dir )
