@@ -747,7 +747,16 @@ define boolean cb_write_db()
     map<string,string> db = $[];
     db["rootdn"] = (string)UI::QueryWidget( `te_rootdn, `Value );
 
+    if( db["rootdn"]:"" != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+    {
+        string suffix = (string)widget_map[current_tree_item,"name"]:"";
+        db["rootdn"] = db["rootdn"]:"" + "," + suffix;
+    }
+
     y2milestone( "updated Database: %1", db );
+
+    boolean res = LdapServer::UpdateDatabase( index, db);
+
  //   boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
  //   y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
  //   if( is_new_db == nil )

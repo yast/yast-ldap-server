@@ -21,10 +21,10 @@ class OlcConfigEntry
 
         inline OlcConfigEntry() : m_dbEntry(), m_dbEntryChanged() {}
         inline OlcConfigEntry(const LDAPEntry& le) : m_dbEntry(le), m_dbEntryChanged(le) {}
-        inline std::string getDn() { 
+        inline std::string getDn() const { 
             return m_dbEntry.getDN();
         }
-        LDAPModList entryDifftoMod();
+        LDAPModList entryDifftoMod() const;
         
         StringList getStringValues(const std::string &type) const;
         void setStringValues(const std::string &type, const StringList &values);
@@ -127,6 +127,7 @@ class OlcConfig {
         OlcConfig(LDAPConnection *lc=0 );
         OlcGlobalConfig getGlobals();
         void setGlobals( OlcGlobalConfig &olcg);
+        void updateEntry( const OlcConfigEntry &oce );
         OlcDatabaseList getDatabases();
     private:
         LDAPConnection *m_lc;

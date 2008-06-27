@@ -123,95 +123,100 @@ sub Write {
     my $self = shift;
     y2milestone("LdapServer::Write");
     my $ret = 1;
-    my $progressItems = [ _("Writing Startup Configuration"),
-            _("Cleaning up config directory"),
-            _("Creating Configuration"),
-            _("Starting OpenLDAP Server")];
-    Progress->New("Writing OpenLDAP Server Configuration", "", 4, $progressItems, $progressItems, "");
-
-    Progress->NextStage();
-
-    my $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND', 'ldap');
-    if ( ! $rc )
+    if ( ! $usesBackConfig ) 
     {
-        y2error("Error while switch to config backend");
-        $self->SetError( _("Switch from slapd.conf to config backend failed.") );
-        Progress->Finish();
-        return 0;
-    }
-    $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
-    if ( ! $rc )
-    {
-        y2error("Error while enabling LDAPI listener");
-        $self->SetError( _("Enabling thi LDAPI Protocol listener failed.") );
-        Progress->Finish();
-        return 0;
-    }
-    $rc = SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI');
-    y2milestone(Data::Dumper->Dump([$rc]));
+        my $progressItems = [ _("Writing Startup Configuration"),
+                _("Cleaning up config directory"),
+                _("Creating Configuration"),
+                _("Starting OpenLDAP Server")];
+        Progress->New("Writing OpenLDAP Server Configuration", "", 4, $progressItems, $progressItems, "");
 
-    # FIXME:
-    # Explicit cache flush, see bnc#350581 for details
-    SCR->Write(".sysconfig.openldap", undef);
-    Progress->NextStage();
+        Progress->NextStage();
 
-    $rc = SCR->Execute('.target.bash', 'rm -rf /etc/openldap/slapd.d/cn=config*' );
-    if ( $rc )
-    {
-        y2error("Error while cleaning up to config directory");
-        $self->SetError( _("Config Directory cleanup failed.") );
-        Progress->Finish();
-        return 0;
-    }
+        my $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND', 'ldap');
+        if ( ! $rc )
+        {
+            y2error("Error while switch to config backend");
+            $self->SetError( _("Switch from slapd.conf to config backend failed.") );
+            Progress->Finish();
+            return 0;
+        }
+        $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+        if ( ! $rc )
+        {
+            y2error("Error while enabling LDAPI listener");
+            $self->SetError( _("Enabling thi LDAPI Protocol listener failed.") );
+            Progress->Finish();
+            return 0;
+        }
+        $rc = SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI');
+        y2milestone(Data::Dumper->Dump([$rc]));
 
-    Progress->NextStage();
-    $rc = SCR->Execute('.target.bash_output', 'mktemp /tmp/slapd-conf-ldif.XXXXXX' );
-    if ( $rc->{'exit'} == 0 )
-    {
-        my $tmpfile = $rc->{'stdout'};
-        chomp $tmpfile;
-        y2milestone("using tempfile: ".$tmpfile );
-        my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-        y2milestone($ldif);
-        $rc = SCR->Write('.target.string', $tmpfile, $ldif );
+        # FIXME:
+        # Explicit cache flush, see bnc#350581 for details
+        SCR->Write(".sysconfig.openldap", undef);
+        Progress->NextStage();
+
+        $rc = SCR->Execute('.target.bash', 'rm -rf /etc/openldap/slapd.d/cn=config*' );
         if ( $rc )
         {
-            $rc = SCR->Execute('.target.bash_output', 
-                    "/usr/sbin/slapadd -F /etc/openldap/slapd.d -b cn=config -l $tmpfile" );
-            if ( $rc->{'exit'} )
+            y2error("Error while cleaning up to config directory");
+            $self->SetError( _("Config Directory cleanup failed.") );
+            Progress->Finish();
+            return 0;
+        }
+
+        Progress->NextStage();
+        $rc = SCR->Execute('.target.bash_output', 'mktemp /tmp/slapd-conf-ldif.XXXXXX' );
+        if ( $rc->{'exit'} == 0 )
+        {
+            my $tmpfile = $rc->{'stdout'};
+            chomp $tmpfile;
+            y2milestone("using tempfile: ".$tmpfile );
+            my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+            y2milestone($ldif);
+            $rc = SCR->Write('.target.string', $tmpfile, $ldif );
+            if ( $rc )
             {
-                y2error("Error during slapadd:" .$rc->{'stderr'});
+                $rc = SCR->Execute('.target.bash_output', 
+                        "/usr/sbin/slapadd -F /etc/openldap/slapd.d -b cn=config -l $tmpfile" );
+                if ( $rc->{'exit'} )
+                {
+                    y2error("Error during slapadd:" .$rc->{'stderr'});
+                    $ret = 0;
+                }
+            }
+            else
+            {
+                y2error("Error while write configuration to LDIF file");
                 $ret = 0;
             }
+            # cleanup
+            SCR->Execute('.target.bash', "rm -f $tmpfile" );
         }
-        else
+        Progress->NextStage();
+
+        $rc = Service->Enable("ldap");
+        if ( ! $rc )
         {
-            y2error("Error while write configuration to LDIF file");
-            $ret = 0;
+            y2error("Error while enabing the LDAP Service: ". Service->Error() );
+            $self->SetError( _("Enabling the LDAP Service failed.") );
+            Progress->Finish();
+            return 0;
         }
-        # cleanup
-        SCR->Execute('.target.bash', "rm -f $tmpfile" );
-    }
-    Progress->NextStage();
+        $rc = Service->Restart("ldap");
+        if (! $rc )
+        {
+            y2error("Error while starting the LDAP service");
+            $self->SetError( _("Starting the LDAP service failed.") );
+            Progress->Finish();
+            return 0;
+        }
 
-    $rc = Service->Enable("ldap");
-    if ( ! $rc )
-    {
-        y2error("Error while enabing the LDAP Service: ". Service->Error() );
-        $self->SetError( _("Enabling the LDAP Service failed.") );
         Progress->Finish();
-        return 0;
+    } else {
+        SCR->Execute('.ldapserver.commitChanges' );
     }
-    $rc = Service->Restart("ldap");
-    if (! $rc )
-    {
-        y2error("Error while starting the LDAP service");
-        $self->SetError( _("Starting the LDAP service failed.") );
-        Progress->Finish();
-        return 0;
-    }
-
-    Progress->Finish();
     sleep(1);
     return $ret;
 }
@@ -503,12 +508,24 @@ sub GetDatabaseList
 }
 
 BEGIN { $TYPEINFO {GetDatabase} = ["function", [ "map" , "string", "string"], "integer" ]; }
-sub GetDatabase{
+sub GetDatabase
+{
     my ($self, $index) = @_;
     y2milestone("GetDatabase ".$index);
-    my $rc = SCR->Read(".ldapserver.database", YaST::YCP::Integer($index) );
+    my $rc = SCR->Read(".ldapserver.database.{".$index."}" );
     y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
+
+BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }
+sub UpdateDatabase 
+{
+    my ($self, $index, $changes) = @_;
+    my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
+    y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
+
+}
+
 1;
 # EOF

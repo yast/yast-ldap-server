@@ -501,7 +501,7 @@ std::string OlcConfigEntry::toLdif() const
     return ldifStream.str();
 }
 
-LDAPModList OlcConfigEntry::entryDifftoMod() {
+LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
     LDAPModList modifications;
     for(; i != m_dbEntry.getAttributes()->end(); i++ )
@@ -607,6 +607,17 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
     try {
         LDAPModList ml = olcg.entryDifftoMod();
         m_lc->modify( olcg.getDn(), &ml );
+    } catch (LDAPException e) {
+        std::cout << e << std::endl;
+        throw;
+    }
+}
+
+void OlcConfig::updateEntry( const OlcConfigEntry &oce )
+{
+    try {
+        LDAPModList ml = oce.entryDifftoMod();
+        m_lc->modify( oce.getDn(), &ml );
     } catch (LDAPException e) {
         std::cout << e << std::endl;
         throw;
