@@ -600,7 +600,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                     replace = true;
                 } else {
                     modifications.addModification(
-                            LDAPModification( LDAPAttribute(i->getName(), delValues), 
+                            LDAPModification( LDAPAttribute(i->getName()), 
                                     LDAPModification::OP_DELETE) 
                             );
                 }
