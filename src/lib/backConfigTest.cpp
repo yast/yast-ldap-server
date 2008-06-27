@@ -464,7 +464,7 @@ void OlcConfigEntry::setStringValue(const std::string &type, const std::string &
 std::string OlcConfigEntry::toLdif() const
 {
     std::ostringstream ldifStream;
-    LdifWriter ldif(&ldifStream);
+    LdifWriter ldif(ldifStream);
     ldif.writeRecord( m_dbEntryChanged );
     return ldifStream.str();
 }
