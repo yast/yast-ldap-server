@@ -160,7 +160,7 @@ without installing the required packages."));
     y2milestone("OpenLDAP using backConfig: %1", hasBackconfig);
     y2milestone("OpenLDAP modifed config: %1", configModified);
     string configFile = "/etc/openldap/slapd.conf";
-    if ( !hasBackconfig )
+    if ( !hasBackconfig && configModified )
     {
         switchToBackConfig = Popup::ContinueCancelHeadline( _("Convert to \"Back-Config\"?"),
 _("Your system is currently configured to use the 
@@ -169,39 +169,36 @@ module will switch OpenLDAP to use the dynamic configuration
 database of OpenLDAP (back-config)."));
         if (switchToBackConfig)
         {
-            if ( configModified )
-            {
-                convert = Popup::YesNoHeadline( _("Convert existing configuration?"),
+            convert = Popup::YesNoHeadline( _("Convert existing configuration?"),
 _("Do you want to convert your existing configuration
 files, to the dynamic configuration backend?
 Note: This will remove any preexisting configuration data
 from \"/etc/openldap/slapd.d/\".
 If you click \"No\" here, an empty configuration will
 be created"));
-                if (convert)
-                {
-                    // Convert the existing configuration and after that
-                    // re-read it.
-                    if (! LdapServer::MigrateSlapdConf())
-                    {
-                        y2milestone("LdapServer::MigrateSlapdConf failed");
-                        DisplayError( LdapServer::GetError() );
-                        return `abort;
-                    }
-                    LdapServer::Read();
-                }
-            }
-            else
+            if (convert)
             {
-                // Start new config wizward
-                LdapServer::InitDbDefaults();
-                return `initial;
+                // Convert the existing configuration and after that
+                // re-read it.
+                if (! LdapServer::MigrateSlapdConf())
+                {
+                    y2milestone("LdapServer::MigrateSlapdConf failed");
+                    DisplayError( LdapServer::GetError() );
+                    return `abort;
+                }
+                LdapServer::Read();
             }
         }
         else
         {
             return `abort;
         }
+    }
+    else
+    {
+        // Start new config wizward
+        LdapServer::InitDbDefaults();
+        return `initial;
     }
 
     return ret ? `next : `abort;

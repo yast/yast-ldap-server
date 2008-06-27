@@ -51,8 +51,9 @@ sub Read {
     Progress->New("Initializing LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
     my $serviceInfo = Service->FullInfo("ldap");
-    my $isRunning = $serviceInfo->{"started"} == 0; # 0 == "running"
-    my $isEnabled = $serviceInfo->{"start"} > 0;
+    my $isRunning = $serviceInfo->{"started"} && $serviceInfo->{"started"} == 0; # 0 == "running"
+    my $isEnabled = $serviceInfo->{"start"} && $serviceInfo->{"start"} > 0;
+
     y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
     y2milestone("IsRunning: " . $isRunning . " IsEnabled " . $isEnabled);
     

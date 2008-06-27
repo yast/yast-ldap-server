@@ -109,6 +109,7 @@ any LdapServerSequence() {
 
     map aliases = $[
 	"read"	: ``( ReadDialog() ),
+        "propose" : ``( ProposalSequence() ),
 	"main"	: ``( MainSequence() ),
 	"write"	: ``( WriteDialog() )
     ];
@@ -117,11 +118,11 @@ any LdapServerSequence() {
 	"ws_start" : "read",
 	"read" : $[
 	    `abort	: `abort,
-            `initial    : "proposal",
+            `initial    : "propose",
 	    `next	: "main"
 	],
-        "proposal" : $[
-            `next       : "write"
+        "propose" : $[
+            `next       : `next
         ],
 	"main" : $[
 	    `abort	: `abort,
