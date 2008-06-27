@@ -1,6 +1,6 @@
 # Makefile.am for ldap-server/src
 
-SUBDIRS = YaPI config
+SUBDIRS = YaPI config lib agent
 
 yncludedir = @yncludedir@/ldap-server
 
@@ -12,6 +12,7 @@ client_DATA =			\
 ynclude_DATA =			\
 	helps.ycp		\
 	wizards.ycp		\
+	widgets.ycp		\
 	dialogs.ycp		\
 	complex.ycp 		\
 	tree_structure.ycp

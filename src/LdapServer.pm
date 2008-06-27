@@ -2,7 +2,7 @@
 # File:		modules/LdapServer.pm
 # Package:	Configuration of ldap-server
 # Summary:	LdapServer settings, input and output functions
-# Authors:	Andreas Bauer <abauer@suse.de>
+# Authors:	Ralf Haferkamp <rhafer@suse.de>, Andreas Bauer <abauer@suse.de>
 #
 # $Id$
 #
@@ -14,395 +14,28 @@ package LdapServer;
 
 use strict;
 
+use Data::Dumper;
+
+use X500::DN;
 use ycp;
 use YaST::YCP qw(Boolean);
 
-use YaPI;
-textdomain("ldap-server");
-
-use YaPI::LdapServer;
-use X500::DN;
-
 our %TYPEINFO;
 
-YaST::YCP::Import ("Package");
 YaST::YCP::Import ("Progress");
-YaST::YCP::Import ("Report");
-YaST::YCP::Import ("Summary");
-YaST::YCP::Import ("SuSEFirewall");
+YaST::YCP::Import ("Service");
 
+my %error = ( msg => undef, details => undef );
 
-##
- # Data was modified?
- #
-my $modified = 0;
+my $usesBackConfig = 0;
+my $slapdConfChanged = 0;
+my $serviceEnabled = 0;
+my $registerSlp = 0;
+my @loglevel = ();
+my %dbDefaults = ();
 
-##
- #
-my $proposal_valid = 0;
-
-##
- # Write only, used during autoinstallation.
- # Don't run services and SuSEconfig, it's all done at one place.
- #
-my $write_only = 0;
-
-##
- # Data was modified?
- # @return true if modified
- #
-BEGIN { $TYPEINFO {Modified} = ["function", "boolean"]; }
-sub Modified {
-    y2debug ("modified=$modified");
-    return $modified;
-}
-
-##
- # Data was modified
- #
-BEGIN { $TYPEINFO {SetModified} = ["function", "void", "boolean"]; }
-sub SetModified {
-    $modified = shift;
-    y2debug ("modified=$modified");
-}
-
-# Settings: Define all variables needed for configuration of ldap-server
-# TODO FIXME: Define all the variables necessary to hold
-# TODO FIXME: the configuration here (with the appropriate
-# TODO FIXME: description)
-# TODO FIXME: For example:
-#   ##
-#    # List of the configured cards.
-#    #
-#   my @cards = ();
-#
-#   ##
-#    # Some additional parameter needed for the configuration.
-#    #
-#   my $additional_parameter = 1;
-
-
-my $dbList = [];
-
-my $overlays = {};
-
-my $database = {};
-
-my $allowList = [];
-
-my $loglevel = 256;
-
-my $tlsSettings = {};
-
-my $configureCommonServerCertificate = 0;
-
-my $commonServerCertificateAvailable = 0;
-
-my $dbListNEW = [];
-
-my $databaseNEW = {};
-
-my $serviceEnabled = 1;
-
-my $useRootPW = 0;
-
-my $importCertificates = {};
-
-my $SLPEnabled = 1;
-
-my $schemaIncludeList = [];
-
-BEGIN { $TYPEINFO{WriteDbList} = ["function", "boolean", ["list", "string"]]; }
-sub WriteDbList {
-    my $self = shift;
-    $dbList = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadDbList} = ["function", ["list", "string"]]; }
-sub ReadDbList {
-    my $self = shift;
-    return $dbList;
-}
-
-use Data::Dumper;
-#
-# Validate Suffix and Root-DN of a database
-#
-BEGIN { $TYPEINFO{CheckDatabase} = ["function", "string", ["map", "string", "any"]]; }
-sub CheckDatabase {
-    my $self = shift;
-    my $data = shift;
-    
-    # validate Suffix
-    if(! defined $data->{suffix} || $data->{suffix} eq "") {
-        # error message
-        return __("Invalid suffix."); 
-    }
-    my $object = X500::DN->ParseRFC2253($data->{suffix});
-
-    if(! defined $object) {
-        return __("Invalid suffix.");        
-    }
-
-    # validate Root DN 
-    if(! defined X500::DN->ParseRFC2253($data->{rootdn})) {
-        # parameter check failed
-        return __("Invalid 'rootdn'.");
-    }
-    
-    # rootdn must be a child of the suffix
-    if($data->{suffix} ne substr($data->{rootdn}, 
-                             length($data->{rootdn}) - length($data->{suffix}))) {
-        # parameter check failed
-        return __("'rootdn' must be below the 'suffix'.");
-    }
-
-    if(! defined $data->{rootdn} || $data->{rootdn} eq "" ) {
-        $data->{rootdn} = "cn=Administrator,".$data->{suffix};
-    }
-
-    if(! defined $data->{directory} || $data->{directory} !~ /^\// ) {
-        # error message
-        return __("Invalid directory path.");
-    }
-    
-    return "";
-}
-
-BEGIN { $TYPEINFO{WriteDatabase} = ["function", "boolean", ["map", "string", "any"]]; }
-sub WriteDatabase {
-    my $self = shift;
-    $database = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadDatabase} = ["function", ["map", "string", "any"]]; }
-sub ReadDatabase {
-    my $self = shift;
-    return $database;
-}
-
-BEGIN { $TYPEINFO{WriteAllowList} = ["function", "boolean", ["list", "string"]]; }
-sub WriteAllowList {
-    my $self = shift;
-    $allowList = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadAllowList} = ["function", ["list", "string"]]; }
-sub ReadAllowList {
-    my $self = shift;
-    return $allowList;
-}
-
-BEGIN { $TYPEINFO{WriteLoglevel} = ["function", "boolean", "integer"]; }
-sub WriteLoglevel {
-    my $self = shift;
-    $loglevel = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadLoglevel} = ["function", "integer"]; }
-sub ReadLoglevel {
-    my $self = shift;
-    return $loglevel;
-}
-
-BEGIN { $TYPEINFO{WriteTlsSettings} = ["function", "boolean", ["map", "string", "any"]]; }
-sub WriteTlsSettings {
-    my $self = shift;
-    $tlsSettings = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadTlsSettings} = ["function", ["map", "string", "any"]]; }
-sub ReadTlsSettings {
-    my $self = shift;
-    return $tlsSettings;
-}
-
-BEGIN { $TYPEINFO{WriteConfigureCommonServerCertificate} = ["function", "boolean", "boolean"]; }
-sub WriteConfigureCommonServerCertificate {
-    my $self = shift;
-    $configureCommonServerCertificate = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadConfigureCommonServerCertificate} = ["function", "boolean"]; }
-sub ReadConfigureCommonServerCertificate {
-    my $self = shift;
-    return $configureCommonServerCertificate;
-}
-
-BEGIN { $TYPEINFO{ReadCommonServerCertificateAvailable} = ["function", "boolean"]; }
-sub ReadCommonServerCertificateAvailable {
-    my $self = shift;
-    return $commonServerCertificateAvailable;
-}
-
-BEGIN { $TYPEINFO{WriteDbListNEW} = ["function", "boolean", ["list", "string"]]; }
-sub WriteDbListNEW {
-    my $self = shift;
-    $dbListNEW = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadDbListNEW} = ["function", ["list", "string"]]; }
-sub ReadDbListNEW {
-    my $self = shift;
-    return $dbListNEW;
-}
-
-BEGIN { $TYPEINFO{WriteDatabaseNEW} = ["function", "boolean", ["map", "string", "any"]]; }
-sub WriteDatabaseNEW {
-    my $self = shift;
-    $databaseNEW = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadDatabaseNEW} = ["function", ["map", "string", "any"]]; }
-sub ReadDatabaseNEW {
-    my $self = shift;
-    return $databaseNEW;
-}
-
-BEGIN { $TYPEINFO{WriteServiceEnabled} = ["function", "boolean", "boolean"]; }
-sub WriteServiceEnabled {
-    my $self = shift;
-    $serviceEnabled = shift;
-    return 1;
-}
-BEGIN { $TYPEINFO{ReadServiceEnabled} = ["function", "boolean"]; }
-sub ReadServiceEnabled {
-    my $self = shift;
-    return $serviceEnabled;
-}
-
-BEGIN { $TYPEINFO{WriteUseRootPW} = ["function", "boolean", "boolean"]; }
-sub WriteUseRootPW {
-    my $self = shift;
-    $useRootPW = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadUseRootPW} = ["function", "boolean"]; }
-sub ReadUseRootPW {
-    my $self = shift;
-    return $useRootPW;
-}
-
-BEGIN { $TYPEINFO{WriteImportCertificates} = ["function", "boolean", ["map", "string", "string"]]; }
-sub WriteImportCertificates {
-    my $self = shift;
-    $importCertificates = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadImportCertificates} = ["function", ["map", "string", "string"]]; }
-sub ReadImportCertificates {
-    my $self = shift;
-    return $importCertificates;
-}
-
-BEGIN { $TYPEINFO{WriteSLPEnabled} = ["function", "boolean", "boolean"] }
-sub WriteSLPEnabled
-{
-    my $self = shift;
-    $SLPEnabled = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadSLPEnabled} = ["function", "boolean"] }
-sub ReadSLPEnabled
-{
-    my $self = shift;
-    return $SLPEnabled;
-}
-
-BEGIN { $TYPEINFO{WriteSchemaIncludeList} = ["function", "boolean", ["list", "string"]] }
-sub WriteSchemaIncludeList
-{
-    my $self = shift;
-    $schemaIncludeList = shift;
-    return 1;
-}
-
-BEGIN { $TYPEINFO{ReadSchemaIncludeList} = ["function", ["list", "string"]] }
-sub ReadSchemaIncludeList
-{
-    my $self = shift;
-    return $schemaIncludeList;
-}
-
-BEGIN { $TYPEINFO{AddDatabase} = ["function", "boolean", ["map", "string", "any"]]; }
-sub AddDatabase {
-    my $self = shift;
-    my $data = shift;
-   
-    my $chkResult = $self->CheckDatabase($data);
-    if ( $chkResult ne "" ) {
-        Report->Error($chkResult);
-        return 0;
-    }
-
-    if(! defined $data->{database} || !grep( ($_ eq $data->{database}), ("bdb", "ldbm"))) {
-        $data->{database} = "bdb";
-    }
-    
-    if(! defined $data->{rootdn} || $data->{rootdn} eq "" ) {
-        $data->{rootdn} = "cn=Administrator,".$data->{suffix};
-    }
-
-    if ((! defined $data->{passwd} || $data->{passwd} eq "" ) &&
-        (! defined $data->{rootpw} || $data->{rootpw} eq "" ) ){
-        # error message
-        Report->Error(__("Invalid password."));
-        return 0;
-    }
-    
-    if(! defined $data->{cryptmethod} || !grep( ($_ eq $data->{cryptmethod}), 
-                                                ("CRYPT", "SMD5", "SHA", "SSHA", "PLAIN"))) {
-        $data->{cryptmethod} = "SSHA";
-    }
-
-    if(! defined $data->{cachesize} || $data->{cachesize} !~ /^\d+$/ ) {
-        $data->{cachesize} = 10000;
-    }
-
-    if($data->{database} eq "bdb") {
-        if(defined $data->{checkpoint} && $data->{checkpoint} ne "") {
-            my @cp = split(/\s+/, $data->{checkpoint});
-            if(!defined $cp[0] || !defined $cp[1] ||
-               $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
-                $cp[0] = "1024";
-                $cp[1] = "5";
-            }
-            $data->{checkpoint} = $cp[0]." ".$cp[1];
-        } else {
-            $data->{checkpoint} = "1024 5";
-        }
-    }
-    #######################################################
-
-    push @$dbListNEW, $data->{suffix};
-
-    $databaseNEW->{$data->{suffix}}->{database}            = $data->{database};
-    $databaseNEW->{$data->{suffix}}->{suffix}              = $data->{suffix};
-    $databaseNEW->{$data->{suffix}}->{rootdn}              = $data->{rootdn};
-    $databaseNEW->{$data->{suffix}}->{passwd}              = $data->{passwd};
-    $databaseNEW->{$data->{suffix}}->{rootpw}              = $data->{rootpw};
-    $databaseNEW->{$data->{suffix}}->{cryptmethod}         = $data->{cryptmethod};
-    $databaseNEW->{$data->{suffix}}->{directory}           = $data->{directory};
-    $databaseNEW->{$data->{suffix}}->{createdatabasedir}   = $data->{createdatabasedir};
-    $databaseNEW->{$data->{suffix}}->{cachesize}           = $data->{cachesize};
-    $databaseNEW->{$data->{suffix}}->{ppolicy_default_changed} = $data->{ppolicy_default_changed};
-    if($data->{database} eq "bdb") {
-        $databaseNEW->{$data->{suffix}}->{checkpoint} = $data->{checkpoint};
-    }
-    if( exists $data->{'overlay'} ) {
-        $databaseNEW->{$data->{'suffix'}}->{'overlay'} = $data->{'overlay'};
-    }
-
-    $modified = 1;
-
-    return 1;
-}
+my @databases = ();
+my @schema = ();
 
 ##
  # Read all ldap-server settings
@@ -410,134 +43,66 @@ sub AddDatabase {
  #
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read {
+    y2milestone("");
 
-    # If we got here and the package in not installed, the service is
-    # not configured (e.g. we are called from AutoYaST clone system)
-    if (!Package->Installed("openldap2"))
-    {
-        y2milestone ("Openldap2 is not installed. --> service disabled");
-        $serviceEnabled = 0;
-        return 1;
-    }
-
-    # LdapServer read dialog caption
-    my $caption = __("Initializing LDAP Server Configuration");
-
-    # TODO FIXME Set the right number of stages
-    my $steps = 4;
-
-    my $sl = 0.5;
-    #sleep($sl);
-
-    # TODO FIXME Names of real stages
-    # We do not set help text here, because it was set outside
-    Progress->New( $caption, " ", $steps, [
-	    # Progress stage 1/3
-	    __("Read the database list"),
-	    # Progress stage 2/3
-	    __("Read the databases"),
-	    # Progress stage 3/3
-	    __("Read global options")
-	], [
-	    # Progress step 1/3
-	    __("Reading the database list..."),
-	    # Progress step 2/3
-	    __("Reading the databases..."),
-	    # Progress step 3/3
-	    __("Reading global options..."),
-	    # Progress finished
-	    __("Finished")
-	],
-	""
-    );
-
-    # read database
+    my $progressItems = [ "Reading Startup Configuration", 
+            "Reading Configuration Backend", 
+            "Reading Configuration Data" ];
+    Progress->New("Initializing LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
+    my $serviceInfo = Service->FullInfo("ldap");
+    my $isRunning = $serviceInfo->{"started"} == 0; # 0 == "running"
+    my $isEnabled = $serviceInfo->{"start"} > 0;
+    y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
+    y2milestone("IsRunning: " . $isRunning . " IsEnabled " . $isEnabled);
+    
+    Progress->NextStage();
+    my $configBackend = SCR->Read('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND');
+    y2milestone("ConfigBackend: " . $configBackend);
 
-    $dbList = YaPI::LdapServer->ReadDatabaseList();
-
-    if(! defined $dbList)
+    Progress->NextStage();
+    if ( $configBackend eq "ldap" )
     {
-        # Error message
-        Report->Error(__("Cannot read the database list."));
+        $usesBackConfig = 1;
+        if ( $isRunning )
+        {
+            # How do we get the LDAP password?
+        }
+        else
+        {
+            # LDAP Server not running. Use slapcat to import the config
+            y2milestone("Using slapcat to import configuration");
+            my $rc = SCR->Execute('.target.bash_output', 
+                    "/usr/sbin/slapcat -F /etc/openldap/slapd.d -b cn=config" );
+#            y2milestone("slapcat result: ". Data::Dumper->Dump([$rc]));
+            SCR->Execute('.ldapserver.initFromLdif', $rc->{'stdout'});
+            $rc = SCR->Read('.ldapserver.databases' );
+            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
+            #$rc = SCR->Read('.ldapserver.global.tlsSettings' );
+            #y2milestone("tlsSettings: ". Data::Dumper->Dump([$rc]));
+            $rc = SCR->Read('.ldapserver.global.loglevel' );
+            y2milestone("loglevel: ". Data::Dumper->Dump([$rc]));
+            @loglevel = @{$rc};
+        }
     }
-    #sleep($sl);
+    else
+    {
+        # Check if the config file was changed, otherwise we can assume 
+        # that this server is unconfigured and start from scratch
+        my $exitcode = SCR->Execute('.target.bash',
+                "rpm -Vf /etc/openldap/slapd.conf | ".
+                "grep \"/etc/openldap/slapd.conf\"| ".
+                "cut -d \" \" -f 1 | grep 5" );
 
-    # read another database
-    Progress->NextStep();
-
-    foreach my $db (@$dbList) {
-        
-        $database->{$db} = YaPI::LdapServer->ReadDatabase($db);
-        if(! defined $database->{$db})
-          {
-              # Error message
-              Report->Error(sprintf(__("Cannot read the database '%s'."), $db));
-          }
-
-        if(exists $database->{$db}->{rootpw}) {
-            my $rootpw = $database->{$db}->{rootpw};
-            
-            if($rootpw =~ /^{(\w+)}/) {
-                $database->{$db}->{cryptmethod} = uc("$1");
-            } else {
-                $database->{$db}->{cryptmethod} = "PLAIN";
-            }
-            #$database->{$db}->{passwd} = undef;
+        if ( $exitcode == 0 )
+        {
+            $slapdConfChanged = 1;
         }
 
+        y2milestone("ConfigModifed: " . $slapdConfChanged);
     }
-    #sleep($sl);
-
-    # read current settings
-    Progress->NextStage();
-            
-    $allowList = YaPI::LdapServer->ReadAllowList();
         
-    if(! defined $allowList)
-      {
-          # Error message
-          Report->Error(__("Cannot read the allow list."));
-      }
-    
-    $loglevel = YaPI::LdapServer->ReadLoglevel();
-    if(! defined $loglevel)
-      {
-          # Error message
-          Report->Error(__("Cannot read the log level."));
-      }
-
-    $schemaIncludeList = YaPI::LdapServer->ReadSchemaIncludeList();
-    if( !defined $schemaIncludeList )
-    {
-          # Error message
-          Report->Error( __("Cannot read the schema include list.") );
-    }
-
-
-    $tlsSettings = YaPI::LdapServer->ReadTLS();
-    if(! defined $tlsSettings)
-      {
-          # Error message
-          Report->Error(__("Cannot read the TLS settings."));
-      }
-
-    $commonServerCertificateAvailable = YaPI::LdapServer->CheckCommonServerCertificate();
-    
-    $serviceEnabled = YaPI::LdapServer->ReadService();
-
-    $SLPEnabled = YaPI::LdapServer->ReadSLPEnabled();
-    $SLPEnabled = 0 if( !defined $SLPEnabled );
-    my $progress_orig = Progress->set(0);
-    SuSEFirewall->Read();
-    Progress->set($progress_orig);
-    #sleep($sl);
-
-    # Progress finished
-    Progress->NextStage();
-    #sleep($sl);
-    
-    $modified = 0;
+    Progress->Finish();
     return 1;
 }
 
@@ -547,297 +112,68 @@ sub Read {
  #
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write {
-
-    # LdapServer read dialog caption
-    my $caption = __("Saving LDAP Server Configuration");
-
-    # TODO FIXME And set the right number of stages
-    my $steps = 3;
-
-    my $ret = undef;
-
-    my $sl = 0.5;
-    #sleep($sl);
-
-    # TODO FIXME Names of real stages
-    # We do not set help text here, because it was set outside
-    Progress->New($caption, " ", $steps, [
-	    __("Write global settings"),
-	    __("Add new databases"),
-	    __("Edit databases"),
-	], [
-	    __("Write global settings"),
-	    __("Add new databases"),
-	    __("Edit databases"),
-	    __("Finished")
-	],
-	""
-    );
-
-    # write settings
-    Progress->NextStage();
-
-    YaPI::LdapServer->ModifyService($serviceEnabled);
-    
-    if( $serviceEnabled )
-    {
-        $ret = YaPI::LdapServer->WriteAllowList($allowList);
-        if(! defined $ret) {
-            # error message
-            Report->Error (__("Cannot write 'allow list'."));
-        }
-        
-        $ret = YaPI::LdapServer->WriteLoglevel($loglevel);
-        if(! defined $ret) {
-            # error message
-            Report->Error (__("Cannot write 'loglevel'."));
-        }
-
-
-        $ret = YaPI::LdapServer->WriteSchemaIncludeList( $schemaIncludeList );
-        if(! defined $ret) {
-            # error message
-            Report->Error (__("Cannot write schema include list."));
-        }
-
-        $ret = YaPI::LdapServer->WriteSLPEnabled( $SLPEnabled );
-        if(! defined $ret) {
-            # error message
-            Report->Error (__("Cannot write to '/etc/sysconfig/openldap'."));
-        }
-
-        if($configureCommonServerCertificate) {
-            
-            $ret = YaPI::LdapServer->ConfigureCommonServerCertificate();
-            if(! defined $ret) {
-                # error message
-                Report->Error (__("Cannot write 'TLS Settings'."));
-            }
-            
-        } elsif( ( scalar keys %$importCertificates ) > 0 ) {
-            $ret = YaPI::LdapServer->ImportCertificates( $importCertificates );
-            if(! defined $ret) {
-                # error message
-                Report->Error (__("Cannot write 'TLS Settings'."));
-                y2error( "importCertificates failed" );
-            }
-        } else {
-            $ret = YaPI::LdapServer->WriteTLS( $tlsSettings );
-            if(! defined $ret) {
-                # error message
-                Report->Error (__("Cannot write 'TLS Settings'."));
-                y2error( "WriteTLS failed" );
-            }
-        }
-    }
-
-    #sleep($sl);
+    my $self = shift;
+    y2milestone("LdapServer::Write");
+    my $ret = 1;
+    my $progressItems = [ _("Writing Startup Configuration"),
+            _("Cleaning up config directory"),
+            _("Creating Configuration"),
+            _("Starting OpenLDAP Server")];
+    Progress->New("Writing OpenLDAP Server Configuration", "", 4, $progressItems, $progressItems, "");
 
     Progress->NextStage();
-    my $failure = 0;
-    if( $serviceEnabled )
+    my $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND', 'ldap');
+    if ( ! $rc )
     {
-        foreach my $db (@$dbListNEW) {
-            
-            $ret = YaPI::LdapServer->AddDatabase($databaseNEW->{$db});
-            
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error( sprintf( __("Cannot add new database '%s'."), $db ) );
-                  
-                  # Stop here and don't start the server when creating the first db failed
-                  if ( ( @{$dbList} == 0 ) && ( @{$dbListNEW} == 1 ) )
-                  {
-                        $failure = 1;
-                        last;
-                  } else {
-                        next;
-                  }
-              }
-            
-            #add indexes
-            $ret = YaPI::LdapServer->AddIndex( $db, {attr=>"objectClass,uidNumber,gidNumber",param=>"eq"} );
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error(sprintf(__("Cannot add new database '%s'."), $db));
-                  next;
-              }
-            
-            $ret = YaPI::LdapServer->AddIndex( $db, {attr=>"member,mail",param=>"eq,pres"} );
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error(sprintf(__("Cannot add new database '%s'."), $db));
-                  next;
-              }
-            
-            $ret = YaPI::LdapServer->AddIndex( $db, {attr=>"cn,displayname,uid,sn,givenname",
-                                                     param=>"sub,eq,pres"} );
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error(sprintf(__("Cannot add new database '%s'."), $db));
-                  next;
-              }
-
-            $ret = YaPI::LdapServer->RecreateIndex( $db );
-            if(! defined $ret)
-              {
-                  # Error message
-                  Report->Error(sprintf(__("Cannot add new database '%s'."), $db));
-                  next;
-              }
-        }
-    }
-    if ( $failure )
-    {
-        YaPI::LdapServer->ModifyService(0);
+        y2error("Error while switch to config backend");
+        $self->SetError( _("Switch from slapd.conf to config backend failed.") );
         Progress->Finish();
         return 0;
-    } else {
-        Progress->NextStage();
-
-        if( $serviceEnabled )
-        {
-            foreach my $db (@$dbList) {
-                
-                $ret = YaPI::LdapServer->EditDatabase($db, $database->{$db});
-                
-                if(! defined $ret)
-                  {
-                      # Error message
-                      Report->Error(sprintf(__("Cannot write the database '%s'."), $db));
-                  }
-
-            }
-        }
-
-        YaPI::LdapServer->SwitchService($serviceEnabled);
-        my $progress_orig = Progress->set(0);
-        SuSEFirewall->Write();
-        Progress->set($progress_orig);
-
-        #sleep($sl);
-
-        # Progress finished
-        Progress->NextStage();
-        sleep(1);
-        return 1;
     }
-}
-
-BEGIN { $TYPEINFO{WritePPolicyObjects} = ["function", "boolean"]; }
-sub WritePPolicyObjects {
-
-    my $caption = __("Creating Password Policy Objects");
-
-    # TODO FIXME And set the right number of stages
-    my $steps = 1;
-
-    my $ret = undef;
-
-    # We do not set help text here, because it was set outside
-    Progress->New($caption, " ", $steps, [
-	    __("Check password policy objects"),
-	], [
-	    __("Check password policy objects"),
-	    __("Finished")
-	],
-	""
-    );
 
     Progress->NextStage();
-    if( $serviceEnabled )
+    $rc = SCR->Execute('.target.bash', 'rm -rf /etc/openldap/slapd.d/cn=config*' );
+    if ( $rc )
     {
-        foreach my $current ( [$dbList,$database], [$dbListNEW, $databaseNEW] ){
-            my $currentDbList = $current->[0];
-            my $currentDatabase = $current->[1];
-            foreach my $base_dn (@$currentDbList) {
-                y2milestone("working on defaultpolicy for $base_dn");
-                my $ppolicy_hash = LdapServer->GetPasswordPolicyOverlay($base_dn,$currentDatabase);
-                my $db = $currentDatabase->{$base_dn};
-                y2debug("currentDatabase ".Data::Dumper->Dump([$db]));
-                y2debug("currentppolicy ".Data::Dumper->Dump([$ppolicy_hash]));
-                if( defined $ppolicy_hash && 
-                    exists $db->{ppolicy_default_changed} &&
-                    $ppolicy_hash->{'ppolicy_default'} ne "" )
-                {
-                    YaST::YCP::Import("Popup"); 
-                    YaST::YCP::Import("Ldap"); 
-                    YaST::YCP::Import("LdapPopup"); 
-                    Ldap->Import ({"ldap_server" => "localhost",
-                                   "bind_dn" => "" });
-                    Ldap->LDAPInit ();
-                    my $res = SCR->Read (".ldap.search", {"base_dn" =>  $ppolicy_hash->{'ppolicy_default'},
-                                                          "filter" => "objectclass=*",
-                                                          "scope" => 0} );
-                    if ( defined $res && scalar(@$res) != 0 ) {
-                        # ppolicy object does already exist
-                        y2milestone("default_policy does already exist");
-                        next;
-                    }
-                    if (! Popup->YesNo( sprintf(__("The default password policy object for
-'%s' does not exist.
+        y2error("Error while cleaning up to config directory");
+        $self->SetError( _("Config Directory cleanup failed.") );
+        Progress->Finish();
+        return 0;
+    }
 
-Create that object now?
-"),$base_dn ) ))
-                    {
-                        next;
-                    }
-                    y2milestone("going to create default_policy object");
-                    Ldap->Import ({"ldap_server" => "localhost",
-                                   "bind_dn" => $db->{'rootdn'}
-                                    });
-                    Ldap->LDAPInit ();
-                    my $pw = $db->{'passwd'};
-                    my $bind_res = "tmp";
-                    while( $bind_res ne "" ) {
-                        if (!$pw || $pw eq "" || $pw =~ /^\{/ ) {
-                            $pw = Ldap->GetLDAPPassword(0);
-                        }
-                        $bind_res = Ldap->LDAPBind ($pw);
-                        if ($bind_res ne "" ) {
-                            if (Popup->YesNo( sprintf(__("Authentication failed. The password is probably incorrect.
-The error message was: '%s'.
-Try again? 
-"), $bind_res ) ) )
-                            {   
-                                $pw = "";
-                            } else {
-                                last;
-                            }
-                        }
-                    }
-                    if ( $bind_res ne "" ) {
-                        next;
-                    }
-                    Ldap->InitSchema ();
-                    my $dn =  $ppolicy_hash->{'ppolicy_default'};
-                    my $X500Dn = X500::DN->ParseRFC2253($dn);
-                    my $num_rdn = $X500Dn->getRDNs;
-                    my $rdn = $X500Dn->getRDN($num_rdn-1);
-                    my @rdnAttrType = $rdn->getAttributeTypes();
-                    y2debug("rdnAttrType ".$rdnAttrType[0]);
-                    my $rdnAttrVal = $rdn->getAttributeValue($rdnAttrType[0]);
-                    my $ppolicy = {"dn" => $dn};
-                    $ppolicy	= LdapPopup->PasswordPolicyDialog ($ppolicy);
-                    if ( keys %{$ppolicy} )
-                    {
-                        $ppolicy->{"objectclass"} = [ "namedObject", "pwdPolicy" ];
-                        $ppolicy->{"pwdattribute"} = ["userPassword"];
-                        $ppolicy->{$rdnAttrType[0]} = [ $rdnAttrVal ];
-                        SCR->Write (".ldap.add", { "dn" => $dn, "check_attrs" => 1}, $ppolicy)
-                    }
-                }
+    Progress->NextStage();
+    $rc = SCR->Execute('.target.bash_output', 'mktemp /tmp/slapd-conf-ldif.XXXXXX' );
+    if ( $rc->{'exit'} == 0 )
+    {
+        my $tmpfile = $rc->{'stdout'};
+        chomp $tmpfile;
+        y2milestone("using tempfile: ".$tmpfile );
+        my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+        y2milestone($ldif);
+        $rc = SCR->Write('.target.string', $tmpfile, $ldif );
+        if ( $rc )
+        {
+            $rc = SCR->Execute('.target.bash_output', 
+                    "/usr/sbin/slapadd -F /etc/openldap/slapd.d -b cn=config -l $tmpfile" );
+            if ( $rc->{'exit'} )
+            {
+                y2error("Error during slapadd:" .$rc->{'stderr'});
+                $ret = 0;
             }
         }
+        else
+        {
+            y2error("Error while write configuration to LDIF file");
+            $ret = 0;
+        }
+        # cleanup
+        SCR->Execute('.target.bash', "rm -f $tmpfile" );
     }
-    # Progress finished
     Progress->NextStage();
+
+    Progress->Finish();
     sleep(1);
-    return 1;
+    return $ret;
 }
 
 ##
@@ -851,44 +187,6 @@ sub Import {
     my $self = shift;
     my $hash = shift;
 
-    if(exists $hash->{allowList}) {
-        $allowList = $hash->{allowList};
-    }
-
-    if(exists $hash->{loglevel}) {
-        $loglevel = $hash->{loglevel};
-    }
-
-    if(exists $hash->{tlsSettings}) {
-        $tlsSettings = $hash->{tlsSettings};
-    }
-
-    if(exists $hash->{schemaIncludeList}) {
-        $schemaIncludeList = $hash->{schemaIncludeList};
-    }
-
-    if(exists $hash->{configureCommonServerCertificate}) {
-        $configureCommonServerCertificate = $hash->{configureCommonServerCertificate};
-    } elsif( exists $hash->{importCertificates} ) {
-        $importCertificates = $hash->{importCertificates}; 
-    } elsif (exists $hash->{tlsSettings}) {
-        $tlsSettings = $hash->{tlsSettings};
-    }
-
-    if(exists $hash->{database}) {
-	my $dbs = $hash->{database};
-        foreach my $db (@$dbs) {
-            $db->{createdatabasedir} = 1;
-            if(! $self->AddDatabase($db)) {
-                return 0;
-            }
-            
-        }
-    }
-    if(exists $hash->{serviceEnabled}) {
-        $serviceEnabled = $hash->{serviceEnabled};
-    }
-    
     return 1;
 }
 
@@ -903,45 +201,6 @@ sub Export {
 
     my $hash = {};
 
-    #$hash->{dbList} = $dbList;
-    #$hash->{dbListNEW} = $dbListNEW;
-
-    my @database_tmp = ();
-    foreach my $db (@$dbList) {
-    	push @database_tmp, $database->{$db};
-    }
-    if (scalar(@database_tmp) > 0) {
-    	$hash->{database} = \@database_tmp;
-    }
-    my @database_tmp_new = ();
-    foreach my $db (@$dbListNEW) {
-        if (! grep( /^$db$/, @$dbList) ){
-            foreach my $key (keys %{$databaseNEW->{$db}}) {
-                if (! defined $databaseNEW->{$db}->{$key} ) {
-                    delete $databaseNEW->{$db}->{$key};
-                }
-            }
-            push @database_tmp_new, $databaseNEW->{$db};
-        }
-    }
-    if (scalar(@database_tmp_new) > 0) {
-    	push @{$hash->{database}}, @database_tmp_new;
-    }
-    $hash->{allowList} = $allowList;
-    $hash->{loglevel} = $loglevel;
-    if($configureCommonServerCertificate) {
-#### CA-Management has no real support for AutoYaST-Cloning. So don't export
-# commonServerCert CA-Settings for now.
-#        $hash->{commonServerCertificateAvailable} = $commonServerCertificateAvailable;
-#        $hash->{configureCommonServerCertificate} = $configureCommonServerCertificate;
-    } elsif( ( scalar keys %$importCertificates ) > 0 ) {
-        $hash->{importCertificates} = $importCertificates;
-    } else {
-        $hash->{tlsSettings} = $tlsSettings;
-    }
-    $hash->{schemaIncludeList} = $schemaIncludeList;
-    $hash->{serviceEnabled} = $serviceEnabled;
-
     return $hash;
 }
 
@@ -949,25 +208,21 @@ sub Export {
  # Create a textual summary and a list of unconfigured cards
  # @return summary of the current configuration
  #
-BEGIN { $TYPEINFO{Summary} = ["function", [ "list", "string" ] ]; }
+BEGIN { $TYPEINFO{Summary} = ["function", "string" ]; }
 sub Summary {
     # Configuration summary text for autoyast
-    my $string = "";
+    my $self = shift;
+    my $defaults = $self->GetInitialDefaults();
+    my $string;
 
-#    if($serviceEnabled) {
-#        $string .= __("Start LDAP server with:<br>");
-#        $string .= sprintf(__("<b>baseDN</b>: %s<br>"), $dbList->[0]);
-#        $string .= sprintf(__("<b>rootDN</b>: %s<br>"), $database->{$dbList->[0]}->{rootdn});
-#        if($useRootPW) {
-#            $string .= __("<b>password</b>: <root password>");
-#        } else {
-#            $string .= __("<b>password</b>: ***");
-#        }
-#    } else {
-#        $string .= __("LDAP server not running.");
-#    }
+    $string .= '<h2>'._("Startup Configuration").'</h2>'
+            .'<p>'._("Start LDAP Server: ").'<code>'.($defaults->{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
+            .'<p>'._("Register at SLP Service: ").'<code>'.($defaults->{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>'
+            .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
+            .'<p>'._("Database Suffix: ").'<code>'.$defaults->{'basedn'}.'</code></p>'
+            .'<p>'._("Administrator DN: ").'<code>'.$defaults->{'rootdn'}.'</code></p>';
 
-    return [ $string ];
+    return $string;
 }
 
 ##
@@ -996,22 +251,202 @@ sub AutoPackages {
     return \%ret;
 }
 
-BEGIN { $TYPEINFO{GetPasswordPolicyOverlay} = ["function", ["map", "string", "string"], "string"]; }
-sub GetPasswordPolicyOverlay {
-    my $self = shift;
-    my $prefix = shift;
-    my $db_hash = shift || $database;
-    my $db = $db_hash->{$prefix};
-    my $overlays = $db->{'overlay'};
+##
+ # Data was modified?
+ # @return true if modified
+ #
+BEGIN { $TYPEINFO {Modified} = ["function", "boolean"]; }
+sub Modified {
+    y2milestone();
+    return 0;
+}
+BEGIN { $TYPEINFO {ReadServiceEnabled} = ["function", "boolean"]; }
+sub ReadServiceEnabled {
+    y2milestone("ReadServiceEnabled $serviceEnabled");
+    return $serviceEnabled;
+}
 
-    foreach my $overlay (@$overlays) {
-        if ( $overlay->[0] eq "ppolicy" ) {
-            y2debug("GetPasswordPolicyOverlay ".Data::Dumper->Dump([$database]));
-            return $overlay->[1];
-        }
+BEGIN { $TYPEINFO {SetServiceEnabled} = ["function", "boolean", "boolean"]; }
+sub SetServiceEnabled {
+    my $self = shift;
+    $serviceEnabled = shift;
+    return 1;
+}
+
+BEGIN { $TYPEINFO {ReadSLPEnabled} = ["function", "boolean"]; }
+sub ReadSLPEnabled {
+    y2milestone("ReadSLPEnabled");
+    return $registerSlp;
+}
+
+BEGIN { $TYPEINFO {SetSlpEnabled} = ["function", "boolean", "boolean"]; }
+sub SetSlpEnabled {
+    my $self = shift;
+    y2milestone("ReadServiceEnabled");
+    $registerSlp = shift;
+    return 1;
+}
+
+BEGIN { $TYPEINFO {IsUsingBackconfig} = ["function", "boolean"]; }
+sub IsUsingBackconfig 
+{
+    return $usesBackConfig;
+}
+
+BEGIN { $TYPEINFO {SlapdConfChanged} = ["function", "boolean"]; }
+sub SlapdConfChanged
+{
+    return $slapdConfChanged;
+}
+
+sub SetError
+{
+    my $self = shift;
+    my ( $msg, $details ) = @_;
+    $error{'msg'} = $msg;
+    $error{'details'} = $details;
+}
+
+BEGIN { $TYPEINFO {GetError} = ["function", ["map", "string", "string"] ]; }
+sub GetError
+{
+    return \%error;
+}
+
+BEGIN { $TYPEINFO {GetLogLevels} = ["function", [ "list", "string" ] ]; }
+sub GetLogLevels
+{
+    return \@loglevel;
+}
+
+BEGIN { $TYPEINFO {MigrateSlapdConf} = ["function", "boolean"]; }
+sub MigrateSlapdConf
+{
+    my $self = shift;
+    my $progressItems = [ _("Cleaning up directory for config database"),
+            _("Converting slapd.conf to config database"), 
+            _("Switching startup configuration to use config database")]; 
+    Progress->New("Migrating LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
+    Progress->NextStage();
+    Progress->NextStage();
+
+    my $rc = SCR->Execute('.target.bash_output', 
+                    "/usr/sbin/slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d" );
+    if ( $rc->{'exit'} ) 
+    {
+        y2error("Error while migration slapd.conf");
+        my $details = _("Output of \"slaptest\":\n"). $rc->{'stderr'};
+        $self->SetError( _("Migration of existing configuration failed."), $details );
+        Progress->Finish();
+        return 0;
     }
-    y2debug("GetPasswordPolicyOverlay: overlay not found");
-    return undef;
+    Progress->NextStage();
+    $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND', 'ldap');
+    if ( ! $rc )
+    {
+        y2error("Error while switch to config backend");
+        $self->SetError( _("Switch from slapd.conf to config backend failed.") );
+        Progress->Finish();
+        return 0;
+    }
+    Progress->Finish();
+    return 1;
+}
+
+BEGIN { $TYPEINFO {GetInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub GetInitialDefaults
+{
+    y2milestone("GetInitialDefaults");
+    my $self = shift;
+    if ( ! keys(%dbDefaults ) ) {
+        $self->InitDbDefaults();
+    }
+    y2milestone(Data::Dumper->Dump([\%dbDefaults]));
+    return \%dbDefaults;
+}
+
+BEGIN { $TYPEINFO {SetInitialDefaults} = ["function", "boolean", [ "map", "string", "any" ] ]; }
+sub SetInitialDefaults
+{
+    my $self = shift;
+    my $defaults = shift;
+    $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
+    $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
+    y2milestone("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
+    %dbDefaults = %$defaults;
+    return 1;
+}
+
+BEGIN { $TYPEINFO {InitDbDefaults} = ["function", "boolean"]; }
+sub InitDbDefaults
+{
+    y2milestone("InitDbDefaults");
+    my $self = shift;
+    # generate base dn from domain;
+    my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -d" );
+    my $domain = $rc->{"stdout"};
+    if ( $domain eq "" )
+    {
+        $domain = "site";
+    }
+    chomp($domain);
+    y2milestone( "domain is: <".$domain.">"  );
+    my @domainparts = split /\./, $domain ;
+    my @rdn = ();
+    foreach my $rdn ( @domainparts )
+    {
+        push @rdn, "dc=".$rdn;   
+    }
+    my $basedn = join ',', @rdn ;
+    y2milestone("basedn: $basedn");
+    $dbDefaults{'basedn'} = $basedn;
+    $dbDefaults{'rootdn'} = "cn=admin,".$basedn;
+    $dbDefaults{'pwenctype'} = "SSHA";
+    $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
+    $dbDefaults{'slpRegister'} = YaST::YCP::Boolean(0);
+    return 1;
+}
+
+BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
+sub ReadFromDefaults
+{
+    my $database = { 'type' => 'bdb',
+                     'suffix' => $dbDefaults{'basedn'},
+                     'rootdn' => $dbDefaults{'rootdn'},
+                     'directory' => '/var/lib/ldap'
+                   };
+    my $cfgdatabase = { 'type' => 'config',
+                     'rootdn' => 'cn=config',
+                     'rootpw' => 'secret'
+                   };
+
+    @schema = ( "core", "cosine", "inetorgperson" );
+
+    push @databases, ( $cfgdatabase, $database );
+
+    SCR->Execute('.ldapserver.initGlobals' );
+    SCR->Execute('.ldapserver.initSchema', \@schema );
+    SCR->Execute('.ldapserver.initDatabases', \@databases );
+    return 1;
+}
+
+BEGIN { $TYPEINFO {GetDatabaseList} = ["function", [ "list", [ "map" , "string", "string"] ] ]; }
+sub GetDatabaseList
+{
+    y2milestone("GetDatabaseList");
+    my $self = shift;
+    my $ret = ();
+    foreach my $db ( @databases )
+    {
+        my $tmp = { 'type' => $db->{'type'}, 'suffix' => $db->{'suffix'} };
+        if (! $tmp->{'suffix'} )
+        {
+            $tmp->{'suffix'} = "unknown";
+        }
+        push @{$ret}, $tmp;
+    }
+    y2milestone(Data::Dumper->Dump([$ret]));
+    return $ret
 }
 1;
 # EOF
