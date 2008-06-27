@@ -47,6 +47,9 @@ class OlcConfigEntry
         void setStringValue(const std::string &type, const std::string &value);
         void addStringValue(const std::string &type, const std::string &value);
 
+        int getIntValue( const std::string &type ) const;
+        void setIntValue( const std::string &type, int value );
+
         void setIndex( int index );
 
         int getEntryIndex() const;
@@ -135,6 +138,15 @@ class OlcBdbDatabase : public  OlcDatabase
         virtual std::vector<IndexType> getDatabaseIndex( const std::string &attr ) const;
         virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx);
         virtual void deleteIndex(const std::string& attr);
+
+        int getEntryCache() const;
+        void setEntryCache( int cachesize );
+
+        int getIdlCache() const;
+        void setIdlCache( int cachesize );
+
+        void setCheckPoint( int kbytes, int min );
+        //int[] getCheckPoint() const;
 };
 
 class OlcTlsSettings;
