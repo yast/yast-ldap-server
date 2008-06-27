@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <LDAPEntry.h>
+#include <boost/shared_ptr.hpp>
 
 class OlcConfigEntry
 {
@@ -35,6 +36,8 @@ class OlcConfigEntry
         void setIndex( int index );
         void getEntryDn();
 
+        int getIndex() const;
+
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         virtual std::string toLdif() const;
 
@@ -53,11 +56,15 @@ class OlcDatabase : public OlcConfigEntry
         
         OlcDatabase( const LDAPEntry &le );
         OlcDatabase( const std::string& type );
+
         static bool isBdbDatabase( const LDAPEntry& le );
         
         void setSuffix( const std::string &suffix);
         void setRootDn( const std::string &rootdn);
         void setRootPw( const std::string &rootpw);
+
+        const std::string getSuffix() const;
+        const std::string getType() const;
 
         virtual std::map<std::string, std::list<std::string> > toMap() const;
     
@@ -114,12 +121,13 @@ class OlcSchemaConfig : public OlcConfigEntry
         OlcSchemaConfig();
 };
 
+typedef std::list<boost::shared_ptr<OlcDatabase> > OlcDatabaseList;
 class OlcConfig {
     public:
         OlcConfig(LDAPConnection *lc=0 );
         OlcGlobalConfig getGlobals();
         void setGlobals( OlcGlobalConfig &olcg);
-        OlcBdbDatabase getDatabase(std::string &basedn);
+        OlcDatabaseList getDatabases();
     private:
         LDAPConnection *m_lc;
 };

@@ -24,7 +24,20 @@ static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
     return false;
 }
 
-OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le) { }
+OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
+{
+    std::string type(this->getStringValue("olcdatabase"));
+    if ( type[0] == '{' )
+    {
+        std::string::size_type pos = type.find('}');
+        std::istringstream indexstr(type.substr(1, pos-1));
+        indexstr >> entryIndex;
+        m_type = type.substr( pos+1, std::string::npos );
+    } else {
+        m_type = type;
+        entryIndex = 0;
+    }
+}
 
 OlcDatabase::OlcDatabase( const std::string& type ) : m_type(type) 
 {
@@ -337,6 +350,11 @@ void OlcConfigEntry::setIndex( int index )
     this->updateEntryDn();
 }
 
+int OlcConfigEntry::getIndex() const
+{
+    return this->entryIndex;
+}
+
 void OlcConfigEntry::updateEntryDn()
 {
 }
@@ -384,6 +402,16 @@ void OlcDatabase::setRootDn( const std::string &rootdn)
 void OlcDatabase::setRootPw( const std::string &rootpw)
 {
     this->setStringValue("olcRootPW", rootpw); 
+}
+
+const std::string OlcDatabase::getSuffix() const
+{
+    return this->getStringValue("olcSuffix");
+}
+
+const std::string OlcDatabase::getType() const
+{
+    return this->m_type;
 }
 
 std::map<std::string, std::list<std::string> > OlcBdbDatabase::toMap() const
@@ -585,8 +613,24 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
     }
 }
 
-OlcBdbDatabase getDatabase(std::string &basedn)
+OlcDatabaseList OlcConfig::getDatabases()
 {
+    OlcDatabaseList res;
+    try {
+        LDAPSearchResults *sr = m_lc->search( "cn=config", 
+                LDAPConnection::SEARCH_ONE, "objectclass=olcDatabaseConfig" );
+        LDAPEntry *dbEntry;
+        while ( dbEntry = sr->getNext() )
+        {
+            std::cout << "Got Database Entry: " << dbEntry->getDN() << std::endl;
+            boost::shared_ptr<OlcDatabase> olce(OlcDatabase::createFromLdapEntry(*dbEntry));
+            res.push_back(olce);
+        }
+    } catch (LDAPException e ) {
+        std::cout << e << std::endl;
+        throw;
+    }
+    return res;
 }
 
 OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
