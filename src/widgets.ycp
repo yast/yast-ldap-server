@@ -153,6 +153,7 @@
             `RichText( `id( `rt_tls_info ), "" ),
             `PushButton( `id( `pb_edit ), _("&Select Certificate...") )
         );
+
     term tlsTypeWidget =
         `VBox(
             `Heading( _("Select Type") ),
@@ -174,6 +175,7 @@
                 `PushButton( `id( `cancel ), Label::CancelButton())
             )
         );
+
     term tlsImportWidget =
         `VBox(
             `Heading( _("Import Certificate") ),
