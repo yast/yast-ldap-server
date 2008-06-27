@@ -311,7 +311,35 @@ define boolean cb_check_tls()
 define boolean cb_read_tls()
 ``{
     y2milestone( "calling tls read handler" );
-    LdapServer::GetTlsConfig();
+    map<string, any> tls = LdapServer::GetTlsConfig();
+    y2milestone( "tls config %1", tls );
+    if ( (string)tls["caCertFile"]:"" != ""  &&
+         (string)tls["certFile"]:"" != ""  &&
+         (string)tls["certKeyFile"]:"" != "" )
+    {
+        UI::ChangeWidget( `cb_tls_enabled, `Value, true );
+        UI::ChangeWidget( `cb_ssl_listener_enabled, `Enabled, true );
+
+        if ( (string)tls["caCertFile"]:"" == "/etc/ssl/certs/YaST-CA.pem"  &&
+             (string)tls["certFile"]:"" == "/etc/ssl/servercerts/servercert.pem"  &&
+             (string)tls["certKeyFile"]:"" == "/etc/ssl/servercerts/serverkey.pem" )
+        {
+            UI::ChangeWidget( `cb_use_common_cert, `Value, true );
+            UI::ChangeWidget( `fr_import_cert , `Enabled, false );
+        } else {
+            UI::ChangeWidget( `cb_use_common_cert, `Value, false );
+            UI::ChangeWidget( `fr_import_cert , `Enabled, true );
+        }
+    }
+    else
+    {
+        UI::ChangeWidget( `cb_ssl_listener_enabled, `Enabled, false );
+        UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
+        UI::ChangeWidget( `fr_import_cert, `Enabled, false );
+    }
+    UI::ChangeWidget( `te_ca_file, `Value, tls["caCertFile"]:"" );
+    UI::ChangeWidget( `te_cert_file, `Value, tls["certFile"]:"" );
+    UI::ChangeWidget( `te_key_file, `Value, tls["certKeyFile"]:"" );
 //    map<string,string> importPaths = LdapServer::ReadImportCertificates();
 //    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
 //    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
@@ -383,7 +411,7 @@ define boolean cb_write_tls()
 //        LdapServer::WriteConfigureCommonServerCertificate( false );
 //        LdapServer::WriteImportCertificates( $[] );
         map<string,any> tlsSettings = $[
-                "certKeyFIle" : "",
+                "certKeyFile" : "",
                 "certFile"    : "",
                 "caCertFile"  : "",
                 "caCertDir"  : "",
@@ -412,6 +440,11 @@ define boolean cb_input_tls()
             if ( common_cert_available )
             {
                 UI::ChangeWidget( `cb_use_common_cert, `Enabled, true );
+                UI::ChangeWidget( `cb_use_common_cert, `Value, true );
+                UI::ChangeWidget( `te_ca_file, `Value, "/etc/ssl/certs/YaST-CA.pem");
+                UI::ChangeWidget( `te_cert_file, `Value, "/etc/ssl/servercerts/servercert.pem");
+                UI::ChangeWidget( `te_key_file, `Value, "/etc/ssl/servercerts/serverkey.pem");
+                UI::ChangeWidget( `fr_import_cert, `Enabled, false );
             } else {
                 UI::ChangeWidget( `fr_import_cert, `Enabled, true );
             }
@@ -431,7 +464,7 @@ define boolean cb_input_tls()
             {
                 UI::ChangeWidget( `te_ca_file, `Value, "/etc/ssl/certs/YaST-CA.pem");
                 UI::ChangeWidget( `te_cert_file, `Value, "/etc/ssl/servercerts/servercert.pem");
-                UI::ChangeWidget( `te_key_file, `Value, "/etc/ssl/servercerts/servercert.pem");
+                UI::ChangeWidget( `te_key_file, `Value, "/etc/ssl/servercerts/serverkey.pem");
                 UI::ChangeWidget( `fr_import_cert, `Enabled, false );
             } else {
                 Popup::Error( _("A common server certificate is not available") );
