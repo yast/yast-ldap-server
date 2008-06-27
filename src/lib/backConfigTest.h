@@ -21,9 +21,15 @@ class OlcConfigEntry
 
         inline OlcConfigEntry() : m_dbEntry(), m_dbEntryChanged() {}
         inline OlcConfigEntry(const LDAPEntry& le) : m_dbEntry(le), m_dbEntryChanged(le) {}
+        inline OlcConfigEntry(const LDAPEntry& le, const LDAPEntry& le1) : m_dbEntry(le), m_dbEntryChanged(le1) {}
         inline std::string getDn() const { 
             return m_dbEntry.getDN();
         }
+        inline const LDAPEntry& getChangedEntry() const {
+            return m_dbEntryChanged;
+        }
+        bool isNewEntry() const;
+
         LDAPModList entryDifftoMod() const;
         
         StringList getStringValues(const std::string &type) const;
@@ -126,6 +132,7 @@ class OlcSchemaConfig : public OlcConfigEntry
     public:
         OlcSchemaConfig();
         OlcSchemaConfig(const LDAPEntry &e);
+        OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2);
         const std::string& getName() const;
 
     private:

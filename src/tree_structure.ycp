@@ -141,7 +141,7 @@ define boolean cb_input_schema()
     {
         //add a new file to the list
                 /* file dialog heading */
-        string new_item = UI::AskForExistingFile( "/etc/openldap/schema/", "*.schema *", _("Select New Schema File") );
+        string new_item = UI::AskForExistingFile( "/etc/openldap/schema/", "*.ldif *", _("Select New Schema File") );
 
         if( new_item == nil ) return true;
 
@@ -152,7 +152,7 @@ define boolean cb_input_schema()
             return false;
         }
 
-//        LdapServer::AddItemToSchemaList(new_item);
+        LdapServer::AddLdifToSchemaList(new_item);
         list<string> inclist = LdapServer::GetSchemaList();
         update_schemalist( inclist, new_item );
 

@@ -566,6 +566,16 @@ sub GetSchemaList
     return $rc;
 }
 
+BEGIN { $TYPEINFO {AddLdifToSchemaList} = ["function", "boolean", "string" ]; }
+sub AddLdifToSchemaList
+{
+    my ($self, $file) = @_;
+
+    my $rc = SCR->Write(".ldapserver.schema.addFromLdif", $file);
+
+    return 1;
+}
+
 BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }
 sub UpdateDatabase 
 {
