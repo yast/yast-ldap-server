@@ -102,7 +102,7 @@ class OlcGlobalConfig : public OlcConfigEntry
         int getLogLevel() const;
         const std::vector<std::string> getLogLevelString() const;
         void setLogLevel(int level);
-        void setLogLevel(std::string level);
+        void setLogLevel(const std::list<std::string> &level);
         void addLogLevel(std::string level);
         OlcTlsSettings getTlsSettings() const;
         virtual std::map<std::string, std::list<std::string> > toMap() const;

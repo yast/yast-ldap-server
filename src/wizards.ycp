@@ -82,7 +82,7 @@ any ProposalSequence() {
         ],
 	"advanced" : $[
 	    `abort	: `abort,
-	    `next	: `next
+	    `next	: "write"
 	],
 	"write" : $[
 	    `abort	: `abort,

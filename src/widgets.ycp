@@ -99,21 +99,21 @@
     term loglevelWidget =
         `MultiSelectionBox(
             `id( `msb_loglevel ), _("Select &Log Level Flags:"), [
-                `item( `id( `trace ), _("Trace Function Calls") ),
-                `item( `id( `packets ), _("Debug Packet Handling") ),
-                `item( `id( `args ), _("Heavy Trace Debugging (function args)") ),
-                `item( `id( `conns ), _("Connection Management") ),
-                `item( `id( `BER ), _("Print Packets Sent and Received") ),
-                `item( `id( `filter ), _("Search Filter Processing") ),
-                `item( `id( `config ), _("Configuration File Processing") ),
-                `item( `id( `ACL ), _("Access Control List Processing") ),
-                `item( `id( `stats ), _("Log Connections, Operations, and Result") ),
-                `item( `id( `stats2 ), _("Log Entries Sent") ),
-                `item( `id( `shell ), _("Print Communication with Shell Back-Ends") ),
-                `item( `id( `parse ), _("Entry Parsing") ),
-                `item( `id( `sync ), _("Entry Parsing") ),
-                `item( `id( `none ), _("None") ),
-                `item( `id( `cache ), _("Proxy Cache") )
+                `item( `id( "trace" ), _("Trace Function Calls") ),
+                `item( `id( "packets" ), _("Debug Packet Handling") ),
+                `item( `id( "args" ), _("Heavy Trace Debugging (function args)") ),
+                `item( `id( "conns" ), _("Connection Management") ),
+                `item( `id( "BER" ), _("Print Packets Sent and Received") ),
+                `item( `id( "filter" ), _("Search Filter Processing") ),
+                `item( `id( "config" ), _("Configuration File Processing") ),
+                `item( `id( "ACL" ), _("Access Control List Processing") ),
+                `item( `id( "stats" ), _("Log Connections, Operations, and Result") ),
+                `item( `id( "stats2" ), _("Log Entries Sent") ),
+                `item( `id( "shell" ), _("Print Communication with Shell Back-Ends") ),
+                `item( `id( "parse" ), _("Entry Parsing") ),
+                `item( `id( "sync" ), _("LDAPSync Replication") ),
+                `item( `id( "none" ), _("None") ),
+                `item( `id( "cache" ), _("Proxy Cache") )
             ]
         );
 

@@ -57,13 +57,13 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
 
-    return YCPBoolean(true);
     if ( path->length() < 2 ) {
         return YCPNull();
-    } else {
-        path->component_str(1) == "global";
+    } else if ( path->component_str(0) == "global" ) {
         y2milestone("Global Write");
         return WriteGlobal(path->at(1), arg, arg2);
+    } else {
+        return YCPNull();
     }
 }
 
@@ -245,9 +245,14 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
     } else {
         if ( path->component_str(0) == "loglevel" ) {
             y2milestone("Write loglevel");
-            OlcGlobalConfig olcg = olc.getGlobals();
-            olcg.setLogLevel(arg->asInteger()->value());
-            olc.setGlobals(olcg);
+            YCPList levels = arg->asList();
+            std::list<std::string> levelList;
+            for ( int i = 0; i < levels->size(); i++ )
+            {
+                levelList.push_back( levels->value(i)->asString()->value_cstr() );
+            }
+            globals->setLogLevel( levelList );
+            //olc.setGlobals(olcg);
             return YCPBoolean(true);
         }
     }

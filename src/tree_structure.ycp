@@ -235,28 +235,18 @@ define boolean cb_read_loglevel()
 ``{
     y2milestone( "calling loglevel read handler" );
     list<string> lvls = LdapServer::GetLogLevels();
-    list<symbol> ids = [];
 
-    foreach( string i, lvls, {
-        ids = add( ids, symbolof(toterm(i)) );
-    } );
-
-    UI::ChangeWidget( `msb_loglevel, `SelectedItems, ids );
+    UI::ChangeWidget( `msb_loglevel, `SelectedItems, lvls );
     return true;
 }
 
 define boolean cb_write_loglevel()
 ``{
     y2milestone( "calling loglevel write handler" );
-    list<integer> idlist = (list<integer>)UI::QueryWidget( `msb_loglevel, `SelectedItems );
-    integer loglevel = 0;
-    foreach( integer i, idlist, {
-        loglevel = loglevel + i;
-    } );
+    list<string> idlist = (list<string>)UI::QueryWidget( `msb_loglevel, `SelectedItems );
 
-    y2milestone( "writing loglevel: '%1'", loglevel );
-//    LdapServer::WriteLoglevel( loglevel );
-    return true;
+    y2milestone( "writing loglevel: '%1'", idlist );
+    return LdapServer::SetLogLevels( idlist );
 }
 
 /*****************************
