@@ -476,24 +476,33 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 y2milestone("Component %s ", dbComponent.c_str());
                 if ( dbComponent == "indexes" )
                 {
-                    IndexMap idx = (*i)->getDatabaseIndexes();
-                    IndexMap::const_iterator j = idx.begin();
-                    for ( ; j != idx.end(); j++ )
+                    boost::shared_ptr<OlcBdbDatabase> bdb = 
+                        boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
+                    if ( bdb == 0 )
                     {
-                        YCPMap ycpIdx;
-                        y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
-                        std::vector<IndexType>::const_iterator k = j->second.begin();
-                        for ( ; k != j->second.end(); k++ )
+                        y2milestone("Database doesn't provide indexing\n");
+                    }
+                    else
+                    {
+                        IndexMap idx = bdb->getDatabaseIndexes();
+                        IndexMap::const_iterator j = idx.begin();
+                        for ( ; j != idx.end(); j++ )
                         {
-                            if ( *k == Eq ){
-                                ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
-                            } else if ( *k == Present ){
-                                ycpIdx.add(YCPString("pres"), YCPBoolean(true) );
-                            } else if ( *k == Sub ){
-                                ycpIdx.add(YCPString("sub"), YCPBoolean(true) );
+                            YCPMap ycpIdx;
+                            y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
+                            std::vector<IndexType>::const_iterator k = j->second.begin();
+                            for ( ; k != j->second.end(); k++ )
+                            {
+                                if ( *k == Eq ){
+                                    ycpIdx.add(YCPString("eq"), YCPBoolean(true) );
+                                } else if ( *k == Present ){
+                                    ycpIdx.add(YCPString("pres"), YCPBoolean(true) );
+                                } else if ( *k == Sub ){
+                                    ycpIdx.add(YCPString("sub"), YCPBoolean(true) );
+                                }
                             }
+                            resMap.add( YCPString(j->first), ycpIdx );
                         }
-                        resMap.add( YCPString(j->first), ycpIdx );
                     }
                     return resMap;
                 }
@@ -791,28 +800,38 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 y2milestone("Component '%s'", dbComponent.c_str());
                 if ( dbComponent == "index" )
                 {
-                    std::vector<IndexType> idx;
-                    std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
-                    y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
-                    if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
+                    boost::shared_ptr<OlcBdbDatabase> bdb = 
+                        boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
+                    if ( bdb == 0 )
                     {
-                        idx.push_back(Present);
+                        y2milestone("Database doesn't provide indexing\n");
+                        ret = false;
                     }
-                    if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
+                    else
                     {
-                        idx.push_back(Eq);
+                        std::vector<IndexType> idx;
+                        std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
+                        y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
+                        if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
+                        {
+                            idx.push_back(Present);
+                        }
+                        if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
+                        {
+                            idx.push_back(Eq);
+                        }
+                        if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
+                        {
+                            idx.push_back(Sub);
+                        }
+                        if ( ( idx.empty()) || ( ! bdb->getDatabaseIndex(attr).empty() ) ) {
+                            bdb->deleteIndex( attr );
+                        }
+                        if ( ! idx.empty() ) {
+                            bdb->addIndex(attr, idx);
+                        }
+                        ret = true;
                     }
-                    if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
-                    {
-                        idx.push_back(Sub);
-                    }
-                    if ( ( idx.empty()) || ( ! (*i)->getDatabaseIndex(attr).empty() ) ) {
-                        (*i)->deleteIndex( attr );
-                    }
-                    if ( ! idx.empty() ) {
-                        (*i)->addIndex(attr, idx);
-                    }
-                    ret = true;
                 }
                 else if (dbComponent == "ppolicy" )
                 {
