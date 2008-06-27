@@ -1,3 +1,14 @@
+/*
+ * slapd-config.h
+ *
+ * A library for accessing OpenLDAP's configuration backend
+ *
+ * Author: Ralf Haferkamp <rhafer@suse.de>
+ *
+ * $Id$
+ *
+ */
+
 #ifndef BACK_CONFIG_TEST_H
 #define BACK_CONFIG_TEST_H
 #include <LDAPConnection.h>
@@ -11,6 +22,9 @@
 #include <LDAPAttrType.h>
 #include <boost/shared_ptr.hpp>
 
+typedef void (SlapdConfigLogCallback) (int level, const std::string &msg, 
+            const char* file=0, const int line=0, const char* function=0 );
+
 class OlcConfigEntry
 {
     public:
@@ -22,7 +36,9 @@ class OlcConfigEntry
 
         inline OlcConfigEntry() : m_dbEntry(), m_dbEntryChanged() {}
         inline OlcConfigEntry(const LDAPEntry& le) : m_dbEntry(le), m_dbEntryChanged(le) {}
-        inline OlcConfigEntry(const LDAPEntry& le, const LDAPEntry& le1) : m_dbEntry(le), m_dbEntryChanged(le1) {}
+        inline OlcConfigEntry(const LDAPEntry& le, const LDAPEntry& le1) 
+                    : m_dbEntry(le), m_dbEntryChanged(le1) {}
+
         inline std::string getDn() const { 
             return m_dbEntry.getDN();
         }
@@ -231,6 +247,9 @@ class OlcConfig {
 
         void setGlobals( OlcGlobalConfig &olcg);
         void updateEntry( const OlcConfigEntry &oce );
+
+        static SlapdConfigLogCallback *logCallback;
+        static void setLogCallback( SlapdConfigLogCallback *lcb );
 
     private:
         LDAPConnection *m_lc;

@@ -1,3 +1,13 @@
+/*
+ * slapd-config.cpp
+ *
+ * A library for accessing OpenLDAP's configuration backend
+ *
+ * Author: Ralf Haferkamp <rhafer@suse.de>
+ *
+ * $Id$
+ */
+
 #include <LDAPConnection.h>
 #include <LDAPResult.h>
 #include <string>
@@ -9,6 +19,19 @@
 #include <LdifWriter.h>
 #include "slapd-config.h"
 
+
+
+static void defaultLogCallback( int level, const std::string &msg,
+            const char* file=0, const int line=0, const char* function=0)
+{
+    std::cerr << msg << std::endl;
+}
+
+SlapdConfigLogCallback *OlcConfig::logCallback = defaultLogCallback;
+
+#define log_it( level, string ) \
+    OlcConfig::logCallback( level, string, __FILE__, __LINE__ , __FUNCTION__ )
+    
 static bool nocase_compare( char c1, char c2){
     return toupper(c1) == toupper(c2);
 }
@@ -28,7 +51,6 @@ static int splitIndexFromString(const std::string &in, std::string &out)
     }
     return index;
 }
-
 static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
 {
     if(s1.size() == s2.size()){
@@ -39,6 +61,7 @@ static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
     }
     return false;
 }
+
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {
@@ -57,7 +80,7 @@ OlcDatabase::OlcDatabase( const std::string& type ) : m_type(type)
 
 void OlcDatabase::updateEntryDn()
 {
-    std::cerr << "updateEntryDN()" << std::endl;
+    log_it(0, "updateEntryDN()");
     std::ostringstream dn, name;
     name << "{" << entryIndex << "}" << m_type;
     dn << "olcDatabase=" << name.str() << ",cn=config" ;
@@ -76,7 +99,7 @@ inline void splitIndexString( const std::string &indexString, std::string &attr,
 {
     std::string::size_type pos = indexString.find_first_of(" \t");
     attr = indexString.substr(0, pos);
-    std::cout << "AttributeType: <" << attr << ">" << std::endl;
+    log_it( 0, "AttributeType: " + attr );
     if ( pos != std::string::npos ) {
         pos = indexString.find_first_not_of(" \t", pos);
         if ( pos != std::string::npos ) {
@@ -93,7 +116,7 @@ inline std::vector<IndexType> indexString2Type( const std::string &indexes )
         pos = indexes.find( ',', oldpos );
         std::string index = indexes.substr( oldpos, 
                     (pos == std::string::npos ? std::string::npos : pos - oldpos) );
-        std::cout << "Index: <" << index << ">" << std::endl;
+        log_it(0, std::string("Index: ") + index );
         oldpos = indexes.find_first_not_of( ", ", pos );
         if ( index == "pres" ) {
             idx.push_back(Present);
@@ -133,7 +156,7 @@ IndexMap OlcBdbDatabase::getDatabaseIndexes() const
         std::string attrType;
         std::string indexes;
         splitIndexString(*i, attrType, indexes );
-        std::cout << "Indexes: <" << indexes << ">" << std::endl;
+        log_it(0, "Indexes: " + indexes );
         std::vector<IndexType> idx = indexString2Type(indexes);
         res.insert(make_pair(attrType, idx));
     }
@@ -190,7 +213,7 @@ void OlcBdbDatabase::addIndex(const std::string& attr, const std::vector<IndexTy
             indexString += "sub";
         }
     }
-    std::cout << "indexString: '" << indexString << "'" << std::endl;
+    log_it(0, "indexString: '" + indexString + "'");
     this->addStringValue( "olcDbIndex", indexString );
 }
 
@@ -263,7 +286,7 @@ OlcGlobalConfig::OlcGlobalConfig() : OlcConfigEntry()
 
 OlcGlobalConfig::OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le)
 {
-    std::cout << "OlcGlobalConfig::OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le)" << std::endl;
+    log_it(0, "OlcGlobalConfig::OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le)");
 
 }
 
@@ -277,11 +300,11 @@ const std::vector<std::string> OlcGlobalConfig::getLogLevelString() const
         std::istringstream iss(*i);
         int intlogValue;
         if ( iss >> intlogValue ) {
-            std::cerr << "IntegerValue " << *i << std::endl;
+            log_it(0,"IntegerValue " + *i );
         }
         else
         {
-            std::cerr << "StringValue " << *i << std::endl;
+            log_it(0,"StringValue " + *i );
             lvls.push_back(*i);
         }
     }
@@ -387,7 +410,7 @@ OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
 
 OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
 {
-    std::cout << "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)" << std::endl;
+    log_it( 0, "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)");
     std::string name(this->getStringValue("cn"));
     if ( name[0] == '{' )
     {
@@ -402,7 +425,7 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
 }
 OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : OlcConfigEntry(e1, e2)
 {
-    std::cout << "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)" << std::endl;
+    log_it(0, "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)");
     std::string name(this->getStringValue("cn"));
     entryIndex = splitIndexFromString( name, m_name );
 }
@@ -436,7 +459,7 @@ const std::vector<LDAPAttrType> OlcSchemaConfig::getAttributeTypes() const
 
 OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
 {
-    std::cout << "OlcTlsSettings OlcGlobalConfig::getTlsSettings() const " << std::endl;
+    log_it(0, "OlcTlsSettings OlcGlobalConfig::getTlsSettings() const ");
     return OlcTlsSettings( *this );
 }
 
@@ -531,27 +554,27 @@ OlcConfigEntry* OlcConfigEntry::createFromLdapEntry( const LDAPEntry& e )
 {
     if ( OlcConfigEntry::isGlobalEntry(e) )
     {
-        std::cerr << "creating OlcGlobalConfig" << std::endl;
+        log_it(0,"creating OlcGlobalConfig" );
         return new OlcGlobalConfig(e);
     }
     else if ( OlcConfigEntry::isScheamEntry(e) )
     {
-        std::cerr << "creating OlcSchemaConfig" << std::endl;
+        log_it(0,"creating OlcSchemaConfig" );
         return new OlcSchemaConfig(e);
     }
     else if ( OlcConfigEntry::isDatabaseEntry(e) )
     {
-        std::cerr << "creating OlcDatabase" << std::endl;
+        log_it(0,"creating OlcDatabase" );;
         return OlcDatabase::createFromLdapEntry(e);
     }
     else if ( OlcConfigEntry::isOverlayEntry(e) )
     {
-        std::cerr << "creating OlcOverlay" << std::endl;
+        log_it(0,"creating OlcOverlay");
         return new OlcConfigEntry(e);
     }
     else
     {
-        std::cerr << "unknown Config Object" << std::endl;
+        log_it(0,"unknown Config Object" );
         return 0;
     }
 }
@@ -595,7 +618,7 @@ OlcOverlay* OlcOverlay::createFromLdapEntry( const LDAPEntry& e)
 
 OlcOverlay::OlcOverlay( const LDAPEntry& e) : OlcConfigEntry(e)
 {
-    std::cerr << "OlcOverlay::OlcOverlay()" << std::endl;
+    log_it(0,"OlcOverlay::OlcOverlay()" );
     std::string type(this->getStringValue("olcoverlay"));
     entryIndex = splitIndexFromString( type, m_type );
 }
@@ -718,12 +741,12 @@ OlcDatabase* OlcDatabase::createFromLdapEntry( const LDAPEntry& e)
 {
     if ( OlcDatabase::isBdbDatabase( e ) )
     {
-        std::cerr << "creating OlcBbdDatabase()" << std::endl;
+        log_it(0,"creating OlcBbdDatabase()" );
         return new OlcBdbDatabase(e);
     }
     else
     {
-        std::cerr << "creating OlcDatabase()" << std::endl;
+        log_it(0,"creating OlcDatabase()" );
         return new OlcDatabase(e);
     }
 }
@@ -756,7 +779,7 @@ void OlcConfigEntry::setStringValues(const std::string &type, const StringList &
 
 void OlcConfigEntry::setStringValue(const std::string &type, const std::string &value)
 {
-    std::cerr << "setStringValue() " << type << " " << value << std::endl;
+    log_it(0,"setStringValue() " + type + " " + value);
     if ( value.empty() )
     {
         m_dbEntryChanged.delAttribute(type);
@@ -821,11 +844,11 @@ bool OlcConfigEntry::isDeletedEntry() const
 LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
     LDAPModList modifications;
-    std::cout << "Old Entry DN: " << m_dbEntry.getDN() << std::endl;
-    std::cout << "New Entry DN: " << m_dbEntryChanged.getDN() << std::endl;
+    log_it(0, "Old Entry DN: " + m_dbEntry.getDN());
+    log_it(0,"New Entry DN: " + m_dbEntryChanged.getDN());
     for(; i != m_dbEntry.getAttributes()->end(); i++ )
     {
-        std::cout << i->getName() << std::endl;
+        log_it(0,i->getName());
         const LDAPAttribute *changedAttr =  m_dbEntryChanged.getAttributeByName(i->getName());
         if ( changedAttr ) {
             StringList::const_iterator j = i->getValues().begin();
@@ -843,7 +866,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( deleted ) 
                 {
                     delValues.add(*j);
-                    std::cout << "Value deleted: " << *j << std::endl;
+                    log_it(0,"Value deleted: " + *j );
                 }
             }
             j = changedAttr->getValues().begin();
@@ -853,7 +876,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 StringList::const_iterator k = i->getValues().begin();
                 for( ; k != i->getValues().end(); k++ ) {
                     if ( *k == *j ) {
-                        std::cout << "Value unchanged: " << *k << std::endl;
+                        log_it(0,"Value unchanged: " + *k );
                         added = false;
                         break;
                     }
@@ -861,13 +884,13 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( added ) 
                 {
                     addValues.add(*j);
-                    std::cout << "Value added: " << *j << std::endl;
+                    log_it(0,"Value added: " + *j);
                 }
             }
             bool replace = false;
             if ( delValues.size() > 0 ) {
                 if ( (addValues.size() > 0) && ( (int)delValues.size() == i->getNumValues()) ) {
-                    std::cout << "All Values deleted, this is a replace" << std::endl;
+                    log_it(0,"All Values deleted, this is a replace" );
                     modifications.addModification(
                             LDAPModification( LDAPAttribute(i->getName(), addValues), 
                                     LDAPModification::OP_REPLACE) 
@@ -887,7 +910,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                         );
             }
         } else {
-            std::cout << "removed Attribute: " << i->getName() << std::endl;
+            log_it(0,"removed Attribute: " + i->getName() );
             modifications.addModification(
                     LDAPModification( LDAPAttribute(i->getName()), 
                             LDAPModification::OP_DELETE)
@@ -897,10 +920,10 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
     i = m_dbEntryChanged.getAttributes()->begin();
     for(; i != m_dbEntryChanged.getAttributes()->end(); i++ )
     {
-        std::cout << i->getName() << std::endl;
+        log_it(0,i->getName() );
         const LDAPAttribute *old =  m_dbEntry.getAttributeByName(i->getName());
         if (! old ) {
-            std::cout << "Attribute added: " << i->getName() << std::endl;
+            log_it(0,"Attribute added: " + i->getName());
             if (! i->getValues().empty() )
             {
                 modifications.addModification(
@@ -926,11 +949,11 @@ boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
         sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_BASE);
         dbEntry = sr->getNext();
     } catch (LDAPException e) {
-        std::cout << e << std::endl;
+        log_it(0, e.getResultMsg() + ": " + e.getServerMsg() );
         throw;
     }
     if ( dbEntry ) {
-        std::cout << "Got GlobalConfig: " << dbEntry->getDN() << std::endl;
+        log_it(0,"Got GlobalConfig: " + dbEntry->getDN() );
         boost::shared_ptr<OlcGlobalConfig> gc( new OlcGlobalConfig(*dbEntry) );
         return gc;
     }
@@ -944,7 +967,7 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
         LDAPModList ml = olcg.entryDifftoMod();
         m_lc->modify( olcg.getDn(), &ml );
     } catch (LDAPException e) {
-        std::cout << e << std::endl;
+        log_it(0, e.getResultMsg() + ": " + e.getServerMsg() );
         throw;
     }
 }
@@ -962,11 +985,11 @@ void OlcConfig::updateEntry( const OlcConfigEntry &oce )
             if ( ! ml.empty() ) {
                 m_lc->modify( oce.getDn(), &ml );
             } else {
-                std::cout << oce.getDn() << ": no changes" << std::endl;
+                log_it(0,oce.getDn() + ": no changes" );
             }
         }
     } catch (LDAPException e) {
-        std::cout << e << std::endl;
+        log_it(0, e.getResultMsg() + e.getServerMsg() );
         throw;
     }
 }
@@ -981,21 +1004,21 @@ OlcDatabaseList OlcConfig::getDatabases()
         while ( (dbEntry = sr->getNext()) != 0 )
         {
             std::string dbDn(dbEntry->getDN());
-            std::cout << "Got Database Entry: " << dbDn << std::endl;
+            log_it(0,"Got Database Entry: " + dbDn);
             boost::shared_ptr<OlcDatabase> olce(OlcDatabase::createFromLdapEntry(*dbEntry));
             LDAPSearchResults *overlaySearchRes = m_lc->search( dbDn, 
                     LDAPConnection::SEARCH_ONE, "objectclass=olcOverlayConfig" );
             LDAPEntry *overlayEntry;
             while ( (overlayEntry = overlaySearchRes->getNext()) != 0 )
             {
-                std::cout << "Got Overlay: " << overlayEntry->getDN() << std::endl;
+                log_it(0,"Got Overlay: " + overlayEntry->getDN() );
                 boost::shared_ptr<OlcOverlay> overlay(OlcOverlay::createFromLdapEntry(*overlayEntry) );
                 olce->addOverlay(overlay);
             }
             res.push_back(olce);
         }
     } catch (LDAPException e ) {
-        std::cout << e << std::endl;
+        log_it(0, e.getResultMsg() + e.getServerMsg() );
         throw;
     }
     return res;
@@ -1011,21 +1034,26 @@ OlcSchemaList OlcConfig::getSchemaNames()
         LDAPEntry *entry;
         while ( entry = sr->getNext() )
         {
-            std::cout << "Got Schema Entry: " << entry->getDN() << std::endl;
+            log_it(0,"Got Schema Entry: " + entry->getDN() );
             boost::shared_ptr<OlcSchemaConfig> olce(new OlcSchemaConfig(*entry));
             res.push_back(olce);
         }
     } catch (LDAPException e ) {
-        std::cout << e << std::endl;
+        log_it(0, e.getResultMsg() + e.getServerMsg() );
         throw;
     }
     return res;
 }
 
+void OlcConfig::setLogCallback( SlapdConfigLogCallback *lcb )
+{
+    OlcConfig::logCallback = lcb;
+}
+
 OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
     : m_crlCheck(0), m_verifyCient(0)
 {
-    std::cout << "OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )" << std::endl;
+    log_it(0,"OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )" );
     std::string value = ogc.getStringValue("olcTLSCRLCheck");
     if ( value == "none" )
     {
@@ -1066,7 +1094,7 @@ OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
 
 void OlcTlsSettings::applySettings( OlcGlobalConfig &ogc ) const
 {
-    std::cout << "OlcTlsSettings::applySettings( OlcGlobalConfig &ogc )" << std::endl;
+    log_it(0,"OlcTlsSettings::applySettings( OlcGlobalConfig &ogc )" );
     ogc.setStringValue("olcTlsCaCertificatePath", m_caCertDir);
     ogc.setStringValue("olcTlsCaCertificateFile", m_caCertFile);
     ogc.setStringValue("olcTlsCertificateFile", m_certFile);
@@ -1140,56 +1168,3 @@ void OlcTlsSettings::setCrlFile(const std::string& file)
     m_crlFile = file;
 }
 
-/*
-int main(char** argv, int argc)
-{
-    LDAPConnection lc("localhost");
-    LDAPSearchResults *sr;
-    LDAPEntry *dbEntry;
-    try {
-        lc.bind("cn=config","secret");
-        sr = lc.search( "olcdatabase={1}bdb,cn=config", lc.SEARCH_BASE);
-        dbEntry = sr->getNext();
-    } catch (LDAPException e) {
-        std::cout << e << std::endl;
-        exit(-1);
-    }
-    if ( dbEntry ) {
-        std::cout << "Got DBEntry: " << dbEntry->getDN() << std::endl;
-        OlcBdbDatabase db(*dbEntry);
-        OlcBdbDatabase::IndexMap idx = db.getDatabaseIndexes();
-        OlcBdbDatabase::IndexMap::const_iterator i = idx.find("cn");
-
-        std::cout << "Idx: " << i->second[0] << " " << OlcBdbDatabase::Eq << std::endl;
-    }
-    try {
-        // read globalConfig
-        sr = lc.search( "cn=config", lc.SEARCH_BASE);
-        dbEntry = sr->getNext();
-    } catch (LDAPException e) {
-        std::cout << e << std::endl;
-        exit(-1);
-    }
-    if ( dbEntry ) {
-        std::cout << "Got GlobalConfig: " << dbEntry->getDN() << std::endl;
-        OlcGlobalConfig gc(*dbEntry);
-//        gc.getLogLevel();
-//        gc.setLogLevel("stats stats2");
-        std::cout << "Config file: " << gc.getStringValue("olcConfigFile")  << std::endl;
-        std::cout << "args file: " << gc.getStringValue("olcArgsFile")  << std::endl;
-        gc.setStringValue("olcArgsFile", "/tmp/slapd.args" );
-        try {
-            LDAPModList ml = gc.entryDifftoMod();
-            lc.modify( dbEntry->getDN(), &ml );
-        } catch (LDAPException e) {
-            std::cout << e << std::endl;
-            exit(-1);
-        }
-    } else {
-        std::cout << "no Entry" << std::endl;
-    }
-
-
-
-}
-*/
