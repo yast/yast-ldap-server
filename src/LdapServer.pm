@@ -556,6 +556,16 @@ sub GetDatabase
     return $rc;
 }
 
+BEGIN { $TYPEINFO {GetDatabaseIndexes} = ["function", [ "map" , "string", [ "map", "string", "boolean" ] ], "integer" ]; }
+sub GetDatabaseIndexes
+{
+    my ($self, $index) = @_;
+    y2milestone("GetDatabase ".$index);
+    my $rc = SCR->Read(".ldapserver.database.{".$index."}.indexes" );
+    y2milestone( "Indexes: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
+}
+
 BEGIN { $TYPEINFO {GetSchemaList} = ["function", [ "list" , "string"] ]; }
 sub GetSchemaList
 {
