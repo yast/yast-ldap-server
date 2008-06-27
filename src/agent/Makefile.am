@@ -14,7 +14,8 @@ liby2ag_slapdconfig_la_LIBADD = ../lib/libslapdconfig.la @AGENT_LIBADD@ -L$(libd
 
 libpy2ag_slapdconfig_la_SOURCES =				\
 	$(liby2ag_slapdconfig_la_SOURCES)			\
-	Y2CCSlapdConfigAgent.cc         #Y2CCLdapAgent.h
+	Y2CCSlapdConfigAgent.cc
+
 libpy2ag_slapdconfig_la_LDFLAGS = -version-info 2:0
 libpy2ag_slapdconfig_la_LIBADD = ../lib/libslapdconfig.la @AGENT_LIBADD@ -L$(libdir) 
 
