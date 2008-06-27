@@ -11,7 +11,7 @@
 #include <Y2.h>
 #include <scr/SCRAgent.h>
 #include <boost/shared_ptr.hpp>
-#include "backConfigTest.h"
+#include "slapd-config.h"
 /**
  * @short An interface class between YaST2 and Ldap Agent
  */

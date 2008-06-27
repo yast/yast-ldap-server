@@ -7,7 +7,7 @@
 #include <vector>
 #include <LDAPEntry.h>
 #include <LdifWriter.h>
-#include "backConfigTest.h"
+#include "slapd-config.h"
 
 static bool nocase_compare( char c1, char c2){
     return toupper(c1) == toupper(c2);
