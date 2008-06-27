@@ -34,6 +34,7 @@ my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $serviceEnabled = 0;
 my $registerSlp = 0;
+my $useLdapiForConfig = 0;
 my %dbDefaults = ();
 
 my @databases = ();
@@ -304,6 +305,15 @@ sub Modified {
     y2milestone();
     return 0;
 }
+
+BEGIN { $TYPEINFO {UseLdapiForConfig} = ["function", "boolean", "boolean"]; }
+sub UseLdapiForConfig
+{
+    my $self = shift;
+    $useLdapiForConfig = shift;
+    return 1;
+}
+
 BEGIN { $TYPEINFO {ReadServiceEnabled} = ["function", "boolean"]; }
 sub ReadServiceEnabled {
     y2milestone("ReadServiceEnabled $serviceEnabled");
@@ -347,7 +357,6 @@ sub SetError
 {
     my $self = shift;
     my ( $msg, $details ) = @_;
-    y2milestone("Error: $msg, $details");
     $error{'msg'} = $msg;
     $error{'details'} = $details;
 }
@@ -424,8 +433,10 @@ sub MigrateSlapdConf
     my $self = shift;
     my $progressItems = [ _("Cleaning up directory for config database"),
             _("Converting slapd.conf to config database"), 
-            _("Switching startup configuration to use config database")]; 
+            _("Switching startup configuration to use config database"),
+            _("Restarting LDAP Server") ]; 
     Progress->New("Migrating LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
+    
     Progress->NextStage();
     Progress->NextStage();
 
@@ -445,6 +456,37 @@ sub MigrateSlapdConf
     {
         y2error("Error while switch to config backend");
         $self->SetError( _("Switch from slapd.conf to config backend failed.") );
+        Progress->Finish();
+        return 0;
+    }
+    if ( $useLdapiForConfig )
+    {
+        $rc = SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+        if ( ! $rc )
+        {
+            y2error("Error while enabling LDAPI listener");
+            $self->SetError( _("Enabling LDAPI listener failed.") );
+            Progress->Finish();
+            return 0;
+        }
+        $rc = SCR->Execute('.ldapserver.addRootSaslRegexp');
+        if ( ! $rc )
+        {
+            y2error("Error while creating SASL Auth mapping for \"root\".");
+            $self->SetError( _("Enabling LDAPI listener failed.") );
+            Progress->Finish();
+            return 0;
+        }
+    }
+    # FIXME:
+    # Explicit cache flush, see bnc#350581 for details
+    SCR->Write(".sysconfig.openldap", undef);
+    Progress->NextStage();
+    $rc = Service->Restart("ldap");
+    if (! $rc )
+    {
+        y2error("Error while starting the LDAP service");
+        $self->SetError( _("Starting the LDAP service failed.") );
         Progress->Finish();
         return 0;
     }
