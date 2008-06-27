@@ -51,7 +51,7 @@ sub Read {
     Progress->New("Initializing LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
     my $serviceInfo = Service->FullInfo("ldap");
-    my $isRunning = $serviceInfo->{"started"} && $serviceInfo->{"started"} == 0; # 0 == "running"
+    my $isRunning = ( defined $serviceInfo->{"started"}) && ($serviceInfo->{"started"} == 0); # 0 == "running"
     my $isEnabled = $serviceInfo->{"start"} && $serviceInfo->{"start"} > 0;
 
     y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
@@ -67,7 +67,10 @@ sub Read {
         $usesBackConfig = 1;
         if ( $isRunning )
         {
+            # assume a changed config as we don't ship a default for back-config
+            $slapdConfChanged = 1;
             # How do we get the LDAP password?
+            y2milestone("LDAP server is running. How should I connect?");
         }
         else
         {
@@ -140,7 +143,12 @@ sub Write {
         Progress->Finish();
         return 0;
     }
+    $rc = SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI');
+    y2milestone(Data::Dumper->Dump([$rc]));
 
+    # FIXME:
+    # Explicit cache flush, see bnc#350581 for details
+    SCR->Write(".sysconfig.openldap", undef);
     Progress->NextStage();
 
     $rc = SCR->Execute('.target.bash', 'rm -rf /etc/openldap/slapd.d/cn=config*' );
