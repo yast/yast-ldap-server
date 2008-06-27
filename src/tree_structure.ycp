@@ -74,12 +74,12 @@ define boolean cb_write_default()
  ** global schema handlers
  *****************************/
 
-void show_new_schemalist( list<string> l, string select_item )
+void update_schemalist( list<string> l, string select_item )
 {
     if( l == nil ) l = [];
     widget_map["g_schema","inclist"] = l;
         /* schema file selection box title */
-    UI::ReplaceWidget( `rp_schemalist, `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), l ) );
+    UI::ChangeWidget( `sb_schemalist, `Items, l );
     if( select_item != nil )
     {
         UI::ChangeWidget( `sb_schemalist, `CurrentItem, select_item );
@@ -89,9 +89,9 @@ void show_new_schemalist( list<string> l, string select_item )
 define boolean cb_read_schema()
 ``{
     y2milestone( "calling schema read handler" );
-//    list<string> inclist = LdapServer::ReadSchemaIncludeList();
+    list<string> inclist = LdapServer::GetSchemaList();
 //    //store current include list for later order changes
-//    show_new_schemalist( inclist, nil );
+    update_schemalist( inclist, nil );
     return true;
 }
 
@@ -194,7 +194,7 @@ define boolean cb_input_schema()
                 i = i + 1;
             }
         }
-        show_new_schemalist( new_inclist, current_item );
+        update_schemalist( new_inclist, current_item );
     } else if( handler_cmd == `pb_add )
     {
         //add a new file to the list
@@ -211,13 +211,13 @@ define boolean cb_input_schema()
         }
 
         inclist = add( inclist, new_item );
-        show_new_schemalist( inclist, new_item );
+        update_schemalist( inclist, new_item );
 
     } else if( handler_cmd == `pb_delete )
     {
         if( current_item == nil ) return true;
         inclist = remove( inclist, find_pos( inclist, current_item ) );
-        show_new_schemalist( inclist, nil );
+        update_schemalist( inclist, nil );
     }
     return true;
 }
@@ -340,50 +340,7 @@ define boolean cb_read_tls()
     UI::ChangeWidget( `te_ca_file, `Value, tls["caCertFile"]:"" );
     UI::ChangeWidget( `te_cert_file, `Value, tls["certFile"]:"" );
     UI::ChangeWidget( `te_key_file, `Value, tls["certKeyFile"]:"" );
-//    map<string,string> importPaths = LdapServer::ReadImportCertificates();
-//    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
-//    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
-//
-//        /* tls configuration info text 1/4 */
-//    string info = HTML::Bold( _("Current Configuration:") )+HTML::Newline()+HTML::ListStart();
-//    foreach( string key, string val, tlsSettings, {
-//        if ( val != nil ) {
-//            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
-//        }
-//    } );
-//    info = info + HTML::ListEnd() + HTML::Newline();
-//        /* tls configuration info text 2/4 */
-//    info = info + HTML::Bold( _("The following changes will be made:") )+HTML::Newline() + HTML::Newline();
-//
-//    if( use_common_ca )
-//    {
-//        /* tls configuration info text 3/4 */
-//        info = info + _("Configuring Common Server Certificate") + HTML::Newline();
-//    } else if( haskey( importPaths, "ServerCertificateFile" ) )
-//    {
-//        /* tls configuration info text 4/4 */
-//        info = info + _("Importing the Following Certificates:") + HTML::Newline() + HTML::ListStart();
-//        foreach( string key, string val, importPaths, {
-//            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
-//        } );
-//
-//        info = info + HTML::ListEnd();
-//    }
-//
-//    UI::ChangeWidget( `rt_tls_info, `Value, info );
-//
-//    if(     use_common_ca
-//         || haskey( importPaths, "ServerCertificateFile" )
-//         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil )
-//      )
-//    {
-//        UI::ChangeWidget( `rb_yes, `Value, true );
-//    } else
-//    {
-//        UI::ChangeWidget( `rb_no, `Value, true );
-//        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
-//        UI::ChangeWidget( `pb_edit, `Enabled, false );
-//    }
+
     return true;
 }
 

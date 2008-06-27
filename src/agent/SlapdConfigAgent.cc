@@ -70,7 +70,12 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
     {
         y2milestone("read databases");
         return ReadDatabases(path->at(1), arg, opt);
-    } 
+    }
+    else if ( path->component_str(0) == "schemaList" )
+    {
+        y2milestone("read databases");
+        return ReadSchemaList(path->at(1), arg, opt);
+    }
     else if ( path->component_str(0) == "database" ) 
     {
         y2milestone("read database");
@@ -361,6 +366,26 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     return YCPNull();
 }
 
+YCPValue SlapdConfigAgent::ReadSchemaList( const YCPPath &path,
+                                    const YCPValue &arg,
+                                    const YCPValue &opt)
+{
+    y2milestone("Path %s Length %ld ", path->toString().c_str(),
+                                      path->length());
+
+    OlcSchemaList schemaList = olc.getSchemaNames();
+//    if ( databases.size() == 0 )
+//    {
+//        databases = olc.getDatabases();
+//    }
+    OlcSchemaList::const_iterator i;
+    YCPList schema;
+    for (i = schemaList.begin(); i != schemaList.end(); i++ )
+    {
+        schema.add( YCPString( (*i)->getName() ) );
+    }
+    return schema;
+}
 YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &arg2)

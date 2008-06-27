@@ -556,6 +556,16 @@ sub GetDatabase
     return $rc;
 }
 
+BEGIN { $TYPEINFO {GetSchemaList} = ["function", [ "list" , "string"] ]; }
+sub GetSchemaList
+{
+    my $self = @_;
+    y2milestone("GetSchemaList ");
+    my $rc = SCR->Read(".ldapserver.schemaList" );
+    y2milestone( "SchemaList: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
+}
+
 BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }
 sub UpdateDatabase 
 {

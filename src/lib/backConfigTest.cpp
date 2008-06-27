@@ -254,6 +254,27 @@ OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
     m_dbEntryChanged.addAttribute(LDAPAttribute("cn", "schema"));
 }
 
+OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
+{
+    std::cout << "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)" << std::endl;
+    std::string name(this->getStringValue("cn"));
+    if ( name[0] == '{' )
+    {
+        std::string::size_type pos = name.find('}');
+        std::istringstream indexstr(name.substr(1, pos-1));
+        indexstr >> entryIndex;
+        m_name = name.substr( pos+1, std::string::npos );
+    } else {
+        m_name = name;
+        entryIndex = 0;
+    }
+}
+
+const std::string& OlcSchemaConfig::getName() const
+{
+    return m_name;
+}
+
 OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
 {
     std::cout << "OlcTlsSettings OlcGlobalConfig::getTlsSettings() const " << std::endl;
@@ -357,7 +378,7 @@ OlcConfigEntry* OlcConfigEntry::createFromLdapEntry( const LDAPEntry& e )
     else if ( OlcConfigEntry::isScheamEntry(e) )
     {
         std::cerr << "creating OlcSchemaConfig" << std::endl;
-        return new OlcConfigEntry(e);
+        return new OlcSchemaConfig(e);
     }
     else if ( OlcConfigEntry::isDatabaseEntry(e) )
     {
@@ -700,6 +721,28 @@ OlcDatabaseList OlcConfig::getDatabases()
         {
             std::cout << "Got Database Entry: " << dbEntry->getDN() << std::endl;
             boost::shared_ptr<OlcDatabase> olce(OlcDatabase::createFromLdapEntry(*dbEntry));
+            res.push_back(olce);
+        }
+    } catch (LDAPException e ) {
+        std::cout << e << std::endl;
+        throw;
+    }
+    return res;
+}
+
+OlcSchemaList OlcConfig::getSchemaNames()
+{
+    OlcSchemaList res;
+    try {
+        StringList attrs;
+        attrs.add("cn");
+        LDAPSearchResults *sr = m_lc->search( "cn=schema,cn=config", 
+                LDAPConnection::SEARCH_ONE, "objectclass=olcSchemaConfig", attrs );
+        LDAPEntry *entry;
+        while ( entry = sr->getNext() )
+        {
+            std::cout << "Got Schema Entry: " << entry->getDN() << std::endl;
+            boost::shared_ptr<OlcSchemaConfig> olce(new OlcSchemaConfig(*entry));
             res.push_back(olce);
         }
     } catch (LDAPException e ) {
