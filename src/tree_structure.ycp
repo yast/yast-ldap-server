@@ -1214,7 +1214,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     map<string,any> item_map = $[
         "name"      : label,
         "index"     : index,
-        "widget"    : editBdbDatabase,
+        "widget"    : editGenericDatabase,
         "new_db"    : new_db,
         "dynamic"   : true,
         "help_page" : "database_detail",

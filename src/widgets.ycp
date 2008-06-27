@@ -322,6 +322,14 @@
                 generalDbWidget
             )
         );
+    term editGenericDatabase =
+        `Top(
+            `VBox(
+                `Heading( _("Edit Database") ),
+                `VSpacing( 1 ),
+                `Label( _("Databasetype not supported currently") )
+            )
+        );
 
     term editBdbIndexes =
         `VBox(
