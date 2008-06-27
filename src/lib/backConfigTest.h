@@ -50,7 +50,7 @@ class OlcConfigEntry
         void setIndex( int index );
         void getEntryDn();
 
-        int getIndex() const;
+        int getEntryIndex() const;
 
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         virtual std::string toLdif() const;
@@ -96,7 +96,7 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getType() const;
 
         virtual std::map<std::string, std::list<std::string> > toMap() const;
-        virtual IndexMap getIndexes() const {};
+        virtual IndexMap getDatabaseIndexes() const {};
         virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx) {};
 
     
@@ -114,7 +114,7 @@ class OlcBdbDatabase : public  OlcDatabase
         virtual std::map<std::string, std::list<std::string> > toMap() const;
         void setDirectory( const std::string &dir);
 
-        virtual IndexMap getIndexes() const;
+        virtual IndexMap getDatabaseIndexes() const;
         virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx);
 };
 
