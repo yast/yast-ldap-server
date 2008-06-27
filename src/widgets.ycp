@@ -75,22 +75,14 @@
     );
 
     term schemaWidget =
-        `HBox(
-            `VBox(
-                `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), [] ),
-                `Left(
-                    `HBox(
-                        `PushButton( `id( `pb_add ), Label::AddButton() ),
-                        `HSpacing( 0.5 ),
-                        `PushButton( `id( `pb_delete ), Label::DeleteButton() )
-                    )
-                ),
-                `VSpacing( 1 )
-            ),
-            `HSpacing( 0.5 ),
-            `VBox(
-                `PushButton( `id( `pb_up ), Label::UpButton() ),
-                `PushButton( `id( `pb_down ), Label::DownButton() )
+        `VBox(
+            `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), [] ),
+            `Left(
+                `HBox(
+                    `PushButton( `id( `pb_add ), Label::AddButton() ),
+                    `HSpacing( 0.5 ),
+                    `PushButton( `id( `pb_delete ), Label::DeleteButton() )
+                )
             )
         );
 

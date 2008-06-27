@@ -77,8 +77,7 @@ define boolean cb_write_default()
 void update_schemalist( list<string> l, string select_item )
 {
     if( l == nil ) l = [];
-    widget_map["g_schema","inclist"] = l;
-        /* schema file selection box title */
+    //widget_map["g_schema","inclist"] = l;
     UI::ChangeWidget( `sb_schemalist, `Items, l );
     if( select_item != nil )
     {
@@ -133,69 +132,12 @@ define boolean cb_input_schema()
 ``{
     y2milestone( "calling schema input handler" );
 
-    list<string> inclist = (list<string>)widget_map["g_schema","inclist"]:[];
+
+    list<string> inclist = LdapServer::GetSchemaList();
     string current_item = (string)UI::QueryWidget( `sb_schemalist, `CurrentItem );
     y2milestone( "current_item is '%1'", current_item );
 
-    if( handler_cmd == `pb_up || handler_cmd == `pb_down )
-    {
-        if( current_item == nil ) return true;
-
-        y2milestone( "inclist is '%1'", inclist );
-        if( inclist == [] ) return true;
-        integer pos = find_pos( inclist, current_item );
-        y2milestone( "pos is '%1'", pos );
-        if( pos == -1 ) return true;
-
-        list<string> new_inclist = [];
-
-        if( handler_cmd == `pb_up )
-        {
-            //move the current item up
-
-            if( pos == 0 ) return true;
-
-            //exchange the items at pos and pos-1
-            integer i = 0;
-            while( i < size( inclist ) )
-            {
-                if( i == pos-1 )
-                {
-                    new_inclist = add( new_inclist, inclist[i+1]:"" );
-                } else if( i == pos )
-                {
-                    new_inclist = add( new_inclist, inclist[i-1]:"" );
-                } else
-                {
-                    new_inclist = add( new_inclist, inclist[i]:"" );
-                }
-                i = i + 1;
-            }
-        } else if( handler_cmd == `pb_down )
-        {
-            //move the current item down
-
-            if( pos == size(inclist)-1 ) return true;
-
-            //exchange the items at pos and pos+1
-            integer i = 0;
-            while( i < size( inclist ) )
-            {
-                if( i == pos+1 )
-                {
-                    new_inclist = add( new_inclist, inclist[i-1]:"" );
-                } else if( i == pos )
-                {
-                    new_inclist = add( new_inclist, inclist[i+1]:"" );
-                } else
-                {
-                    new_inclist = add( new_inclist, inclist[i]:"" );
-                }
-                i = i + 1;
-            }
-        }
-        update_schemalist( new_inclist, current_item );
-    } else if( handler_cmd == `pb_add )
+    if( handler_cmd == `pb_add )
     {
         //add a new file to the list
                 /* file dialog heading */
@@ -210,13 +152,15 @@ define boolean cb_input_schema()
             return false;
         }
 
-        inclist = add( inclist, new_item );
+//        LdapServer::AddItemToSchemaList(new_item);
+        list<string> inclist = LdapServer::GetSchemaList();
         update_schemalist( inclist, new_item );
 
     } else if( handler_cmd == `pb_delete )
     {
         if( current_item == nil ) return true;
-        inclist = remove( inclist, find_pos( inclist, current_item ) );
+//        inclist = remove( inclist, find_pos( inclist, current_item ) );
+        list<string> inclist = LdapServer::GetSchemaList();
         update_schemalist( inclist, nil );
     }
     return true;
