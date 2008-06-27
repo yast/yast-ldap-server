@@ -71,6 +71,10 @@ sub Read {
             $slapdConfChanged = 1;
             # How do we get the LDAP password?
             y2milestone("LDAP server is running. How should I connect?");
+            SCR->Execute('.ldapserver.init' );
+            my $rc = SCR->Read('.ldapserver.databases');
+            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
+            @databases = @{$rc};
         }
         else
         {
@@ -485,7 +489,9 @@ sub GetDatabaseList
     my $ret = ();
     foreach my $db ( @databases )
     {
-        my $tmp = { 'type' => $db->{'type'}, 'suffix' => $db->{'suffix'} };
+        my $tmp = { 'type' => $db->{'type'}, 
+                'suffix' => $db->{'suffix'},
+                'index' => $db->{'index'} };
         if (! $tmp->{'suffix'} )
         {
             $tmp->{'suffix'} = "unknown";
@@ -494,6 +500,15 @@ sub GetDatabaseList
     }
     y2milestone(Data::Dumper->Dump([$ret]));
     return $ret
+}
+
+BEGIN { $TYPEINFO {GetDatabase} = ["function", [ "map" , "string", "string"], "integer" ]; }
+sub GetDatabase{
+    my ($self, $index) = @_;
+    y2milestone("GetDatabase ".$index);
+    my $rc = SCR->Read(".ldapserver.database", YaST::YCP::Integer($index) );
+    y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
 }
 1;
 # EOF

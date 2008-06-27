@@ -194,14 +194,14 @@ be created"));
             return `abort;
         }
     }
-    else
+    else if (! configModified )
     {
         // Start new config wizward
         LdapServer::InitDbDefaults();
         return `initial;
     }
 
-    return ret ? `next : `abort;
+    return `next;
 }
 
 /**

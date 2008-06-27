@@ -70,6 +70,11 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
     {
         y2milestone("read databases");
         return ReadDatabases(path->at(1), arg, opt);
+    } 
+    else if ( path->component_str(0) == "database" ) 
+    {
+        y2milestone("read database");
+        return ReadDatabase(path->at(1), arg, opt);
     }
     else if ( path->component_str(0) == "configAsLdif" )
     {
@@ -265,6 +270,32 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
         dbList.add(ymap);
     }
     return dbList;
+}
+
+YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
+                                    const YCPValue &arg,
+                                    const YCPValue &opt)
+{
+    y2milestone("Path %s Length %ld ", path->toString().c_str(),
+                                      path->length());
+    int index = arg->asInteger()->value();
+    y2milestone("Database to read: %d", index);
+    OlcDatabaseList::const_iterator i;
+    for ( i = databases.begin(); i != databases.end() ; i++ )
+    {
+        if ( (*i)->getIndex() == index ) 
+        {
+            YCPMap resMap;
+            resMap.add( YCPString("suffix"), 
+                        YCPString( (*i)->getStringValue("olcSuffix") ));
+            resMap.add( YCPString("directory"), 
+                        YCPString( (*i)->getStringValue("olcDbDirectory") ));
+            resMap.add( YCPString("rootdn"), 
+                        YCPString( (*i)->getStringValue("olcRootDn") ));
+            return resMap;
+        }
+    }
+    return YCPNull();
 }
 
 YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,

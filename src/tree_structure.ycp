@@ -42,7 +42,7 @@ define symbol handler_cmd = nil;
  */
 define string current_tree_item = "";
 
-define void addDatabaseWidgetMap( string suffix, string item_map, boolean new_db );
+//define void addDatabaseWidgetMap( string suffix, string item_map, integer index, boolean new_db );
 
 /*********************************
  **     callback handlers       **
@@ -733,17 +733,21 @@ define boolean cb_check_db()
 
 define boolean cb_write_db()
 ``{
-    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
- //   if( suffix == nil )
- //   {
- //                   /* Error Popup */
- //       callback_error = _("Unable to write settings for the current database.");
- //       y2error( "'name' entry for item '%1' is nil", current_tree_item );
- //       return false;
- //   }
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    y2milestone( "calling db write handler for '%1'", current_tree_item );
 
- //   y2milestone( "calling db write handler for suffix '%1'", suffix );
+    if( index == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to write settings for the current database.");
+        y2error( "'name' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
 
+    map<string,string> db = $[];
+    db["rootdn"] = (string)UI::QueryWidget( `te_rootdn, `Value );
+
+    y2milestone( "updated Database: %1", db );
  //   boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
  //   y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
  //   if( is_new_db == nil )
@@ -847,6 +851,18 @@ define boolean cb_write_db()
 
 define boolean cb_read_db()
 ``{
+    y2milestone("cb_read_db current item: %1", current_tree_item);
+    integer index = (integer) widget_map[current_tree_item, "index"]:nil;
+
+    if ( index == nil )
+    {
+        callback_error = _("Unable to read settings for the current database.");
+        y2error( "'index' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
+
+    map<string, string> db = LdapServer::GetDatabase( index );
+
 //    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
 //    if( suffix == nil )
 //    {
@@ -878,18 +894,18 @@ define boolean cb_read_db()
 //        return false;
 //    }
 //
-//    UI::ChangeWidget( `te_basedn, `Value, suffix );
-//
-//    string rootdn = (string)db["rootdn"]:"";
-//    boolean append_checked = false;
-//    integer pos = find( rootdn, suffix );
-//    if( pos > -1 )
-//    {
-//        rootdn = substring( rootdn, 0, pos-1 );
-//        append_checked = true;
-//    }
-//    UI::ChangeWidget( `te_rootdn, `Value, rootdn );
-//    UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
+    UI::ChangeWidget( `te_basedn, `Value, db["suffix"]:"" );
+
+    string rootdn = db["rootdn"]:"";
+    boolean append_checked = false;
+    integer pos = find( rootdn, db["suffix"]:"" );
+    if( pos > -1 )
+    {
+        rootdn = substring( rootdn, 0, pos-1 );
+        append_checked = true;
+    }
+    UI::ChangeWidget( `te_rootdn, `Value, rootdn );
+    UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
 //    UI::ChangeWidget( `te_rootpw, `Value, db["passwd"]:"" );
 //    UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
 //    UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
@@ -1031,12 +1047,13 @@ widget_map = $[
  *      tree generation functions       **
  *****************************************/
 
-void addDatabaseWidgetMap( string suffix, string item_name, boolean new_db )
+void addDatabaseWidgetMap( string suffix, string item_name, integer index, boolean new_db )
 {
-    if( haskey( widget_map, suffix ) ) return;
+    if( haskey( widget_map, item_name ) ) return;
 
     map<string,any> item_map = $[
         "name"      : suffix,
+        "index"     : index,
         "widget"    : editDbWidget,
         "new_db"    : new_db,
         "dynamic"   : true,
@@ -1062,7 +1079,7 @@ void generateDynamicTreeItems()
     foreach( map<string,string> db, dblist, {
         string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
         string name = "database-" + tostring(i);
-        addDatabaseWidgetMap( tmp , name,  false );
+        addDatabaseWidgetMap( tmp , name, tointeger(db["index"]:"0"),  false );
         i = i+1;
     } );
     y2debug( "databases map is '%1'", (map<string,any>)widget_map["databases"]:$[] );
