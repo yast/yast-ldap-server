@@ -15,7 +15,6 @@
  *   Write (.ldapserver.database, string dbsuffix, map options)
  */
 .ldapserver
-`ag_ldapserver ( `LDAPCONFIG ($[
-    "file"      : "/etc/openldap/slapd.conf"
-  ])
+`ag_slapdconfig (
+    `SlapdConfigAgent()
 )

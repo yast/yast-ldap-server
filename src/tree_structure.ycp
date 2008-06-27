@@ -15,6 +15,8 @@ import "Label";
 import "HTML";
 import "String";
 
+include "ldap-server/widgets.ycp";
+
 /* forward declaration of the widget tree
 */
 define map<string,map<string,any> > widget_map = nil;
@@ -39,17 +41,6 @@ define symbol handler_cmd = nil;
  * --> pseudo function argument for dynamic callbacks
  */
 define string current_tree_item = "";
-
-/* list of valid encoding methods for password inputs, used by add database and edit database
- * dialogs
- */
-list enc_types = [
-    `item( `id( "CRYPT" ), "CRYPT" ),
-    `item( `id( "SMD5" ), "SMD5" ),
-    `item( `id( "SHA" ), "SHA" ),
-    `item( `id( "SSHA" ), "SSHA", true ),
-    `item( `id( "PLAIN" ), "PLAIN" )
-];
 
 define void addDatabaseWidgetMap( string suffix, boolean new_db );
 
@@ -98,9 +89,9 @@ void show_new_schemalist( list<string> l, string select_item )
 define boolean cb_read_schema()
 ``{
     y2milestone( "calling schema read handler" );
-    list<string> inclist = LdapServer::ReadSchemaIncludeList();
-    //store current include list for later order changes
-    show_new_schemalist( inclist, nil );
+//    list<string> inclist = LdapServer::ReadSchemaIncludeList();
+//    //store current include list for later order changes
+//    show_new_schemalist( inclist, nil );
     return true;
 }
 
@@ -116,7 +107,7 @@ define boolean cb_check_schema()
 define boolean cb_write_schema()
 ``{
     y2milestone( "calling schema write handler" );
-    LdapServer::WriteSchemaIncludeList( (list<string>)widget_map["g_schema","inclist"]:[] );
+//    LdapServer::WriteSchemaIncludeList( (list<string>)widget_map["g_schema","inclist"]:[] );
     return true;
 }
 
@@ -243,17 +234,14 @@ define boolean cb_check_loglevel()
 define boolean cb_read_loglevel()
 ``{
     y2milestone( "calling loglevel read handler" );
+    list<string> lvls = LdapServer::GetLogLevels();
+    list<symbol> ids = [];
 
-    integer loglevel = LdapServer::ReadLoglevel();
-    list<integer> idlist = [];
-    foreach( integer i, [1,2,4,8,16,32,64,128,256,512,1024,2048], {
-        if( ( loglevel & i ) > 0 )
-        {
-            idlist = add( idlist, i );
-        }
+    foreach( string i, lvls, {
+        ids = add( ids, symbolof(toterm(i)) );
     } );
 
-    UI::ChangeWidget( `msb_loglevel, `SelectedItems, idlist );
+    UI::ChangeWidget( `msb_loglevel, `SelectedItems, ids );
     return true;
 }
 
@@ -267,7 +255,7 @@ define boolean cb_write_loglevel()
     } );
 
     y2milestone( "writing loglevel: '%1'", loglevel );
-    LdapServer::WriteLoglevel( loglevel );
+//    LdapServer::WriteLoglevel( loglevel );
     return true;
 }
 
@@ -283,8 +271,8 @@ define boolean cb_check_allow()
 define boolean cb_read_allow()
 ``{
     y2milestone( "calling allow read handler" );
-    list<string> allowlist = LdapServer::ReadAllowList();
-    UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
+//    list<string> allowlist = LdapServer::ReadAllowList();
+//    UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
     return true;
 }
 
@@ -295,7 +283,7 @@ define boolean cb_write_allow()
     allowlist = (list<string>)UI::QueryWidget( `msb_allow, `SelectedItems );
 
     y2milestone( "writing allowlist: '%1'", allowlist );
-    LdapServer::WriteAllowList( allowlist );
+//    LdapServer::WriteAllowList( allowlist );
     return true;
 }
 
@@ -307,20 +295,20 @@ define boolean cb_check_tls()
 ``{
     y2milestone( "calling tls check handler" );
 
-    map<string,string> importPaths = LdapServer::ReadImportCertificates();
-    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
-    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
-
-    if( (boolean)UI::QueryWidget( `rb_yes, `Value ) && !(
-            haskey( importPaths, "ServerCertificateFile" ) ||
-            use_common_ca ||
-            ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) )
-       )
-    {
-            /*error popup*/
-        callback_error = _("Choose a certificate if you want to activate TLS.");
-        return false;
-    }
+//    map<string,string> importPaths = LdapServer::ReadImportCertificates();
+//    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
+//    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
+//
+//    if( (boolean)UI::QueryWidget( `rb_yes, `Value ) && !(
+//            haskey( importPaths, "ServerCertificateFile" ) ||
+//            use_common_ca ||
+//            ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) )
+//       )
+//    {
+//            /*error popup*/
+//        callback_error = _("Choose a certificate if you want to activate TLS.");
+//        return false;
+//    }
 
     return true;
 }
@@ -328,50 +316,50 @@ define boolean cb_check_tls()
 define boolean cb_read_tls()
 ``{
     y2milestone( "calling tls read handler" );
-    map<string,string> importPaths = LdapServer::ReadImportCertificates();
-    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
-    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
-
-        /* tls configuration info text 1/4 */
-    string info = HTML::Bold( _("Current Configuration:") )+HTML::Newline()+HTML::ListStart();
-    foreach( string key, string val, tlsSettings, {
-        if ( val != nil ) {
-            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
-        }
-    } );
-    info = info + HTML::ListEnd() + HTML::Newline();
-        /* tls configuration info text 2/4 */
-    info = info + HTML::Bold( _("The following changes will be made:") )+HTML::Newline() + HTML::Newline();
-
-    if( use_common_ca )
-    {
-        /* tls configuration info text 3/4 */
-        info = info + _("Configuring Common Server Certificate") + HTML::Newline();
-    } else if( haskey( importPaths, "ServerCertificateFile" ) )
-    {
-        /* tls configuration info text 4/4 */
-        info = info + _("Importing the Following Certificates:") + HTML::Newline() + HTML::ListStart();
-        foreach( string key, string val, importPaths, {
-            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
-        } );
-
-        info = info + HTML::ListEnd();
-    }
-
-    UI::ChangeWidget( `rt_tls_info, `Value, info );
-
-    if(     use_common_ca
-         || haskey( importPaths, "ServerCertificateFile" )
-         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) 
-      )
-    {
-        UI::ChangeWidget( `rb_yes, `Value, true );
-    } else
-    {
-        UI::ChangeWidget( `rb_no, `Value, true );
-        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
-        UI::ChangeWidget( `pb_edit, `Enabled, false );
-    }
+//    map<string,string> importPaths = LdapServer::ReadImportCertificates();
+//    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
+//    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
+//
+//        /* tls configuration info text 1/4 */
+//    string info = HTML::Bold( _("Current Configuration:") )+HTML::Newline()+HTML::ListStart();
+//    foreach( string key, string val, tlsSettings, {
+//        if ( val != nil ) {
+//            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+//        }
+//    } );
+//    info = info + HTML::ListEnd() + HTML::Newline();
+//        /* tls configuration info text 2/4 */
+//    info = info + HTML::Bold( _("The following changes will be made:") )+HTML::Newline() + HTML::Newline();
+//
+//    if( use_common_ca )
+//    {
+//        /* tls configuration info text 3/4 */
+//        info = info + _("Configuring Common Server Certificate") + HTML::Newline();
+//    } else if( haskey( importPaths, "ServerCertificateFile" ) )
+//    {
+//        /* tls configuration info text 4/4 */
+//        info = info + _("Importing the Following Certificates:") + HTML::Newline() + HTML::ListStart();
+//        foreach( string key, string val, importPaths, {
+//            info = info + HTML::ListItem( HTML::Bold( key ) + ": " + val );
+//        } );
+//
+//        info = info + HTML::ListEnd();
+//    }
+//
+//    UI::ChangeWidget( `rt_tls_info, `Value, info );
+//
+//    if(     use_common_ca
+//         || haskey( importPaths, "ServerCertificateFile" )
+//         || ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) 
+//      )
+//    {
+//        UI::ChangeWidget( `rb_yes, `Value, true );
+//    } else
+//    {
+//        UI::ChangeWidget( `rb_no, `Value, true );
+//        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
+//        UI::ChangeWidget( `pb_edit, `Enabled, false );
+//    }
     return true;
 }
 
@@ -381,15 +369,16 @@ define boolean cb_write_tls()
     symbol tls_active = (symbol)UI::QueryWidget( `rbg_tls, `CurrentButton );
     if( tls_active == `rb_no )
     {
-        LdapServer::WriteConfigureCommonServerCertificate( false );
-        LdapServer::WriteImportCertificates( $[] );
-        map<string,string> tlsSettings = $[
-                "TLSCertificateKeyFile" : nil,
-                "TLSCertificateFile"    : nil,
-                "TLSCACertificateFile"  : nil,
-                "TLSCACertificatePath"  : nil ];
-
-        LdapServer::WriteTlsSettings( tlsSettings );
+    y2milestone( "calling tls write handler" );
+//        LdapServer::WriteConfigureCommonServerCertificate( false );
+//        LdapServer::WriteImportCertificates( $[] );
+//        map<string,string> tlsSettings = $[
+//                "TLSCertificateKeyFile" : nil,
+//                "TLSCertificateFile"    : nil,
+//                "TLSCACertificateFile"  : nil,
+//                "TLSCACertificatePath"  : nil ];
+//
+//        LdapServer::WriteTlsSettings( tlsSettings );
     }
     return true;
 }
@@ -398,138 +387,138 @@ define boolean cb_input_tls()
 ``{
     y2milestone( "calling tls input handler" );
 
-    boolean common_ca_available = LdapServer::ReadCommonServerCertificateAvailable();
-
-    if( handler_cmd == `rb_yes )
-    {
-        UI::ChangeWidget( `rt_tls_info, `Enabled, true );
-        UI::ChangeWidget( `pb_edit, `Enabled, true );
-    } else if( handler_cmd == `rb_no )
-    {
-        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
-        UI::ChangeWidget( `pb_edit, `Enabled, false );
-    } else if( handler_cmd == `pb_edit )
-    {
-        //show edit popup
-        any ret = nil;
-        string dlg_name = common_ca_available ? "type" : "import";
-        term dlg = (term)widget_map["g_tls","dialogs",dlg_name]:nil;
-        if( dlg == nil )
-        {
-            callback_error = _("An internal error occurred. View the log file.");
-            y2error( "cb_input_tls: type dialog is not in widget map" );
-            return false;
-        }
-
-        UI::OpenDialog( dlg );
-
-        map<string,string> importPaths = LdapServer::ReadImportCertificates();
-        if( dlg_name == "input" )
-        {
-            UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
-            UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
-            UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
-        }
-
-        if( dlg_name == "type" && haskey( importPaths, "ServerCertificateFile" ) )
-        {
-            UI::ChangeWidget( `rb_common, `Value, false );
-            UI::ChangeWidget( `rb_import, `Value, true );
-        }
-
-        y2milestone( ">>>> entering cb_input_tls input loop..." );
-        while( true )
-        {
-            ret = UI::UserInput();
-            y2milestone( "cb_input_tls: dialog returns '%1'", ret );
-
-            if( dlg_name == "type" )
-            {
-                if( ret == `cancel ) break;
-                else if( ret == `ok )
-                {
-                    any do_what = UI::QueryWidget( `rbg_type, `CurrentButton );
-                    y2milestone( "cb_input_tls: do_what is '%1'", do_what );
-                    if( do_what == `rb_common )
-                    {
-                        //TODO: use common ca
-                        y2milestone( "cb_input_tls: using common server certificate" );
-                        LdapServer::WriteConfigureCommonServerCertificate( true );
-                        LdapServer::WriteImportCertificates( $[] );
-                        break;
-                    } else if( do_what == `rb_import )
-                    {
-                        UI::CloseDialog();
-                        dlg_name = "import";
-                        UI::OpenDialog( (term)widget_map["g_tls","dialogs","import"]:`Label(_("Dialog not found")));
-
-                        //fill textentries
-                        UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
-                        UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
-                        UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
-                        continue;
-                    }
-                }
-            } else if( dlg_name == "import" )
-            {
-                if( ret == `cancel ) break;
-                else if( ret == `pb_ca_file )
-                {
-                                                            /* file selection headline */
-                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select CA Certificate File") );
-                    if( name != nil ) UI::ChangeWidget( `te_ca_file, `Value, name );
-                    continue;
-                } else if( ret == `pb_cert_file )
-                {
-                                                            /* file selection headline */
-                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate File") );
-                    if( name != nil ) UI::ChangeWidget( `te_cert_file, `Value, name );
-                    continue;
-                } else if( ret == `pb_key_file )
-                {
-                                                            /* file selection headline */
-                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate Key File") );
-                    if( name != nil ) UI::ChangeWidget( `te_key_file, `Value, name );
-                    continue;
-                } else if( ret == `ok )
-                {
-                    //TODO: import ca
-                    //read values
-                    string cert_file = String::CutBlanks( (string)UI::QueryWidget( `te_cert_file, `Value ) );
-                    string key_file = String::CutBlanks( (string)UI::QueryWidget( `te_key_file, `Value ) );
-                    string ca_file = String::CutBlanks( (string)UI::QueryWidget( `te_ca_file, `Value ) );
-
-                    if( cert_file == "" )
-                    {
-                            /* Error Popup */
-                        Popup::Error( _("Server certificate file is required.") );
-                        continue;
-                    }
-
-                    if( key_file == "" )
-                    {
-                            /* Error Popup */
-                        Popup::Error( _("Server key file is required.") );
-                        continue;
-                    }
-
-                    importPaths["ServerCertificateFile"] = cert_file;
-                    importPaths["ServerKeyFile"] = key_file;
-                    if( ca_file != "" ) importPaths["CACertificatesFile"] = ca_file;
-
-                    y2milestone( "importing certificates" );
-                    LdapServer::WriteImportCertificates( importPaths );
-                    LdapServer::WriteConfigureCommonServerCertificate( false );
-
-                    break;
-                }
-            }
-        }
-        y2milestone( "<<<< leaving cb_input_tls input loop..." );
-
-        UI::CloseDialog();
-        eval( cb_read_tls() );
-    }
+//    boolean common_ca_available = LdapServer::ReadCommonServerCertificateAvailable();
+//
+//    if( handler_cmd == `rb_yes )
+//    {
+//        UI::ChangeWidget( `rt_tls_info, `Enabled, true );
+//        UI::ChangeWidget( `pb_edit, `Enabled, true );
+//    } else if( handler_cmd == `rb_no )
+//    {
+//        UI::ChangeWidget( `rt_tls_info, `Enabled, false );
+//        UI::ChangeWidget( `pb_edit, `Enabled, false );
+//    } else if( handler_cmd == `pb_edit )
+//    {
+//        //show edit popup
+//        any ret = nil;
+//        string dlg_name = common_ca_available ? "type" : "import";
+//        term dlg = (term)widget_map["g_tls","dialogs",dlg_name]:nil;
+//        if( dlg == nil )
+//        {
+//            callback_error = _("An internal error occurred. View the log file.");
+//            y2error( "cb_input_tls: type dialog is not in widget map" );
+//            return false;
+//        }
+//
+//        UI::OpenDialog( dlg );
+//
+//        map<string,string> importPaths = LdapServer::ReadImportCertificates();
+//        if( dlg_name == "input" )
+//        {
+//            UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
+//            UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
+//            UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
+//        }
+//
+//        if( dlg_name == "type" && haskey( importPaths, "ServerCertificateFile" ) )
+//        {
+//            UI::ChangeWidget( `rb_common, `Value, false );
+//            UI::ChangeWidget( `rb_import, `Value, true );
+//        }
+//
+//        y2milestone( ">>>> entering cb_input_tls input loop..." );
+//        while( true )
+//        {
+//            ret = UI::UserInput();
+//            y2milestone( "cb_input_tls: dialog returns '%1'", ret );
+//
+//            if( dlg_name == "type" )
+//            {
+//                if( ret == `cancel ) break;
+//                else if( ret == `ok )
+//                {
+//                    any do_what = UI::QueryWidget( `rbg_type, `CurrentButton );
+//                    y2milestone( "cb_input_tls: do_what is '%1'", do_what );
+//                    if( do_what == `rb_common )
+//                    {
+//                        //TODO: use common ca
+//                        y2milestone( "cb_input_tls: using common server certificate" );
+//                        LdapServer::WriteConfigureCommonServerCertificate( true );
+//                        LdapServer::WriteImportCertificates( $[] );
+//                        break;
+//                    } else if( do_what == `rb_import )
+//                    {
+//                        UI::CloseDialog();
+//                        dlg_name = "import";
+//                        UI::OpenDialog( (term)widget_map["g_tls","dialogs","import"]:`Label(_("Dialog not found")));
+//
+//                        //fill textentries
+//                        UI::ChangeWidget( `te_cert_file, `Value, importPaths["ServerCertificateFile"]:"" );
+//                        UI::ChangeWidget( `te_key_file, `Value, importPaths["ServerKeyFile"]:"" );
+//                        UI::ChangeWidget( `te_ca_file, `Value, importPaths["CACertificatesFile"]:"" );
+//                        continue;
+//                    }
+//                }
+//            } else if( dlg_name == "import" )
+//            {
+//                if( ret == `cancel ) break;
+//                else if( ret == `pb_ca_file )
+//                {
+//                                                            /* file selection headline */
+//                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select CA Certificate File") );
+//                    if( name != nil ) UI::ChangeWidget( `te_ca_file, `Value, name );
+//                    continue;
+//                } else if( ret == `pb_cert_file )
+//                {
+//                                                            /* file selection headline */
+//                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate File") );
+//                    if( name != nil ) UI::ChangeWidget( `te_cert_file, `Value, name );
+//                    continue;
+//                } else if( ret == `pb_key_file )
+//                {
+//                                                            /* file selection headline */
+//                    string name = UI::AskForExistingFile( "/var/lib/CAM", "*.pem *.crt *", _("Select Certificate Key File") );
+//                    if( name != nil ) UI::ChangeWidget( `te_key_file, `Value, name );
+//                    continue;
+//                } else if( ret == `ok )
+//                {
+//                    //TODO: import ca
+//                    //read values
+//                    string cert_file = String::CutBlanks( (string)UI::QueryWidget( `te_cert_file, `Value ) );
+//                    string key_file = String::CutBlanks( (string)UI::QueryWidget( `te_key_file, `Value ) );
+//                    string ca_file = String::CutBlanks( (string)UI::QueryWidget( `te_ca_file, `Value ) );
+//
+//                    if( cert_file == "" )
+//                    {
+//                            /* Error Popup */
+//                        Popup::Error( _("Server certificate file is required.") );
+//                        continue;
+//                    }
+//
+//                    if( key_file == "" )
+//                    {
+//                            /* Error Popup */
+//                        Popup::Error( _("Server key file is required.") );
+//                        continue;
+//                    }
+//
+//                    importPaths["ServerCertificateFile"] = cert_file;
+//                    importPaths["ServerKeyFile"] = key_file;
+//                    if( ca_file != "" ) importPaths["CACertificatesFile"] = ca_file;
+//
+//                    y2milestone( "importing certificates" );
+//                    LdapServer::WriteImportCertificates( importPaths );
+//                    LdapServer::WriteConfigureCommonServerCertificate( false );
+//
+//                    break;
+//                }
+//            }
+//        }
+//        y2milestone( "<<<< leaving cb_input_tls input loop..." );
+//
+//        UI::CloseDialog();
+//        eval( cb_read_tls() );
+//    }
     //reread tls page
     return true;
 }
@@ -546,9 +535,12 @@ define boolean cb_check_databases()
 define boolean cb_read_databases()
 ``{
     y2milestone( "calling databases read handler" );
-    list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
+    list<map<string,string> > dblist = LdapServer::GetDatabaseList();
     string text = HTML::Para( HTML::Bold( _("Available Databases:") ) )+HTML::Newline();
-    foreach( string s, dblist, { text = text + s + HTML::Newline(); } );
+    foreach( map<string,string> db, dblist, {
+        string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
+        text = text + tmp + HTML::Newline();
+    } );
     UI::ChangeWidget( `rt_databases, `Value, text );
     return true;
 }
@@ -561,170 +553,170 @@ define boolean cb_write_databases()
 define boolean cb_input_databases()
 ``{
     y2milestone( "calling databases input handler" );
-    if( handler_cmd == `pb_add )
-    {
-        any ret = nil;
-        boolean user_changed_dbdir = false;
-        list<string> dblist = LdapServer::ReadDbList();
-        integer numDbs = size(dblist);
-
-        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label(_("Dialog not found")));
-
-        UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
-        UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
-        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-        UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
-        while( true )
-        {
-            ret = UI::UserInput();
-            y2milestone( "cb_input_databases: dialog returns '%1'", ret );
-            if( ret == `cancel ) break;
-            else if( ret == `pb_directory ) {
-                    /*directory selection dialog heading*/
-                string name = UI::AskForExistingDirectory( "/var/lib/ldap", _("Select Database Directory") );
-                if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
-                continue;
-            }
-            else if ( ret == `te_directory ) {
-                user_changed_dbdir = true;
-            }
-            else if ( ret == `te_basedn ) {
-                if ( ( user_changed_dbdir != true ) && (numDbs > 0) ) {
-                    string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
-                    suffix = String::Replace(suffix, ",", "_");
-                    suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
-                    string dbdir = "/var/lib/ldap/" + suffix;
-                    UI::ChangeWidget( `te_directory, `Value, dbdir );
-                }
-            }
-            else if ( ret == `cb_ppolicy_overlay ) {
-                if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
-                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
-                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
-                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
-                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, true );
-                } else {
-                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
-                }
-            }
-            else if( ret == `ok ) {
-                //TODO: add database
-                string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
-                string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
-                string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
-                string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
-                boolean createdir = false;
-                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
-
-                //check values
-                if( suffix == "" )
-                {
-                        /*error popup*/
-                    Popup::Error( _("Base DN must be set.") );
-                    continue;
-                }
-
-                list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
-                if( contains( dblist, suffix ) )
-                {
-                    /* Error Popup */
-                    Popup::Error( _("A database with that Base DN already exists.") );
-                    continue;
-                }
-                if( rootpw != "" && rootdn == "" )
-                {
-                    /* Error Popup */
-                    Popup::Error( _("Root DN must be set if a password is given.") );
-                    continue;
-                }
-                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
-                {
-                    /* Error Popup */
-                    Popup::Error( _("Password validation failed.") );
-                    continue;
-                }
-                if( directory == "" )
-                {
-                    /* Error Popup */
-                    Popup::Error( _("A directory must be specified.") );
-                    continue;
-                }
-                if ( SCR::Read(.target.dir, directory) == nil ) {
-                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
-                                        _("The directory does not exist. Create it?"),
-                                        Label::YesButton(), Label::NoButton(), `focus);
-                    if ( res == false ) {
-                        continue;
-                    } else {
-                        y2debug( "Create dir == true" );
-                        createdir = true;
-                    }
-                }
-
-                //create new database
-                map<string,any> db = $[
-                    "suffix"            : suffix,
-                    "directory"         : directory,
-                    "database"          : "bdb",
-                    "createdatabasedir" : createdir
-                ];
-                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
-                {
-                    rootdn = rootdn+","+suffix;
-                }
-                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
-                if( rootpw != "" )
-                {
-                    db = add( db, "passwd", rootpw );
-                    db = add( db, "cryptmethod", cryptmethod );
-                }
-                if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
-                    boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
-                    boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
-                    string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-                    map<string,any> ppolicy = $[];
-                    if (hashcleartext ) {
-                        ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
-                    }
-                    if (uselockout ) {
-                        ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
-                    }
-                    if (pp_default != "" ) {
-                        if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-                        {
-                            pp_default = pp_default+","+suffix;
-                        }
-                        db = add(db, "ppolicy_default_changed", "1");
-                        ppolicy = add( ppolicy, "ppolicy_default", pp_default);
-                    }
-                    list<any> pp_overlay = [ "ppolicy", ppolicy ];
-                    list<any> overlays = [ pp_overlay ];
-                    db = add( db, "overlay", overlays);
-
-                    list<string> inclist = LdapServer::ReadSchemaIncludeList();
-                    if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
-                        inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
-                        LdapServer::WriteSchemaIncludeList(inclist);
-                    }
-                }
-                if( LdapServer::AddDatabase( db ) )
-                {
-                    y2milestone( "adding database was successful, now trying to add widget tree item" );
-                    rebuild_widget_tree = true;
-                    break;
-                } else {
-                    y2milestone( "adding database was not successful" );
-                }
-            }
-        }
-
-        UI::CloseDialog();
-    }
+//    if( handler_cmd == `pb_add )
+//    {
+//        any ret = nil;
+//        boolean user_changed_dbdir = false;
+//        list<string> dblist = LdapServer::ReadDbList();
+//        integer numDbs = size(dblist);
+//
+//        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label( _("Dialog not found") ) );
+//
+//        UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
+//        UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
+//        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+//        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+//        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+//        UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
+//        while( true )
+//        {
+//            ret = UI::UserInput();
+//            y2milestone( "cb_input_databases: dialog returns '%1'", ret );
+//            if( ret == `cancel ) break;
+//            else if( ret == `pb_directory ) {
+//                    /*directory selection dialog heading*/
+//                string name = UI::AskForExistingDirectory( "/var/lib/ldap", _("Select Database Directory") );
+//                if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
+//                continue;
+//            }
+//            else if ( ret == `te_directory ) {
+//                user_changed_dbdir = true;
+//            }
+//            else if ( ret == `te_basedn ) {
+//                if ( ( user_changed_dbdir != true ) && (numDbs > 0) ) {
+//                    string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+//                    suffix = String::Replace(suffix, ",", "_");
+//                    suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
+//                    string dbdir = "/var/lib/ldap/" + suffix;
+//                    UI::ChangeWidget( `te_directory, `Value, dbdir );
+//                }
+//            }
+//            else if ( ret == `cb_ppolicy_overlay ) {
+//                if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
+//                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
+//                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
+//                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
+//                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, true );
+//                } else {
+//                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+//                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+//                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+//                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
+//                }
+//            }
+//            else if( ret == `ok ) {
+//                //TODO: add database
+//                string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+//                string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
+//                string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+//                string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
+//                boolean createdir = false;
+//                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+//
+//                //check values
+//                if( suffix == "" )
+//                {
+//                        /*error popup*/
+//                    Popup::Error( _("Base DN must be set.") );
+//                    continue;
+//                }
+//
+//                list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
+//                if( contains( dblist, suffix ) )
+//                {
+//                    /* Error Popup */
+//                    Popup::Error( _("A database with that Base DN already exists.") );
+//                    continue;
+//                }
+//                if( rootpw != "" && rootdn == "" )
+//                {
+//                    /* Error Popup */
+//                    Popup::Error( _("Root DN must be set if a password is given.") );
+//                    continue;
+//                }
+//                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
+//                {
+//                    /* Error Popup */
+//                    Popup::Error( _("Password validation failed.") );
+//                    continue;
+//                }
+//                if( directory == "" )
+//                {
+//                    /* Error Popup */
+//                    Popup::Error( _("A directory must be specified.") );
+//                    continue;
+//                }
+//                if ( SCR::Read(.target.dir, directory) == nil ) {
+//                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
+//                                        _("The directory does not exist. Create it?"),
+//                                        Label::YesButton(), Label::NoButton(), `focus);
+//                    if ( res == false ) {
+//                        continue;
+//                    } else {
+//                        y2debug( "Create dir == true" );
+//                        createdir = true;
+//                    }
+//                }
+//
+//                //create new database
+//                map<string,any> db = $[
+//                    "suffix"            : suffix,
+//                    "directory"         : directory,
+//                    "database"          : "bdb",
+//                    "createdatabasedir" : createdir
+//                ];
+//                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+//                {
+//                    rootdn = rootdn+","+suffix;
+//                }
+//                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
+//                if( rootpw != "" )
+//                {
+//                    db = add( db, "passwd", rootpw );
+//                    db = add( db, "cryptmethod", cryptmethod );
+//                }
+//                if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+//                    boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+//                    boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+//                    string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+//                    map<string,any> ppolicy = $[];
+//                    if (hashcleartext ) {
+//                        ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+//                    }
+//                    if (uselockout ) {
+//                        ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+//                    }
+//                    if (pp_default != "" ) {
+//                        if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+//                        {
+//                            pp_default = pp_default+","+suffix;
+//                        }
+//                        db = add(db, "ppolicy_default_changed", "1");
+//                        ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+//                    }
+//                    list<any> pp_overlay = [ "ppolicy", ppolicy ];
+//                    list<any> overlays = [ pp_overlay ];
+//                    db = add( db, "overlay", overlays);
+//
+//                    list<string> inclist = LdapServer::ReadSchemaIncludeList();
+//                    if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
+//                        inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
+//                        LdapServer::WriteSchemaIncludeList(inclist);
+//                    }
+//                }
+//                if( LdapServer::AddDatabase( db ) )
+//                {
+//                    y2milestone( "adding database was successful, now trying to add widget tree item" );
+//                    rebuild_widget_tree = true;
+//                    break;
+//                } else {
+//                    y2milestone( "adding database was not successful" );
+//                }
+//            }
+//        }
+//
+//        UI::CloseDialog();
+//    }
 
     return true;
 }
@@ -752,203 +744,203 @@ define boolean cb_check_db()
 define boolean cb_write_db()
 ``{
     string suffix = (string)widget_map[current_tree_item,"name"]:nil;
-    if( suffix == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to write settings for the current database.");
-        y2error( "'name' entry for item '%1' is nil", current_tree_item );
-        return false;
-    }
+ //   if( suffix == nil )
+ //   {
+ //                   /* Error Popup */
+ //       callback_error = _("Unable to write settings for the current database.");
+ //       y2error( "'name' entry for item '%1' is nil", current_tree_item );
+ //       return false;
+ //   }
 
-    y2milestone( "calling db write handler for suffix '%1'", suffix );
+ //   y2milestone( "calling db write handler for suffix '%1'", suffix );
 
-    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
-    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
-    if( is_new_db == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to write settings for the current database.");
-        y2error( "'new_db' key for item '%1' is nil", suffix );
-        return false;
-    }
-    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
-    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
+ //   boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
+ //   y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
+ //   if( is_new_db == nil )
+ //   {
+ //                   /* Error Popup */
+ //       callback_error = _("Unable to write settings for the current database.");
+ //       y2error( "'new_db' key for item '%1' is nil", suffix );
+ //       return false;
+ //   }
+ //   map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
+ //   y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
 
-    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
-    if( db == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to write settings for the current database.");
-        y2error( "database is not in dbmap returned by ReadDatabase" );
-        y2debug( "trying to read database '%1', dbmap is: '%2'", suffix, dbmap );
-        return false;
-    }
+ //   map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
+ //   if( db == nil )
+ //   {
+ //                   /* Error Popup */
+ //       callback_error = _("Unable to write settings for the current database.");
+ //       y2error( "database is not in dbmap returned by ReadDatabase" );
+ //       y2debug( "trying to read database '%1', dbmap is: '%2'", suffix, dbmap );
+ //       return false;
+ //   }
 
-    string rootdn = "";
-    rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
-    if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
-    {
-        rootdn = rootdn + "," + suffix;
-    }
-    db["rootdn"] = rootdn;
+ //   string rootdn = "";
+ //   rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
+ //   if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+ //   {
+ //       rootdn = rootdn + "," + suffix;
+ //   }
+ //   db["rootdn"] = rootdn;
 
-    string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
-    if( rootpw != "" ) {
-        db["passwd"] = rootpw;
-        db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
-    }
+ //   string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+ //   if( rootpw != "" ) {
+ //       db["passwd"] = rootpw;
+ //       db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+ //   }
 
-    if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
-        boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
-        boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
-        string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-        map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
-        map<string,any> ppolicy = $[];
-        if (hashcleartext ) {
-            ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
-        }
-        if (uselockout) {
-            ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
-        }
-        if (pp_default != "" ) {
-            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-            {
-                pp_default = pp_default+","+suffix;
-            }
-            if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
-                db = add(db, "ppolicy_default_changed", "1");
-            }
-            ppolicy = add( ppolicy, "ppolicy_default", pp_default);
-        }
-        list<any> pp_overlay = [ "ppolicy", ppolicy ];
-        list<any> overlays = [ pp_overlay ];
-        db = add( db, "overlay", overlays);
-        list<string> inclist = LdapServer::ReadSchemaIncludeList();
-        if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
-            inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
-            LdapServer::WriteSchemaIncludeList(inclist);
-        }
-    } else {
-        map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
-        if ( ppolicy_map != nil ){
-            list<any> newoverlay = [];
-            list<any> empty_pp_ol = ["ppolicy", nil ];
-            integer i = 0;
-            foreach( list<any> i, db["overlay"]:[], {
-                if ((string)i[0]:"" != "ppolicy") {
-                    newoverlay = add(newoverlay, i);
-                } else {
-                    newoverlay = add(newoverlay, empty_pp_ol);
-                }
-            });
-            db["overlay"] = newoverlay;
-        }
-    }
-    string checkResult = LdapServer::CheckDatabase( db );
-    if( checkResult != "" ) {
-        callback_error = checkResult;
-        return false;
-    }
+ //   if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+ //       boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+ //       boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+ //       string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+ //       map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
+ //       map<string,any> ppolicy = $[];
+ //       if (hashcleartext ) {
+ //           ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+ //       }
+ //       if (uselockout) {
+ //           ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+ //       }
+ //       if (pp_default != "" ) {
+ //           if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+ //           {
+ //               pp_default = pp_default+","+suffix;
+ //           }
+ //           if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
+ //               db = add(db, "ppolicy_default_changed", "1");
+ //           }
+ //           ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+ //       }
+ //       list<any> pp_overlay = [ "ppolicy", ppolicy ];
+ //       list<any> overlays = [ pp_overlay ];
+ //       db = add( db, "overlay", overlays);
+ //       list<string> inclist = LdapServer::ReadSchemaIncludeList();
+ //       if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
+ //           inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
+ //           LdapServer::WriteSchemaIncludeList(inclist);
+ //       }
+ //   } else {
+ //       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
+ //       if ( ppolicy_map != nil ){
+ //           list<any> newoverlay = [];
+ //           list<any> empty_pp_ol = ["ppolicy", nil ];
+ //           integer i = 0;
+ //           foreach( list<any> i, db["overlay"]:[], {
+ //               if ((string)i[0]:"" != "ppolicy") {
+ //                   newoverlay = add(newoverlay, i);
+ //               } else {
+ //                   newoverlay = add(newoverlay, empty_pp_ol);
+ //               }
+ //           });
+ //           db["overlay"] = newoverlay;
+ //       }
+ //   }
+ //   string checkResult = LdapServer::CheckDatabase( db );
+ //   if( checkResult != "" ) {
+ //       callback_error = checkResult;
+ //       return false;
+ //   }
 
-    //write changes
-    dbmap[suffix] = db;
-    if( is_new_db )
-    {
-        LdapServer::WriteDatabaseNEW( dbmap );
-    } else
-    {
-        LdapServer::WriteDatabase( dbmap );
-    }
+ //   //write changes
+ //   dbmap[suffix] = db;
+ //   if( is_new_db )
+ //   {
+ //       LdapServer::WriteDatabaseNEW( dbmap );
+ //   } else
+ //   {
+ //       LdapServer::WriteDatabase( dbmap );
+ //   }
 
     return true;
 }
 
 define boolean cb_read_db()
 ``{
-    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
-    if( suffix == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to read settings for the current database.");
-        y2error( "'name' entry for item '%1' is nil", current_tree_item );
-        return false;
-    }
-    y2milestone( "calling db read handler for suffix '%1'", suffix );
-
-    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
-    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
-    if( is_new_db == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to read settings for the current database.");
-        y2error( "'new_db' key for item '%1' is nil", current_tree_item );
-        return false;
-    }
-    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
-    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
-
-    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
-    if( db == nil )
-    {
-                    /* Error Popup */
-        callback_error = _("Unable to read settings for the current database.");
-        y2error( "Reading settings for database '%1' failed", suffix );
-        return false;
-    }
-
-    UI::ChangeWidget( `te_basedn, `Value, suffix );
-
-    string rootdn = (string)db["rootdn"]:"";
-    boolean append_checked = false;
-    integer pos = find( rootdn, suffix );
-    if( pos > -1 )
-    {
-        rootdn = substring( rootdn, 0, pos-1 );
-        append_checked = true;
-    }
-    UI::ChangeWidget( `te_rootdn, `Value, rootdn );
-    UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
-    UI::ChangeWidget( `te_rootpw, `Value, db["passwd"]:"" );
-    UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
-    UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
-
-    // Check for ppolicy overlay
-    map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
-    if ( ppolicy_map != nil ){
-        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
-        string pp_hash_cleartext = ppolicy_map["ppolicy_hash_cleartext"]:nil;
-        string pp_use_lockout = ppolicy_map["ppolicy_use_lockout"]:nil;
-        string pp_default = ppolicy_map["ppolicy_default"]:nil;
-        boolean pp_append_checked = false;
-        integer pos = find( pp_default, suffix );
-        if( pos > -1 )
-        {
-            pp_default = substring( pp_default, 0, pos-1 );
-            pp_append_checked = true;
-        }
-        if ( pp_hash_cleartext != nil ){
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
-        } else {
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
-        }
-        if ( pp_use_lockout != nil ){
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
-        } else {
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
-        }
-        if ( pp_default != nil ){
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
-        } else {
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
-        }
-    } else {
-        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
-        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-    }
+//    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
+//    if( suffix == nil )
+//    {
+//                    /* Error Popup */
+//        callback_error = _("Unable to read settings for the current database.");
+//        y2error( "'name' entry for item '%1' is nil", current_tree_item );
+//        return false;
+//    }
+//    y2milestone( "calling db read handler for suffix '%1'", suffix );
+//
+//    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
+//    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
+//    if( is_new_db == nil )
+//    {
+//                    /* Error Popup */
+//        callback_error = _("Unable to read settings for the current database.");
+//        y2error( "'new_db' key for item '%1' is nil", current_tree_item );
+//        return false;
+//    }
+//    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
+//    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
+//
+//    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
+//    if( db == nil )
+//    {
+//                    /* Error Popup */
+//        callback_error = _("Unable to read settings for the current database.");
+//        y2error( "Reading settings for database '%1' failed", suffix );
+//        return false;
+//    }
+//
+//    UI::ChangeWidget( `te_basedn, `Value, suffix );
+//
+//    string rootdn = (string)db["rootdn"]:"";
+//    boolean append_checked = false;
+//    integer pos = find( rootdn, suffix );
+//    if( pos > -1 )
+//    {
+//        rootdn = substring( rootdn, 0, pos-1 );
+//        append_checked = true;
+//    }
+//    UI::ChangeWidget( `te_rootdn, `Value, rootdn );
+//    UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
+//    UI::ChangeWidget( `te_rootpw, `Value, db["passwd"]:"" );
+//    UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
+//    UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
+//
+//    // Check for ppolicy overlay
+//    map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
+//    if ( ppolicy_map != nil ){
+//        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
+//        string pp_hash_cleartext = ppolicy_map["ppolicy_hash_cleartext"]:nil;
+//        string pp_use_lockout = ppolicy_map["ppolicy_use_lockout"]:nil;
+//        string pp_default = ppolicy_map["ppolicy_default"]:nil;
+//        boolean pp_append_checked = false;
+//        integer pos = find( pp_default, suffix );
+//        if( pos > -1 )
+//        {
+//            pp_default = substring( pp_default, 0, pos-1 );
+//            pp_append_checked = true;
+//        }
+//        if ( pp_hash_cleartext != nil ){
+//            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
+//        } else {
+//            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
+//        }
+//        if ( pp_use_lockout != nil ){
+//            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
+//        } else {
+//            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
+//        }
+//        if ( pp_default != nil ){
+//            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
+//            UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
+//        } else {
+//            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
+//            UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
+//        }
+//    } else {
+//        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
+//        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+//        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+//        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+//    }
     return true;
 }
 
@@ -970,40 +962,28 @@ define boolean cb_input_db()
     return true;
 }
 
+
 /*****************************************
  **     tree structure definition       **
  *****************************************/
-
 widget_map = $[
     "base"  : $[
-        "children"  : [ "global", "databases" ]
+        "children"  : [ "daemon", "global", "schema" , "databases" ]
+    ],
+    "daemon" : $[
+        "name"      : _("Startup Configuration"),
+        "widget"    : dlg_service_new
     ],
     "global" : $[
-        "children"  : [ "g_schema", "g_loglevel", "g_allow", "g_tls" ],
+        "children"  : [ "g_loglevel", "g_allow", "g_tls" ],
                     /* Tree item */
         "name"      : _("Global Settings"),
         "widget"    : `Empty()
     ],
-    "g_schema" : $[
+    "schema" : $[
                     /* Tree item */
         "name"      : _("Schema Files"),
-        "widget"    :
-            `HBox(
-              `VBox(
-                `ReplacePoint( `id( `rp_schemalist ), `Empty() ),
-                `Left( `HBox(
-                  `PushButton( `id( `pb_add ), Label::AddButton() ),
-                  `HSpacing( 0.5 ),
-                  `PushButton( `id( `pb_delete ), Label::DeleteButton() )
-                ) ),
-                `VSpacing( 1 )
-              ),
-              `HSpacing( 0.5 ),
-              `VBox(
-                `PushButton( `id( `pb_up ), Label::UpButton() ),
-                `PushButton( `id( `pb_down ), Label::DownButton() )
-              )
-            ),
+        "widget"    : schemaWidget,
         "inclist"   : [],
         "cb_check"  : ``( cb_check_schema() ),
         "cb_read"   : ``( cb_read_schema() ),
@@ -1013,34 +993,7 @@ widget_map = $[
     "g_loglevel" : $[
                     /* Tree item */
         "name"      : _("Log Level Settings"),
-        "widget"    :
-                                                         /* Multi select box header */
-            `MultiSelectionBox( `id( `msb_loglevel ), _("Select &Log Level Flags:"), [
-                               /* Multi select box item 1/12 */
-                `item( `id( 1 ), _("Trace Function Calls") ),
-                               /* Multi select box item 2/12 */
-                `item( `id( 2 ), _("Debug Packet Handling") ),
-                               /* Multi select box item 3/12 */
-                `item( `id( 4 ), _("Heavy Trace Debugging") ),
-                               /* Multi select box item 4/12 */
-                `item( `id( 8 ), _("Connection Management") ),
-                               /* Multi select box item 5/12 */
-                `item( `id( 16 ), _("Print Packets Sent and Received") ),
-                               /* Multi select box item 6/12 */
-                `item( `id( 32 ), _("Search Filter Processing") ),
-                               /* Multi select box item 7/12 */
-                `item( `id( 64 ), _("Configuration File Processing") ),
-                               /* Multi select box item 8/12 */
-                `item( `id( 128 ), _("Access Control List Processing") ),
-                               /* Multi select box item 9/12 */
-                `item( `id( 256 ), _("Log Connections, Operations, and Result") ),
-                               /* Multi select box item 10/12 */
-                `item( `id( 512 ), _("Log Entries Sent") ),
-                               /* Multi select box item 11/12 */
-                `item( `id( 1024 ), _("Print Communication with Shell Back-Ends") ),
-                               /* Multi select box item 12/12 */
-                `item( `id( 2048 ), _("Entry Parsing") )
-             ] ),
+        "widget"    : loglevelWidget,
         "cb_check"  : ``( cb_check_loglevel() ),
         "cb_read"   : ``( cb_read_loglevel() ),
         "cb_write"  : ``( cb_write_loglevel() )
@@ -1048,18 +1001,7 @@ widget_map = $[
     "g_allow" : $[
                     /* Tree item */
         "name"      : _("Allow Settings"),
-        "widget"    :
-                                                     /* Multi select box header(allow flags) */
-            `MultiSelectionBox( `id( `msb_allow ), _("Select &Allow Flags:"), [
-                                       /* Multi select box item (allow flags) 1/4*/
-                `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
-                                       /* Multi select box item (allow flags) 2/4*/
-                `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
-                                       /* Multi select box item (allow flags) 3/4*/
-                `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
-                                       /* Multi select box item (allow flags) 4/4*/
-                `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
-             ] ),
+        "widget"    : allowWidget,
         "cb_check"  : ``( cb_check_allow() ),
         "cb_read"   : ``( cb_read_allow() ),
         "cb_write"  : ``( cb_write_allow() )
@@ -1067,63 +1009,10 @@ widget_map = $[
     "g_tls" : $[
                     /* Tree item */
         "name"      : _("TLS Settings"),
-        "widget"    : `VBox(
-                     /* TLS Dialog Headline */
-            `Heading( _("TLS Settings") ),
-                   /* radiobutton group text */
-            `Frame( _("TLS Active"), `RadioButtonGroup( `id( `rbg_tls ), `HBox(
-                `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton() ),
-                `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton() )
-            ) ) ),
-            `RichText( `id( `rt_tls_info ), "" ),
-                                           /* Button Text */
-            `PushButton( `id( `pb_edit ), _("&Select Certificate...") )
-        ),
+        "widget"    : tlsWidget,
         "dialogs"   : $[
-            "type"  : `VBox(
-                         /* certificate type selection dialog Headline */
-                `Heading( _("Select Type") ),
-                `VSpacing( 1 ),
-                `RadioButtonGroup( `id( `rbg_type ), `VBox (
-                                                     /* Radiobutton text */
-                    `Left( `RadioButton( `id( `rb_import ), _("&Import Certificates") ) ),
-                                                     /* Radiobutton text */
-                    `Left( `RadioButton( `id( `rb_common ), _("Use C&ommon Server Certificate"), true ) )
-                ) ),
-                `VSpacing( 1 ),
-                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
-                       `PushButton( `id( `cancel ), Label::CancelButton() )
-                )
-            ),
-            "import": `VBox(
-                         /* Dialog Headline */
-                `Heading( _("Import Certificate") ),
-                `VSpacing( 1 ),
-                                                        /* text entry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_cert_file ), _("Certificate &File (PEM Format)") ),
-                                 `HSpacing( 0.5 ),
-                                                        /* Button Text */
-                                 `Bottom( `PushButton( `id( `pb_cert_file ), _("&Browse...") ) )
-                ) ),
-                `VSpacing( 0.5 ),
-                                                        /* text entry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_key_file ), _("Certificate &Key File (PEM Format -- Unencrypted)")+"  " ),
-                                 `HSpacing( 0.5 ),
-                                                        /* Button Text */
-                                 `Bottom( `PushButton( `id( `pb_key_file ), _("B&rowse...") ) )
-                ) ),
-                `VSpacing( 0.5 ),
-                                                        /* text entry description */
-                `VSquash( `HBox( `TextEntry( `id( `te_ca_file ), _("C&A Certificate File (PEM Format)") ),
-                                 `HSpacing( 0.5 ),
-                                                        /* Button Text */
-                                 `Bottom( `PushButton( `id( `pb_ca_file ), _("Bro&wse...") ) )
-                ) ),
-                `VSpacing( 1 ),
-                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
-                       `PushButton( `id( `cancel ), Label::CancelButton() )
-                )
-            )
+            "type"  : tlsTypeWidget,
+            "import": tlsImportWidget,
         ],
         "cb_check"  : ``( cb_check_tls() ),
         "cb_read"   : ``( cb_read_tls() ),
@@ -1139,62 +1028,7 @@ widget_map = $[
             `PushButton( `id( `pb_add ), _("A&dd Database...") )
         ),
         "dialogs"   : $[
-            "adddb" : `HBox( `HSpacing(0.25),`VBox(
-                /* Dialog Headline */
-                `Heading( _("Add Database") ),
-                `VSpacing( 1 ), 
-                /* Textentry description */
-                `Frame( _("General Settings"), `VBox(
-                    `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
-                    `VSpacing( 0.5 ),
-                                               /* Textentry description */
-                    `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                                     `HSpacing( 0.5 ),
-                                                           /* checkbox description */
-                                     `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true ) ),
-                                            `VSpacing( 0.3 )
-                                     )
-                    ) ),
-                    `VSpacing( 0.5 ),
-                                               /* Textentry description */
-                    `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-                           `HSpacing( 0.5 ),
-                                                   /* Textentry description */
-                           `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                           `HSpacing( 0.5 ),
-                                                              /* Combobox description */
-                           `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
-                    ),
-                    `VSpacing( 0.5 ),
-                                                             /* Textentry description */
-                    `VSquash( `HBox( `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
-                                     `HSpacing( 0.5 ),
-                                                             /* Button text */
-                                     `Bottom( `PushButton( `id( `pb_directory ), _("&Browse...") ) )
-                    ) ))),
-                `VSpacing( 1 ),
-                `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),
-                                      `opt(`notify ), _("Enable Password Policies"), false ),
-                            `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
-                                      _("Hash Clear Text Passwords"), false ),
-                           `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
-                                      _("Disclose \"Account Locked\" Status"), false ),
-                           `HSpacing( `opt(`hstretch))),
-                    `HBox( `TextEntry( `id( `te_ppolicy_defaultpolicy ),
-                                       _("Default Policy Object DN"), "cn=Default Password Policy" ),
-                           `HSpacing( 0.5 ),
-                           `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
-                                                     _("&Append Base DN"), true )
-                                        ),`VSpacing( 0.3 ))),
-                    `VSpacing(0.25)
-                )),
-                `HBox( `PushButton( `id( `ok ), Label::OKButton() ),
-                       `PushButton( `id( `cancel ), Label::CancelButton() )
-                )
-            ), `HSpacing(0.25))
+            "adddb" : addDbWidget,
         ],
         "cb_check"  : ``( cb_check_databases() ),
         "cb_read"   : ``( cb_read_databases() ),
@@ -1210,62 +1044,10 @@ widget_map = $[
 void addDatabaseWidgetMap( string suffix, boolean new_db )
 {
     if( haskey( widget_map, suffix ) ) return;
-    term dlg_database =
-                         /* Dialog Headline */
-        `VBox( `Heading( _("Edit Database") ),
-               `VSpacing( 1 ),
-                                                                  /* textentry description */
-               `Frame ( _("General Settings"), `VBox(
-                   `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
-                   `VSpacing( 0.5 ),
-                                                     /* textentry description */
-                   `VSquash( `HBox( `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                                    `HSpacing( 0.5 ),
-                                                               /* checkbox text */
-                                    `VBox( `Bottom( `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") ) ),
-                                           `VSpacing( 0.3 )
-                                    )
-                   ) ),
-                   `VSpacing( 0.5 ),
-                                                        /* textentry description */
-                   `HBox( `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-                          `HSpacing( 0.5 ),
-                                                        /* textentry description */
-                          `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                          `HSpacing( 0.5 ),
-                                                           /* combobox text */
-                          `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
-                   )
-                )),
-                `VSpacing( 1 ),
-                `Frame( _("Password Policy Settings"), `VBox( `VSpacing(0.25),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
-                                      _("Enable Password Policies"), false ),
-                           `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_hashcleartext ),
-                                      _("Hash Clear Text Passwords"), false ),
-                           `HSpacing( `opt(`hstretch))),
-                    `HBox( `CheckBox( `id( `cb_ppolicy_uselockout ),
-                                      _("Disclose \"Account Locked\" Status"), false ),
-                           `HSpacing( `opt(`hstretch))),
-                    `VSquash( `HBox(
-                                `TextEntry( `id( `te_ppolicy_defaultpolicy ),
-                                            _("Default Policy Object DN"), "cn=Default Policy" ),
-                                `HSpacing( 0.5 ),
-                                `VBox(`Bottom( `CheckBox( `id( `cb_pp_append_basedn ),
-                                                     _("&Append Base DN"), true )
-                                            ),
-                                      `VSpacing( 0.3 )
-                                )
-                            )
-                        ),
-                    `VSpacing(0.25)
-                ))
-             );
 
     map<string,any> item_map = $[
         "name"      : suffix,
-        "widget"    : dlg_database,
+        "widget"    : editDbWidget,
         "new_db"    : new_db,
         "dynamic"   : true,
         "help_page" : "database_detail",
@@ -1286,21 +1068,12 @@ void generateDynamicTreeItems()
     y2debug( "generating database tree items" );
     //generate database entries
 
-
-    list<string> dblist = LdapServer::ReadDbList();
-    y2debug( "ycp: dblist is '%1'", dblist );
-
-    foreach( string suffix, dblist, {
-        addDatabaseWidgetMap( suffix, false );
+    y2milestone( "calling databases read handler" );
+    list<map<string,string> > dblist = LdapServer::GetDatabaseList();
+    foreach( map<string,string> db, dblist, {
+        string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
+        addDatabaseWidgetMap( tmp , false );
     } );
-
-    list<string> dblistNEW = LdapServer::ReadDbListNEW();
-    y2debug( "ycp: dblistNEW is '%1'", dblistNEW );
-
-    foreach( string suffix, dblistNEW, {
-        addDatabaseWidgetMap( suffix, true );
-    } );
-
     y2debug( "databases map is '%1'", (map<string,any>)widget_map["databases"]:$[] );
 }
 

@@ -1,0 +1,367 @@
+
+{
+    textdomain "ldap-server";
+    map<string, any> firewall_settings = $[
+            "services": [ "ldap" , "ldaps" ],
+            "display_details": true,
+    ];
+
+    /* list of valid encoding methods for password inputs, used by add database and edit database
+     * dialogs
+     */
+    list enc_types = [
+        `item( `id( "CRYPT" ), "CRYPT" ),
+        `item( `id( "SMD5" ), "SMD5" ),
+        `item( `id( "SHA" ), "SHA" ),
+        `item( `id( "SSHA" ), "SSHA", true ),
+        `item( `id( "PLAIN" ), "PLAIN" )
+    ];
+
+    map<string, any> fw_widget = CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
+    term dlg_service_new = `Top(
+        `VBox(
+            `VBox(
+                `Frame( _("&Start LDAP Server"),
+                    `VBox(
+                        `RadioButtonGroup(
+                            `VBox(
+                                `Left( `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton(), !LdapServer::ReadServiceEnabled() ) ),
+                                `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), LdapServer::ReadServiceEnabled() ) )
+                            )
+                        ),
+                        `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )),
+                        `HStretch()
+                    )
+                )
+            ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("Protocol Listeners"),
+                    `VBox(
+                        `Left(
+                            `HBox(
+                                `HWeight(1, `CheckBox( `id( `cb_interface_ldap), _("LDAP"), false )),
+                                `HWeight(1, `PushButton( `id( `pb_interface_ldap), "Interfaces ...")),
+                                `HWeight(1, `HStretch())
+                            )
+                        ),
+                        `Left(
+                            `HBox(
+                                `HWeight(1, `CheckBox( `id( `cb_interface_ldaps), _("LDAP over SSL (ldaps)"), false )),
+                                `HWeight(1, `PushButton( `id( `pb_interface_ldaps), "Interfaces ...")),
+                                `HWeight(1, `HStretch())
+                            )
+                        ),
+                        `Left(
+                            `HBox(
+                                `HWeight(1, `CheckBox( `id( `cb_interface_ldapi), _("LDAP over IPC (ldapi)"), false ) ),
+                                `HWeight(1, `PushButton( `id( `pb_interface_ldapi), "Interfaces ...") ),
+                                `HWeight(1, `HStretch())
+                            )
+                        )
+                    )
+                )
+            ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("Firewall Settings"),
+                    `VBox(
+                        fw_widget["custom_widget"]:`Empty(),
+                        `HStretch()
+                    )
+                )
+            )
+        )
+    );
+
+    term schemaWidget =
+        `HBox(
+            `VBox(
+                `ReplacePoint(
+                    `id( `rp_schemalist ), `Empty()
+                ),
+                `Left(
+                    `HBox(
+                        `PushButton( `id( `pb_add ), Label::AddButton() ),
+                        `HSpacing( 0.5 ),
+                        `PushButton( `id( `pb_delete ), Label::DeleteButton() )
+                    )
+                ),
+                `VSpacing( 1 )
+            ),
+            `HSpacing( 0.5 ),
+            `VBox(
+                `PushButton( `id( `pb_up ), Label::UpButton() ),
+                `PushButton( `id( `pb_down ), Label::DownButton() )
+            )
+        );
+
+    term loglevelWidget =
+        `MultiSelectionBox(
+            `id( `msb_loglevel ), _("Select &Log Level Flags:"), [
+                `item( `id( `trace ), _("Trace Function Calls") ),
+                `item( `id( `packets ), _("Debug Packet Handling") ),
+                `item( `id( `args ), _("Heavy Trace Debugging (function args)") ),
+                `item( `id( `conns ), _("Connection Management") ),
+                `item( `id( `BER ), _("Print Packets Sent and Received") ),
+                `item( `id( `filter ), _("Search Filter Processing") ),
+                `item( `id( `config ), _("Configuration File Processing") ),
+                `item( `id( `ACL ), _("Access Control List Processing") ),
+                `item( `id( `stats ), _("Log Connections, Operations, and Result") ),
+                `item( `id( `stats2 ), _("Log Entries Sent") ),
+                `item( `id( `shell ), _("Print Communication with Shell Back-Ends") ),
+                `item( `id( `parse ), _("Entry Parsing") ),
+                `item( `id( `sync ), _("Entry Parsing") ),
+                `item( `id( `none ), _("None") ),
+                `item( `id( `cache ), _("Proxy Cache") )
+            ]
+        );
+
+    term allowWidget =
+        `MultiSelectionBox(
+            `id( `msb_allow ), _("Select &Allow Flags:"), [
+                `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
+                `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
+                `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
+                `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
+            ]
+        );
+
+    term tlsWidget =
+        `VBox(
+            `Heading( _("TLS Settings") ),
+            `Frame(
+                _("TLS Active"),
+                `RadioButtonGroup(
+                    `id( `rbg_tls ),
+                    `HBox(
+                        `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton() ),
+                        `RadioButton( `id( `rb_no ), `opt( `notify ), Label::NoButton() )
+                    )
+                )
+            ),
+            `RichText( `id( `rt_tls_info ), "" ),
+            `PushButton( `id( `pb_edit ), _("&Select Certificate...") )
+        );
+    term tlsTypeWidget =
+        `VBox(
+            `Heading( _("Select Type") ),
+            `VSpacing( 1 ),
+            `RadioButtonGroup(
+                `id( `rbg_type ),
+                `VBox (
+                    `Left(
+                        `RadioButton( `id( `rb_import ), _("&Import Certificates") )
+                    ),
+                    `Left(
+                        `RadioButton( `id( `rb_common ), _("Use C&ommon Server Certificate"), true )
+                    )
+                )
+            ),
+            `VSpacing( 1 ),
+            `HBox(
+                `PushButton( `id( `ok ), Label::OKButton() ),
+                `PushButton( `id( `cancel ), Label::CancelButton())
+            )
+        );
+    term tlsImportWidget =
+        `VBox(
+            `Heading( _("Import Certificate") ),
+            `VSpacing( 1 ),
+            `VSquash(
+                `HBox(
+                    `TextEntry( `id( `te_cert_file ), _("Certificate &File (PEM Format)") ),
+                    `HSpacing( 0.5 ),
+                    `Bottom(
+                        `PushButton( `id( `pb_cert_file ), _("&Browse...") )
+                    )
+                )
+            ),
+            `VSpacing( 0.5 ),
+            `VSquash(
+                `HBox(
+                    `TextEntry( `id( `te_key_file ), _("Certificate &Key File (PEM Format -- Unencrypted)")+"  " ),
+                    `HSpacing( 0.5 ),
+                    `Bottom(
+                        `PushButton( `id( `pb_key_file ), _("B&rowse...") )
+                    )
+                )
+            ),
+            `VSpacing( 0.5 ),
+            `VSquash(
+                `HBox(
+                    `TextEntry( `id( `te_ca_file ), _("C&A Certificate File (PEM Format)") ),
+                    `HSpacing( 0.5 ),
+                    `Bottom(
+                        `PushButton( `id( `pb_ca_file ), _("Bro&wse...") )
+                    )
+                )
+            ),
+            `VSpacing( 1 ),
+            `HBox(
+                `PushButton( `id( `ok ), Label::OKButton() ),
+                `PushButton( `id( `cancel ), Label::CancelButton() )
+            )
+        );
+
+    term addDbWidget =
+        `HBox(
+            `HSpacing(0.25),
+            `VBox(
+                `Heading( _("Add Database") ),
+                `VSpacing( 1 ),
+                `Frame( _("General Settings"),
+                    `VBox(
+                        `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
+                        `VSpacing( 0.5 ),
+                        `VSquash(
+                            `HBox(
+                                `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                                `HSpacing( 0.5 ),
+                                `VBox(
+                                    `Bottom(
+                                        `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true )
+                                    ),
+                                    `VSpacing( 0.3 )
+                                )
+                            )
+                        ),
+                        `VSpacing( 0.5 ),
+                        `HBox(
+                            `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                            `HSpacing( 0.5 ),
+                            `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                            `HSpacing( 0.5 ),
+                            `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                        ),
+                        `VSpacing( 0.5 ),
+                        `VSquash(
+                            `HBox(
+                                `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
+                                `HSpacing( 0.5 ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_directory ), _("&Browse...") )
+                                )
+                            )
+                        )
+                    )
+                ),
+                `VSpacing( 1 ),
+                `Frame( _("Password Policy Settings"),
+                    `VBox(
+                        `VSpacing(0.25),
+                        `HBox(
+                            `CheckBox( `id( `cb_ppolicy_overlay ),
+                                `opt(`notify ), _("Enable Password Policies"), false
+                            ),
+                            `HSpacing( `opt(`hstretch))
+                        ),
+                        `HBox(
+                            `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                                _("Hash Clear Text Passwords"), false
+                            ),
+                           `HSpacing( `opt(`hstretch))
+                        ),
+                        `HBox(
+                            `CheckBox( `id( `cb_ppolicy_uselockout ),
+                                _("Disclose \"Account Locked\" Status"), false
+                            ),
+                            `HSpacing( `opt(`hstretch))
+                        ),
+                        `HBox(
+                            `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                _("Default Policy Object DN"), "cn=Default Password Policy" ),
+                            `HSpacing( 0.5 ),
+                            `VBox(
+                                `Bottom(
+                                    `CheckBox( `id( `cb_pp_append_basedn ),
+                                            _("&Append Base DN"), true
+                                    )
+                                ),
+                                `VSpacing( 0.3 )
+                            )
+                        ),
+                        `VSpacing(0.25)
+                    )
+                ),
+                `HBox(
+                    `PushButton( `id( `ok ), Label::OKButton() ),
+                    `PushButton( `id( `cancel ), Label::CancelButton() )
+                )
+            ),
+            `HSpacing(0.25)
+        );
+
+    term editDbWidget =
+        `VBox(
+            `Heading( _("Edit Database") ),
+            `VSpacing( 1 ),
+            `Frame ( _("General Settings"),
+                `VBox(
+                    `TextEntry( `id( `te_basedn ), `opt( `disabled ), _("&Base DN") ),
+                    `VSpacing( 0.5 ),
+                    `VSquash(
+                        `HBox(
+                            `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
+                            `HSpacing( 0.5 ),
+                            `VBox(
+                                `Bottom(
+                                    `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
+                                ),
+                                `VSpacing( 0.3 )
+                            )
+                        )
+                    ),
+                    `VSpacing( 0.5 ),
+                    `HBox(
+                        `Password( `id( `te_rootpw ), _("LDAP &Password") ),
+                        `HSpacing( 0.5 ),
+                        `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                        `HSpacing( 0.5 ),
+                        `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
+                    )
+                )
+            ),
+            `VSpacing( 1 ),
+            `Frame( _("Password Policy Settings"),
+                `VBox( `VSpacing(0.25),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
+                            _("Enable Password Policies"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                            _("Hash Clear Text Passwords"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_uselockout ),
+                            _("Disclose \"Account Locked\" Status"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `VSquash(
+                        `HBox(
+                            `TextEntry( `id( `te_ppolicy_defaultpolicy ),
+                                _("Default Policy Object DN"), "cn=Default Policy"
+                            ),
+                            `HSpacing( 0.5 ),
+                            `VBox(
+                                `Bottom(
+                                    `CheckBox( `id( `cb_pp_append_basedn ),
+                                            _("&Append Base DN"), true
+                                    )
+                                ),
+                                `VSpacing( 0.3 )
+                            )
+                        )
+                    ),
+                    `VSpacing(0.25)
+                )
+            )
+        );
+}
+
