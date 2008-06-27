@@ -101,6 +101,51 @@ any ProposalSequence() {
     return ret;
 }
 
+any MigrateSequence() {
+
+    /* Initialization dialog caption */
+    string caption = _("LDAP Server Configuration");
+    /* Initialization dialog contents */
+    term contents = `Label(_("Initializing..."));
+
+
+    map aliases = $[
+        "startup"   : ``( MigrationMainDialog() ),
+        "proposal"  : ``( ProposalSequence() ),
+        "authconfig"    : ``( MigrationDialog() ),
+        "migrate"   : ``( DoMigration() )
+    ];
+
+    map sequence = $[
+        "ws_start"  : "startup",
+        "startup"   : $[
+	    `abort  : `abort,
+            `next   : "authconfig",
+            `initial : "proposal"
+        ],
+        "authconfig"   : $[
+            `next   : "migrate"
+        ],
+        "migrate"   : $[
+            `next   : `next
+        ],
+        "proposal"  : $[
+            `next   : `next
+        ]
+    ];
+
+    y2milestone( "--> starting MigrateSequence" );
+
+    Wizard::CreateDialog();
+    any ret = Sequencer::Run(aliases, sequence);
+
+    y2milestone( "--> MigrateSequence finished " );
+
+    UI::CloseDialog();
+
+    return ret;
+}
+
 /**
  * Whole configuration of ldap-server
  * @return sequence result
@@ -109,6 +154,7 @@ any LdapServerSequence() {
 
     map aliases = $[
 	"read"	: ``( ReadDialog() ),
+        "migrate" :  ``( MigrateSequence() ),
         "propose" : ``( ProposalSequence() ),
 	"main"	: ``( MainSequence() ),
 	"write"	: ``( WriteDialog() )
@@ -119,8 +165,14 @@ any LdapServerSequence() {
 	"read" : $[
 	    `abort	: `abort,
             `initial    : "propose",
+            `migrate    : "migrate",
 	    `next	: "main"
 	],
+        "migrate" : $[
+            `abort      : `abort,
+            `initial    : "propose",
+            `next       : "main"
+        ],
         "propose" : $[
             `next       : `next,
 	    `abort	: `abort

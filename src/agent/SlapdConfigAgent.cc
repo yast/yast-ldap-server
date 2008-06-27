@@ -240,6 +240,35 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             }
         }
     }
+    else if ( path->component_str(0) == "addRootSaslRegexp" )
+    {
+        std::string filename = "/etc/openldap/slapd.d/cn=config.ldif";
+        std::ifstream ldifFile(filename.c_str());
+        try {
+            LdifReader ldif(ldifFile);
+            if ( ldif.readNextRecord() )
+            {
+                LDAPEntry entry, oldEntry;
+                entry = ldif.getEntryRecord();
+                entry.addAttribute(
+                    LDAPAttribute( "olcAuthzRegexp", 
+                        "gidNumber=0\\+uidNumber=0,cn=peercred,cn=external,cn=auth dn:cn=config")
+                    );
+                ldifFile.close();
+                std::ofstream oldifFile(filename.c_str(), std::ios::out|std::ios::trunc);
+                LdifWriter oldif(oldifFile);
+                oldif.writeRecord(entry);
+                oldifFile.close();
+            }
+            return YCPBoolean(true);
+        } catch ( std::runtime_error e ) {
+            lastError->add(YCPString("summary"),
+                    YCPString("Error while parsing LDIF file") );
+            lastError->add(YCPString("description"), 
+                    YCPString(std::string( e.what() ) ) );
+            return YCPBoolean(false);
+        }
+    }
     return YCPBoolean(true);
 }
 
