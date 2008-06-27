@@ -31,7 +31,6 @@ my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $serviceEnabled = 0;
 my $registerSlp = 0;
-my @loglevel = ();
 my %dbDefaults = ();
 
 my @databases = ();
@@ -88,9 +87,6 @@ sub Read {
             y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
             #$rc = SCR->Read('.ldapserver.global.tlsSettings' );
             #y2milestone("tlsSettings: ". Data::Dumper->Dump([$rc]));
-            $rc = SCR->Read('.ldapserver.global.loglevel' );
-            y2milestone("loglevel: ". Data::Dumper->Dump([$rc]));
-            @loglevel = @{$rc};
         }
     }
     else
@@ -361,7 +357,7 @@ sub GetError
 BEGIN { $TYPEINFO {GetLogLevels} = ["function", [ "list", "string" ] ]; }
 sub GetLogLevels
 {
-    return \@loglevel;
+    return  SCR->Read('.ldapserver.global.loglevel' );
 }
 
 BEGIN { $TYPEINFO {SetLogLevels} = ["function", "boolean", [ "list", "string" ] ]; }
@@ -369,9 +365,37 @@ sub SetLogLevels
 {
     my $self = shift;
     my $lvls = shift;
-    @loglevel = @{$lvls};
-
     SCR->Write('.ldapserver.global.loglevel', $lvls );
+    return 1;
+}
+
+BEGIN { $TYPEINFO {GetAllowFeatures} = ["function", [ "list", "string" ] ]; }
+sub GetAllowFeatures
+{
+    return  SCR->Read('.ldapserver.global.allow' );
+}
+
+BEGIN { $TYPEINFO {GetDisallowFeatures} = ["function", [ "list", "string" ] ]; }
+sub GetDisallowFeatures
+{
+    return  SCR->Read('.ldapserver.global.disallow' );
+}
+
+BEGIN { $TYPEINFO {SetAllowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
+sub SetAllowFeatures
+{
+    my $self = shift;
+    my $features = shift;
+    SCR->Write('.ldapserver.global.allow', $features );
+    return 1;
+}
+
+BEGIN { $TYPEINFO {SetDisallowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
+sub SetDisallowFeatures
+{
+    my $self = shift;
+    my $features = shift;
+    SCR->Write('.ldapserver.global.disallow', $features );
     return 1;
 }
 

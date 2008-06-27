@@ -106,11 +106,16 @@ class OlcGlobalConfig : public OlcConfigEntry
     public:
         OlcGlobalConfig();
         inline OlcGlobalConfig( const LDAPEntry &le) : OlcConfigEntry(le) {}
-        int getLogLevel() const;
+
         const std::vector<std::string> getLogLevelString() const;
-        void setLogLevel(int level);
         void setLogLevel(const std::list<std::string> &level);
         void addLogLevel(std::string level);
+
+        const std::vector<std::string> getAllowFeatures() const;
+        void setAllowFeatures( const std::list<std::string> &features );
+        const std::vector<std::string> getDisallowFeatures() const;
+        void setDisallowFeatures( const std::list<std::string> &features );
+
         OlcTlsSettings getTlsSettings() const;
         virtual std::map<std::string, std::list<std::string> > toMap() const;
 };
@@ -125,7 +130,7 @@ typedef std::list<boost::shared_ptr<OlcDatabase> > OlcDatabaseList;
 class OlcConfig {
     public:
         OlcConfig(LDAPConnection *lc=0 );
-        OlcGlobalConfig getGlobals();
+        boost::shared_ptr<OlcGlobalConfig> getGlobals();
         void setGlobals( OlcGlobalConfig &olcg);
         void updateEntry( const OlcConfigEntry &oce );
         OlcDatabaseList getDatabases();
