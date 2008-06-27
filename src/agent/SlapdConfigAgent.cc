@@ -105,6 +105,8 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         globals = boost::shared_ptr<OlcGlobalConfig>(new OlcGlobalConfig());
         globals->setStringValue("olcPidFile", "/var/run/slapd/slapd.pid");
         globals->setStringValue("olcArgsFile", "/var/run/slapd/slapd.args");
+        globals->setStringValue("olcAuthzRegexp", 
+                "gidNumber=0\\+uidNumber=0,cn=peercred,cn=external,cn=auth dn:cn=config");
     }
     else if ( path->component_str(0) == "initSchema" )
     {   
