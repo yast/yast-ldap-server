@@ -99,7 +99,7 @@ class OlcDatabase : public OlcConfigEntry
         virtual IndexMap getDatabaseIndexes() const {};
         virtual std::vector<IndexType> getDatabaseIndex( const std::string &attr ) const {};
         virtual void addIndex(const std::string& attr, const std::vector<IndexType>& idx) {};
-
+        virtual void deleteIndex(const std::string& attr) {};
     
     protected:
         virtual void updateEntryDn();

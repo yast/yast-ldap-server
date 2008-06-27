@@ -187,8 +187,26 @@ void OlcBdbDatabase::addIndex(const std::string& attr, const std::vector<IndexTy
     this->addStringValue( "olcDbIndex", indexString );
 }
 
-void OlcBdbDatabase::deleteIndex(const std::string& attr)
+void OlcBdbDatabase::deleteIndex(const std::string& type)
 {
+    const LDAPAttribute *attr = m_dbEntryChanged.getAttributes()->getAttributeByName("olcdbindex");
+    if (! attr ) {
+        return;
+    };
+    
+    StringList sl = attr->getValues();
+    StringList newValues;
+    StringList::const_iterator i;
+    for (i = sl.begin(); i != sl.end(); i++ ) {
+        std::string attrType;
+        std::string indexes;
+        splitIndexString(*i, attrType, indexes );
+        if ( attrType != type )
+        {
+            newValues.add(*i);
+        }
+    }
+    this->setStringValues("olcdbindex", newValues );
 }
 
 void OlcBdbDatabase::setDirectory( const std::string &dir )
@@ -765,7 +783,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                     replace = true;
                 } else {
                     modifications.addModification(
-                            LDAPModification( LDAPAttribute(i->getName()), 
+                            LDAPModification( LDAPAttribute(i->getName(), delValues ), 
                                     LDAPModification::OP_DELETE) 
                             );
                 }
