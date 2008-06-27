@@ -331,7 +331,7 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
         YCPMap ymap;
         ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
         ymap.add( YCPString("type"), YCPString((*i)->getType()) );
-        ymap.add( YCPString("index"), YCPInteger((*i)->getIndex()) );
+        ymap.add( YCPString("index"), YCPInteger((*i)->getEntryIndex()) );
         dbList.add(ymap);
     }
     return dbList;
@@ -365,7 +365,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     OlcDatabaseList::const_iterator i;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
-        if ( (*i)->getIndex() == dbIndex ) 
+        if ( (*i)->getEntryIndex() == dbIndex ) 
         {
             YCPMap resMap;
             if ( path->length() == 1 )
@@ -380,7 +380,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
             } else {
                 std::string dbComponent = path->component_str(1);
                 y2milestone("Component %s ", dbComponent.c_str());
-                IndexMap idx = (*i)->getIndexes();
+                IndexMap idx = (*i)->getDatabaseIndexes();
                 IndexMap::const_iterator j = idx.begin();
                 for ( ; j != idx.end(); j++ )
                 {
@@ -618,7 +618,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     OlcDatabaseList::const_iterator i;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
-        if ( (*i)->getIndex() == dbIndex ) 
+        if ( (*i)->getEntryIndex() == dbIndex ) 
         {
             if ( path->length() == 1 )
             {
@@ -634,7 +634,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 {
                     std::vector<IndexType> idx;
                     std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
-                    y2milestone("New Index for Attribute: '%s'", attr.c_str() );
+                    y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
                     if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
                     {
                         idx.push_back(Present);

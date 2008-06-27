@@ -65,7 +65,7 @@ OlcBdbDatabase::OlcBdbDatabase() : OlcDatabase("bdb")
 
 OlcBdbDatabase::OlcBdbDatabase( const LDAPEntry& le) : OlcDatabase(le) { }
 
-IndexMap OlcBdbDatabase::getIndexes() const
+IndexMap OlcBdbDatabase::getDatabaseIndexes() const
 {
     const LDAPAttributeList *al = m_dbEntryChanged.getAttributes();
     const LDAPAttribute *attr = al->getAttributeByName("olcdbindex");
@@ -490,7 +490,7 @@ void OlcConfigEntry::setIndex( int index )
     this->updateEntryDn();
 }
 
-int OlcConfigEntry::getIndex() const
+int OlcConfigEntry::getEntryIndex() const
 {
     return this->entryIndex;
 }
@@ -998,7 +998,7 @@ int main(char** argv, int argc)
     if ( dbEntry ) {
         std::cout << "Got DBEntry: " << dbEntry->getDN() << std::endl;
         OlcBdbDatabase db(*dbEntry);
-        OlcBdbDatabase::IndexMap idx = db.getIndexes();
+        OlcBdbDatabase::IndexMap idx = db.getDatabaseIndexes();
         OlcBdbDatabase::IndexMap::const_iterator i = idx.find("cn");
 
         std::cout << "Idx: " << i->second[0] << " " << OlcBdbDatabase::Eq << std::endl;
