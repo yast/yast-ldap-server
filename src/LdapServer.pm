@@ -578,8 +578,21 @@ sub ChangeDatabaseIndex
     $newIdx->{'eq'} = YaST::YCP::Boolean($newIdx->{'eq'});
     $newIdx->{'sub'} = YaST::YCP::Boolean($newIdx->{'sub'});
     my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.index", $newIdx );
+    return $rc;
 }
 
+BEGIN { $TYPEINFO {AddPasswordPolicy} = ["function", "boolean" , "integer", ["map", "string", "string" ] ]; }
+sub AddPasswordPolicy
+{
+    my ($self, $dbIndex, $ppolicy ) = @_;
+    if ( ! SCR->Write(".ldapserver.database.{".$dbIndex."}.ppolicy", $ppolicy ) ) {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return YaST::YCP::Boolean(0);
+    } else {
+        return YaST::YCP::Boolean(1);
+    }
+}
 
 BEGIN { $TYPEINFO {GetSchemaList} = ["function", [ "list" , "string"] ]; }
 sub GetSchemaList

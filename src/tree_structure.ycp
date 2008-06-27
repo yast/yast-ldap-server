@@ -1049,29 +1049,40 @@ define boolean cb_read_ppolicy()
 
 define boolean cb_write_ppolicy()
 {
-    y2milestone("cb_write_policy()");
-//   if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
-//       boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
-//       boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
-//       string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+    string treeItem = current_tree_item;
+    y2milestone("cb_write_policy() treeitem: '%1'", treeItem);
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    boolean result = true;
+    if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+        boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+        boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+        string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
 //       map<string,string> ppolicy_old = LdapServer::GetPasswordPolicyOverlay(suffix);
-//       map<string,any> ppolicy = $[];
-//       if (hashcleartext ) {
-//           ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
-//       }
-//       if (uselockout) {
-//           ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
-//       }
-//       if (pp_default != "" ) {
-//           if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-//           {
-//               pp_default = pp_default+","+suffix;
-//           }
-//           if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
-//               db = add(db, "ppolicy_default_changed", "1");
-//           }
-//           ppolicy = add( ppolicy, "ppolicy_default", pp_default);
-//       }
+        map<string,string> ppolicy = $[];
+        if (hashcleartext ) {
+            ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
+        }
+        if (uselockout) {
+            ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
+        }
+        if (pp_default != "" ) {
+            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+            {
+                map<string,string> db = LdapServer::GetDatabase(index);
+                string suffix =  db["suffix"]:"";
+                pp_default = pp_default+","+suffix;
+            }
+//            if (pp_default != ppolicy_old["ppolicy_default"]:nil ) {
+//                db = add(db, "ppolicy_default_changed", "1");
+//            }
+            ppolicy = add( ppolicy, "ppolicy_default", pp_default);
+        }
+        y2milestone("Policy: %1", ppolicy);
+        result = LdapServer::AddPasswordPolicy( index, ppolicy );
+        if ( ! result ) {
+            map<string, string> err = LdapServer::GetError();
+            callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+        }
 //       list<any> pp_overlay = [ "ppolicy", ppolicy ];
 //       list<any> overlays = [ pp_overlay ];
 //       db = add( db, "overlay", overlays);
@@ -1080,7 +1091,7 @@ define boolean cb_write_ppolicy()
 //           inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
 //           LdapServer::WriteSchemaIncludeList(inclist);
 //       }
-//   } else {
+    } else {
 //       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
 //       if ( ppolicy_map != nil ){
 //           list<any> newoverlay = [];
@@ -1095,8 +1106,8 @@ define boolean cb_write_ppolicy()
 //           });
 //           db["overlay"] = newoverlay;
 //       }
-//   }
-    return true;
+    }
+    return result;
 }
 
 /*****************************************
