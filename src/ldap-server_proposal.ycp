@@ -15,7 +15,6 @@
 textdomain "ldap-server";
 
 import "LdapServer";
-import "YaPI::LdapServer";
 import "LdapServerConf";
 import "Ldap";
 import "HTML";
@@ -45,6 +44,7 @@ if(func == "MakeProposal") {
     string warning = nil;
     symbol warning_level = nil;
     boolean force_reset = param["force_reset"]:false;
+    map <string,any> defaults = nil;
 
 
     if( force_reset || !LdapServerConf::proposal_changed )
@@ -59,65 +59,35 @@ if(func == "MakeProposal") {
             if (!Package::Installed ("openldap2"))
             {
                 y2milestone ("Openldap2 is not installed. --> service disabled");
-           //     LdapServer::WriteServiceEnabled (false);
+                LdapServer::SetServiceEnabled (false);
             }
             else
             {
-                //LdapServer::WriteServiceEnabled( true );
+                LdapServer::SetServiceEnabled( true );
             }
-            map bash_out = (map<string,any>)SCR::Execute( .target.bash_output, "/bin/hostname -d" );
-            string domain = (string)bash_out["stdout"]:"";
-            domain = substring( domain, 0, size(domain)-1 );
-            if (size (domain) <= 0)
-            {
-                domain = "site";
-            }
-            y2milestone( "domain is '%1'", domain );
-            list<string> dnlist = splitstring( domain, "." );
-            y2milestone( "dnlist is '%1'", dnlist );
-            string new_basedn = "";
-            foreach( string dn, dnlist, { new_basedn = new_basedn + "dc=" + dn + ","; } );
-
-            LdapServerConf::baseDN = substring( new_basedn, 0, size( new_basedn )-1 );
-            /* XXX: hack to resolve bug #44335:
-             * a failed 'hostname' causes the initial baseDN to be empty, thus the rootDN has a trailing comma.
-             * In dialogs.ycp, when the user enters a baseDN and leaves 'append Base DN' checked, another comma
-             * is put between rootDN and the baseDN part, leading to an invalid rootDN. To resolve this, the
-             * baseDN and comma is only appended to the initial rootDN if 'hostname' succeeded, that is, dnlist
-             * at least 1 element.
-             */
-            //LdapServerConf::rootDN = "cn=Administrator,"+LdapServerConf::baseDN;
-            LdapServerConf::rootDN = "cn=Administrator";
-            if( size( dnlist ) > 0 )
-            {
-                LdapServerConf::rootDN = LdapServerConf::rootDN + "," + LdapServerConf::baseDN;
-            }
-            LdapServerConf::rootPW = Users::GetRootPassword();
-            LdapServerConf::enctype = "SSHA";
-            //LdapServer::WriteUseRootPW( true );
+            defaults = LdapServer::GetInitialDefaults();
+            defaults["rootpw_clear"] = Users::GetRootPassword();
+            LdapServer::SetInitialDefaults(defaults);
         }
     }
 
     //y2error( "sysconfig var is '%1'", SCR::Read( .sysconfig.openldap.OPENLDAP_REGISTER_SLP ) );
 
-    if( true ) // LdapServer::ReadServiceEnabled() )
+    if( LdapServer::ReadServiceEnabled() )
     {
         string rootPWString = "";
-        if( LdapServerConf::rootPW == Users::GetRootPassword() )
+        if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
         {
-                /*proposal password information*/
             rootPWString = _("[root password]");
         } else
         {
-                /*proposal password information*/
             rootPWString = _("[manually set]");
         }
-//        if( LdapServer::ReadUseRootPW() && Users::GetRootPassword() == "" )
-//        {
-//                /* proposal error */
-//            warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
-//            warning_level = `blocker;
-//        }
+        if( defaults["rootpw_clear"]:"" == "" )
+        {
+            warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
+            warning_level = `blocker;
+        }
         // Try to get Firewall status 
         string fw_text = "";
         if ( SuSEFirewall::GetEnableService()) {
@@ -149,8 +119,8 @@ if(func == "MakeProposal") {
         }
 
         proposal = _("LDAP Server Configuration:") + HTML::Newline() +
-                     HTML::List( [ _("Base DN: ") + LdapServerConf::baseDN,
-                                   _("Root DN: ") + LdapServerConf::rootDN,
+                     HTML::List( [ _("Base DN: ") + defaults["basedn"]:"",
+                                   _("Root DN: ") + defaults["rootdn"]:"",
                                    _("LDAP Password: ") + rootPWString
                                  ] ) +
                    _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
@@ -204,37 +174,29 @@ else if(func == "Write") {
     if( LdapServerConf::wroteDatabase ) return ret;
     LdapServerConf::wroteDatabase = true;
 
-//    if( LdapServer::ReadServiceEnabled() )
-//    {
-//        /* ensure openldap2 package is installed */
-//        if( !Package::Install( "openldap2" ) )
-//        {
-//            if( !Package::Available( "openldap2" ) ) {
-//                // translators: error popup before aborting the module
-//                Popup::Error( sformat( _("The package '%1' is not available.
-//YaST2 cannot continue the configuration
-//without installing the package."), "openldap2" ) );
-//            } else {
-//                // translators: error popup before aborting the module
-//                Popup::Error (_("YaST2 cannot continue the configuration
-//without installing the required packages."));
-//            }
-//
-//            return ret;
-//        }
-//    }
+    if( LdapServer::ReadServiceEnabled() )
+    {
+        /* ensure openldap2 package is installed */
+        if( !Package::Install( "openldap2" ) )
+        {
+            if( !Package::Available( "openldap2" ) ) {
+                // translators: error popup before aborting the module
+                Popup::Error( sformat( _("The package '%1' is not available.
+YaST2 cannot continue the configuration
+without installing the package."), "openldap2" ) );
+            } else {
+                // translators: error popup before aborting the module
+                Popup::Error (_("YaST2 cannot continue the configuration
+without installing the required packages."));
+            }
 
-    //string rootPW = "";
-
-
-//    if( LdapServer::ReadServiceEnabled() )
-//    {
-//        Progress::off();
-//        LdapServer::Read();
-//        LdapServer::WriteServiceEnabled( true );
+            return ret;
+        }
+        Progress::off();
+        LdapServer::ReadFromDefaults();
+        LdapServer::SetServiceEnabled( true );
 //        LdapServer::WriteLoglevel( 0 );
-//        Ldap::Read();
-//        Progress::on();
+        Progress::on();
 //        map ldap_defaults = Ldap::Export();
 //        y2debug( "ldap settings map: %1", ldap_defaults );
 //
@@ -280,7 +242,8 @@ else if(func == "Write") {
 //        Ldap::SetBindPassword( LdapServerConf::rootPW );
 //    }
 //
-//    LdapServer::Write();
+        LdapServer::Write();
+    }
 //
 //    //be paranoid
 //    LdapServerConf::rootPW = "";
