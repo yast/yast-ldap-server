@@ -10,6 +10,7 @@
 textdomain "ldap-server";
 
 import "LdapServer";
+import "LdapDatabase";
 import "Report";
 import "Label";
 import "HTML";
@@ -543,157 +544,25 @@ define boolean cb_write_databases()
 define boolean cb_input_databases()
 ``{
     y2milestone( "calling databases input handler" );
-//    if( handler_cmd == `pb_add )
-//    {
-//        any ret = nil;
-//        boolean user_changed_dbdir = false;
-//        list<string> dblist = LdapServer::ReadDbList();
-//        integer numDbs = size(dblist);
-//
-//        UI::OpenDialog( (term)widget_map["databases","dialogs","adddb"]:`Label( _("Dialog not found") ) );
-//
-//        UI::ChangeWidget( `te_rootdn, `Value, "cn=Administrator" );
-//        UI::ChangeWidget( `te_directory, `Value, "/var/lib/ldap/" );
-//        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-//        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-//        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-//        UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
-//        while( true )
-//        {
-//            ret = UI::UserInput();
-//            y2milestone( "cb_input_databases: dialog returns '%1'", ret );
-//            if( ret == `cancel ) break;
-//            else if( ret == `pb_directory ) {
-//                    /*directory selection dialog heading*/
-//                string name = UI::AskForExistingDirectory( "/var/lib/ldap", _("Select Database Directory") );
-//                if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
-//                continue;
-//            }
-//            else if ( ret == `te_directory ) {
-//                user_changed_dbdir = true;
-//            }
-//            else if ( ret == `te_basedn ) {
-//                if ( ( user_changed_dbdir != true ) && (numDbs > 0) ) {
-//                    string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
-//                    suffix = String::Replace(suffix, ",", "_");
-//                    suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
-//                    string dbdir = "/var/lib/ldap/" + suffix;
-//                    UI::ChangeWidget( `te_directory, `Value, dbdir );
-//                }
-//            }
-//            else if ( ret == `cb_ppolicy_overlay ) {
-//                if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
-//                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
-//                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
-//                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
-//                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, true );
-//                } else {
-//                    UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-//                    UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-//                    UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-//                    UI::ChangeWidget( `cb_pp_append_basedn ,`Enabled, false );
-//                }
-//            }
-//            else if( ret == `ok ) {
-//                //TODO: add database
-//                string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
-//                string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
-//                string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
-//                string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
-//                boolean createdir = false;
-//                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
-//
-//                //check values
-//                if( suffix == "" )
-//                {
-//                        /*error popup*/
-//                    Popup::Error( _("Base DN must be set.") );
-//                    continue;
-//                }
-//
-//                list<string> dblist = (list<string>)merge( LdapServer::ReadDbList(), LdapServer::ReadDbListNEW() );
-//                if( contains( dblist, suffix ) )
-//                {
-//                    /* Error Popup */
-//                    Popup::Error( _("A database with that Base DN already exists.") );
-//                    continue;
-//                }
-//                if( rootpw != "" && rootdn == "" )
-//                {
-//                    /* Error Popup */
-//                    Popup::Error( _("Root DN must be set if a password is given.") );
-//                    continue;
-//                }
-//                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
-//                {
-//                    /* Error Popup */
-//                    Popup::Error( _("Password validation failed.") );
-//                    continue;
-//                }
-//                if( directory == "" )
-//                {
-//                    /* Error Popup */
-//                    Popup::Error( _("A directory must be specified.") );
-//                    continue;
-//                }
-//                if ( SCR::Read(.target.dir, directory) == nil ) {
-//                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
-//                                        _("The directory does not exist. Create it?"),
-//                                        Label::YesButton(), Label::NoButton(), `focus);
-//                    if ( res == false ) {
-//                        continue;
-//                    } else {
-//                        y2debug( "Create dir == true" );
-//                        createdir = true;
-//                    }
-//                }
-//
-//                //create new database
-//                map<string,any> db = $[
-//                    "suffix"            : suffix,
-//                    "directory"         : directory,
-//                    "database"          : "bdb",
-//                    "createdatabasedir" : createdir
-//                ];
-//                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
-//                {
-//                    rootdn = rootdn+","+suffix;
-//                }
-//                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
-//                if( rootpw != "" )
-//                {
-//                    db = add( db, "passwd", rootpw );
-//                    db = add( db, "cryptmethod", cryptmethod );
-//                }
-//                if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
-//                    boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
-//                    boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
-//                    string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-//                    map<string,any> ppolicy = $[];
-//                    if (hashcleartext ) {
-//                        ppolicy = add( ppolicy, "ppolicy_hash_cleartext", "");
-//                    }
-//                    if (uselockout ) {
-//                        ppolicy = add( ppolicy, "ppolicy_use_lockout", "");
-//                    }
-//                    if (pp_default != "" ) {
-//                        if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-//                        {
-//                            pp_default = pp_default+","+suffix;
-//                        }
-//                        db = add(db, "ppolicy_default_changed", "1");
-//                        ppolicy = add( ppolicy, "ppolicy_default", pp_default);
-//                    }
-//                    list<any> pp_overlay = [ "ppolicy", ppolicy ];
-//                    list<any> overlays = [ pp_overlay ];
-//                    db = add( db, "overlay", overlays);
-//
-//                    list<string> inclist = LdapServer::ReadSchemaIncludeList();
-//                    if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
-//                        inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
-//                        LdapServer::WriteSchemaIncludeList(inclist);
-//                    }
-//                }
+    if( handler_cmd == `pb_add )
+    {
+        any ret = nil;
+        ret = LdapDatabase::AddDbWizard();
+        y2milestone( "Database wizard returned %1", ret );
+        if (ret == `next )
+        {
+            rebuild_widget_tree = true;
+            if ( ! LdapServer::AddDatabase(0, LdapDatabase::GetDatabase(), LdapDatabase::GetCreateDir() ) )
+            {
+                map<string, string> err = LdapServer::GetError();
+                callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+                return false;
+            }
+        }
+        else
+        {
+            y2milestone( "Database creating aborted" );
+        }
 //                if( LdapServer::AddDatabase( db ) )
 //                {
 //                    y2milestone( "adding database was successful, now trying to add widget tree item" );
@@ -704,9 +573,7 @@ define boolean cb_input_databases()
 //                }
 //            }
 //        }
-//
-//        UI::CloseDialog();
-//    }
+    }
 
     return true;
 }
@@ -1187,9 +1054,6 @@ widget_map = $[
                                          /* Button Text */
             `PushButton( `id( `pb_add ), _("A&dd Database...") )
         ),
-        "dialogs"   : $[
-            "adddb" : addDbWidget,
-        ],
         "cb_check"  : ``( cb_check_databases() ),
         "cb_read"   : ``( cb_read_databases() ),
         "cb_write"  : ``( cb_write_databases() ),
