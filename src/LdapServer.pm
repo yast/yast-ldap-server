@@ -82,7 +82,6 @@ my @defaultIndexes = (
         }
     );
 
-my @databases = ();
 my @schema = ();
 
 my @globalAcl = (
@@ -161,8 +160,6 @@ sub Read {
             y2milestone("LDAP server is running. How should I connect?");
             SCR->Execute('.ldapserver.init' );
             my $rc = SCR->Read('.ldapserver.databases');
-            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
-            @databases = @{$rc};
         }
         else
         {
@@ -835,7 +832,6 @@ sub ReadFromDefaults
     }
 
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
-    $rc = SCR->Read('.ldapserver.databases');
     if ( $dbDefaults{'defaultIndex'} == 1 )
     {
         foreach my $idx ( @defaultIndexes )
@@ -843,8 +839,6 @@ sub ReadFromDefaults
             $self->ChangeDatabaseIndex(1, $idx );
         }
     }
-    y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
-    @databases = @{$rc};
     push @added_databases, { suffix => $dbDefaults{'basedn'}, 
                              rootdn => $dbDefaults{'rootdn'},
                              rootpw => $dbDefaults{'rootpw_clear'} };
@@ -858,7 +852,8 @@ sub GetDatabaseList
     y2milestone("GetDatabaseList");
     my $self = shift;
     my $ret = ();
-    foreach my $db ( @databases )
+    my $rc = SCR->Read('.ldapserver.databases');
+    foreach my $db ( @{$rc} )
     {
         my $tmp = { 'type' => $db->{'type'}, 
                 'suffix' => $db->{'suffix'},
@@ -992,6 +987,45 @@ sub RemoveFromSchemaList
     my $rc = SCR->Write(".ldapserver.schema.remove", $name);
 
     return $rc;
+}
+
+
+BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"], "boolean" ]; }
+sub AddDatabase
+{
+    my ($self, $index, $db, $createDir) = @_;
+    y2milestone("AddDatabase: ".Data::Dumper->Dump([$db]) );
+    if ( $createDir )
+    {
+        my $ret = SCR->Execute(".target.bash", "mkdir -m 0700 -p ".$db->{directory});
+        if( ( $ret ) && ( ! defined  SCR->Read(".target.dir", $db->{directory}) ) ) {
+            $self->SetError(_("Could not create directory."), "");
+            return 0;
+        }
+        my $owner = SCR->Read('.sysconfig.openldap.OPENLDAP_USER');
+        my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
+        $ret = SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$db->{directory});
+        if ( $ret ) {
+            $self->SetError(_("Could adjust ownership of database directory."), "");
+            return 0;
+        }
+    }
+    my $rc;
+    if ( $index > 0 )
+    {
+        $rc = SCR->Write(".ldapserver.database.new.{".$index."}", $db);
+    }
+    else
+    {
+        $rc = SCR->Write(".ldapserver.database.new.", $db);
+    }
+    if(! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        y2error("Adding Database failed: ".$err->{'summary'}." ".$err->{'description'});
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return 0;
+    }
+    return 1;
 }
 
 BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }

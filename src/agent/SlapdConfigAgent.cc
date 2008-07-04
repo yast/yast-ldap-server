@@ -115,9 +115,7 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
 
-    if ( path->length() < 2 ) {
-        return YCPNull();
-    } else if ( path->component_str(0) == "global" ) {
+    if ( path->component_str(0) == "global" ) {
         y2milestone("Global Write");
         return WriteGlobal(path->at(1), arg, arg2);
     } else if ( path->component_str(0) == "database" ) {
@@ -127,6 +125,11 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
         y2milestone("Schema Write");
         return WriteSchema(path->at(1), arg, arg2);
     } else {
+        lastError->add(YCPString("summary"), YCPString("Write Failed") );
+        std::string msg = "Unsupported SCR path: `.ldapserver.";
+                    msg += path->toString().c_str();
+                    msg += "`";
+        lastError->add(YCPString("description"), YCPString(msg) );
         return YCPNull();
     }
 }
@@ -757,152 +760,258 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
 {
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
-    std::string dbIndexStr = path->component_str(0);
-    YCPMap changesMap= arg->asMap();
+    int component = 0;
+    bool databaseAdd = false;
+    std::string dbIndexStr = path->component_str(component);
+
+    if ( dbIndexStr == "new" )
+    {
+        component++;
+        databaseAdd = true;
+        if ( path->length() > component )
+        {
+            dbIndexStr = path->component_str(component);
+        }
+        else
+        {
+            dbIndexStr = "";
+        }
+    }
+    YCPMap dbMap= arg->asMap();
     int dbIndex = -2;
     if ( dbIndexStr[0] == '{' )
     {
         std::string::size_type pos = dbIndexStr.find('}');
         std::istringstream indexstr(dbIndexStr.substr(1, pos-1));
         indexstr >> dbIndex;
-    } else {
+    }
+    else if (! databaseAdd ) // Add without index is support (append database to the end)
+    {
         y2error("Database Index expected, got: %s", dbIndexStr.c_str() );
         return YCPBoolean(false);
     }
-    if ( dbIndex < -1 )
+
+    if ( (dbIndex < -1) && (!databaseAdd) )
     {
         y2error("Invalid database index: %d", dbIndex );
         return YCPBoolean(false);
     }
 
-    y2milestone("Database to write: %d", dbIndex);
-    OlcDatabaseList::const_iterator i;
     bool ret = false;
-    for ( i = databases.begin(); i != databases.end() ; i++ )
+    if ( databaseAdd )
     {
-        if ( (*i)->getEntryIndex() == dbIndex ) 
+        y2milestone("creating new Database");
+        if ( dbIndex == -2 )
         {
-            if ( path->length() == 1 )
+            dbIndex = databases.size()-1; //Database indexes start counting from -1
+        }
+        else if ( (dbIndex <=0) || (dbIndex > (int)databases.size()-2) ) 
+        {
+            lastError->add(YCPString("summary"), YCPString("Adding Database Failed") );
+            std::string msg = "Invalid Index for new Database";
+            lastError->add(YCPString("description"), YCPString(msg) );
+            return ret;
+        }
+        y2milestone("Database will get Index: %d", dbIndex);
+        std::string dbtype(dbMap->value(YCPString("type"))->asString()->value_cstr());
+        boost::shared_ptr<OlcDatabase> db;
+        if ( dbtype == "bdb" )
+        {
+            db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase() );
+        } 
+        else
+        {
+            db = boost::shared_ptr<OlcDatabase>( new OlcDatabase(dbtype.c_str()) );
+        }
+        db->setIndex(dbIndex);
+        YCPMapIterator j = dbMap.begin();
+        for ( ; j != dbMap.end(); j++ )
+        {
+            y2milestone("Key: %s, Valuetype: %s",
+                j.key()->asString()->value_cstr(),
+                j.value()->valuetype_str() );
+            if ( std::string("suffix") == j.key()->asString()->value_cstr() )
             {
-                YCPValue val = changesMap.value( YCPString("rootdn") );
-                if ( ! val.isNull()  && val->isString() )
+                db->setSuffix( j.value()->asString()->value_cstr() );
+                continue;
+            }
+            else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+            {
+                db->setRootDn( j.value()->asString()->value_cstr() );
+                continue;
+            }
+            else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+            {
+                db->setRootPw( j.value()->asString()->value_cstr() );
+                continue;
+            }
+            else if (std::string("access") == j.key()->asString()->value_cstr() )
+            {
+                YCPList aclList = j.value()->asList();
+                for ( int k=0 ; k < aclList.size(); k++ )
                 {
-                    (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
+                    db->addStringValue( "olcAccess", aclList.value(k)->asString()->value_cstr() );
                 }
-                val = changesMap.value( YCPString("rootpw") );
-                if ( ! val.isNull() && val->isString() )
+                continue;
+            }
+            if ( dbtype == "bdb" )
+            {
+                boost::shared_ptr<OlcBdbDatabase> bdb = 
+                    boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
+                if (std::string("directory") == j.key()->asString()->value_cstr() )
                 {
-                    (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
+                    bdb->setDirectory( j.value()->asString()->value_cstr() );
                 }
-                ret = true;
-            } else {
-                std::string dbComponent = path->component_str(1);
-                y2milestone("Component '%s'", dbComponent.c_str());
-                if ( dbComponent == "index" )
+                else if (std::string("entrycache") == j.key()->asString()->value_cstr() )
                 {
-                    boost::shared_ptr<OlcBdbDatabase> bdb = 
-                        boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
-                    if ( bdb == 0 )
-                    {
-                        y2milestone("Database doesn't provide indexing\n");
-                        ret = false;
-                    }
-                    else
-                    {
-                        std::vector<IndexType> idx;
-                        std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
-                        y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
-                        if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
-                        {
-                            idx.push_back(Present);
-                        }
-                        if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
-                        {
-                            idx.push_back(Eq);
-                        }
-                        if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
-                        {
-                            idx.push_back(Sub);
-                        }
-                        if ( ( idx.empty()) || ( ! bdb->getDatabaseIndex(attr).empty() ) ) {
-                            bdb->deleteIndex( attr );
-                        }
-                        if ( ! idx.empty() ) {
-                            bdb->addIndex(attr, idx);
-                        }
-                        ret = true;
-                    }
+                    bdb->setEntryCache( j.value()->asInteger()->value() );
                 }
-                else if (dbComponent == "ppolicy" )
+                else if (std::string("idlcache") == j.key()->asString()->value_cstr() )
                 {
-                    OlcOverlayList overlays = (*i)->getOverlays();
-                    OlcOverlayList::const_iterator j = overlays.begin();
-                    for (; j != overlays.end(); j++ )
+                    bdb->setIdlCache( j.value()->asInteger()->value() );
+                }
+                else if (std::string("checkpoint") == j.key()->asString()->value_cstr() )
+                {
+                    YCPList cpList = j.value()->asList();
+                    bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
+                            cpList->value(1)->asInteger()->value() );
+                }
+            }
+        }
+        databases.push_back(db);
+        ret = true;
+    }
+    else
+    {
+        y2milestone("Database to write: %d", dbIndex);
+        OlcDatabaseList::const_iterator i;
+        for ( i = databases.begin(); i != databases.end() ; i++ )
+        {
+            if ( (*i)->getEntryIndex() == dbIndex ) 
+            {
+                if ( path->length() == 1 )
+                {
+                    YCPValue val = dbMap.value( YCPString("rootdn") );
+                    if ( ! val.isNull()  && val->isString() )
                     {
-                        if ( (*j)->getType() == "ppolicy" )
-                        {
-                            break;
-                        }
+                        (*i)->setStringValue( "olcRootDn", val->asString()->value_cstr() );
                     }
-                    YCPMap argMap = arg->asMap();
-                    if ( j == overlays.end() && argMap.size() == 0 )
+                    val = dbMap.value( YCPString("rootpw") );
+                    if ( ! val.isNull() && val->isString() )
                     {
-                        y2milestone("Empty overlay nothing to do");
+                        (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
                     }
-                    else 
+                    ret = true;
+                } else {
+                    std::string dbComponent = path->component_str(1);
+                    y2milestone("Component '%s'", dbComponent.c_str());
+                    if ( dbComponent == "index" )
                     {
-                        boost::shared_ptr<OlcOverlay> ppolicyOlc;
-                        if ( j == overlays.end() )
+                        boost::shared_ptr<OlcBdbDatabase> bdb = 
+                            boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
+                        if ( bdb == 0 )
                         {
-                            y2milestone("New Overlay added");
-                            boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
-                            ppolicyOlc = tmp;
-                            (*i)->addOverlay(ppolicyOlc);
+                            y2milestone("Database doesn't provide indexing\n");
+                            ret = false;
                         }
                         else
                         {
-                            y2milestone("Update existing Overlay");
-                            ppolicyOlc = *j;
-                        }
-                        if ( argMap.size() == 0 ){
-                            y2milestone("Delete ppolicy overlay");
-                            ppolicyOlc->clearChangedEntry();
-                        } else {
-                            ppolicyOlc->setStringValue("olcPpolicyDefault", 
-                                argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
-                            if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                            std::vector<IndexType> idx;
+                            std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
+                            y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
+                            if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
                             {
-                                ppolicyOlc->setStringValue("olcPpolicyUseLockout", "TRUE");
+                                idx.push_back(Present);
                             }
-                            else
+                            if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
                             {
-                                ppolicyOlc->setStringValue("olcPpolicyUseLockout", "FALSE");
+                                idx.push_back(Eq);
                             }
-                            if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
+                            if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
                             {
-                                ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "TRUE");
+                                idx.push_back(Sub);
                             }
-                            else
-                            {
-                                ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                            if ( ( idx.empty()) || ( ! bdb->getDatabaseIndex(attr).empty() ) ) {
+                                bdb->deleteIndex( attr );
                             }
+                            if ( ! idx.empty() ) {
+                                bdb->addIndex(attr, idx);
+                            }
+                            ret = true;
                         }
                     }
-                    ret = true;
+                    else if (dbComponent == "ppolicy" )
+                    {
+                        OlcOverlayList overlays = (*i)->getOverlays();
+                        OlcOverlayList::const_iterator j = overlays.begin();
+                        for (; j != overlays.end(); j++ )
+                        {
+                            if ( (*j)->getType() == "ppolicy" )
+                            {
+                                break;
+                            }
+                        }
+                        YCPMap argMap = arg->asMap();
+                        if ( j == overlays.end() && argMap.size() == 0 )
+                        {
+                            y2milestone("Empty overlay nothing to do");
+                        }
+                        else 
+                        {
+                            boost::shared_ptr<OlcOverlay> ppolicyOlc;
+                            if ( j == overlays.end() )
+                            {
+                                y2milestone("New Overlay added");
+                                boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
+                                ppolicyOlc = tmp;
+                                (*i)->addOverlay(ppolicyOlc);
+                            }
+                            else
+                            {
+                                y2milestone("Update existing Overlay");
+                                ppolicyOlc = *j;
+                            }
+                            if ( argMap.size() == 0 ){
+                                y2milestone("Delete ppolicy overlay");
+                                ppolicyOlc->clearChangedEntry();
+                            } else {
+                                ppolicyOlc->setStringValue("olcPpolicyDefault", 
+                                    argMap->value(YCPString("defaultPolicy"))->asString()->value_cstr() );
+                                if ( argMap->value(YCPString("useLockout"))->asBoolean()->value() == true )
+                                {
+                                    ppolicyOlc->setStringValue("olcPpolicyUseLockout", "TRUE");
+                                }
+                                else
+                                {
+                                    ppolicyOlc->setStringValue("olcPpolicyUseLockout", "FALSE");
+                                }
+                                if ( argMap->value(YCPString("hashClearText"))->asBoolean()->value() == true )
+                                {
+                                    ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "TRUE");
+                                }
+                                else
+                                {
+                                    ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                                }
+                            }
+                        }
+                        ret = true;
+                    }
+                    else
+                    {
+                        lastError->add(YCPString("summary"), YCPString("Write Failed") );
+                        std::string msg = "Unsupported SCR path: `.ldapserver.database.";
+                        msg += path->toString().c_str();
+                        msg += "`";
+                        lastError->add(YCPString("description"), YCPString(msg) );
+                        ret = false;
+                    }
                 }
-                else
-                {
-                    lastError->add(YCPString("summary"), YCPString("Write Failed") );
-                    std::string msg = "Unsupported SCR path: `.ldapserver.database.";
-                    msg += path->toString().c_str();
-                    msg += "`";
-                    lastError->add(YCPString("description"), YCPString(msg) );
-                    ret = false;
-                }
+                break;
             }
-            break;
         }
     }
+
     return YCPBoolean(ret);
 }
 
