@@ -1,0 +1,285 @@
+{
+    textdomain "ldap-server";
+
+    import "Label";
+    import "LdapServer";
+    import "Popup";
+    import "Sequencer";
+    import "String";
+    import "Wizard";
+
+    module "Database";
+
+    map <string, string> baseDb = $[];
+    boolean createDbDir = false;
+
+
+    define symbol AddDbBasic()
+    {
+        boolean user_changed_dbdir = false;
+        list dblist = LdapServer::GetDatabaseList();
+        integer numDbs = size(dblist)-2; // don't count frontend and Config DB
+        string caption = _("New Database");
+        string enctype = "SSHA";
+        list enc_types = [
+            `item( `id( "CRYPT"), "CRYPT", enctype == "CRYPT" ),
+            `item( `id( "SMD5" ), "SMD5", enctype == "SMD5" ),
+            `item( `id( "SHA" ), "SHA", enctype == "SHA" ),
+            `item( `id( "SSHA" ), "SSHA", enctype == "SSHA" ),
+            `item( `id( "PLAIN" ), "PLAIN", enctype == "PLAIN" )
+        ];
+        term addDbWidget =
+            `VBox(
+                `Heading( _("Basic Settings") ),
+                `HSquash(
+                    `VBox (
+                        `Left(
+                            `InputField(`id( `te_basedn), `opt(`hstretch, `notify) , _("&Base DN"), "" )
+                        ),
+                        `VSpacing(0.5),
+                        `Left(
+                            `VSquash(
+                                `HBox(
+                                    `InputField( `id( `te_rootdn ),  _("&Administrator DN"),"cn=Administrator" ),
+                                    `HSpacing(),
+                                    `VBox(
+                                        `Bottom(
+                                            `CheckBox( `id( `cb_append_basedn ),
+                                                    _("A&ppend Base DN"), true )
+                                        ),
+                                        `VSpacing( 0.3 )
+                                    )
+                                )
+                            )
+                        ),
+                        `VSpacing(0.5),
+                        `Left(
+                            `Password( `id( `te_rootpw ), `opt(`hstretch),
+                                    _("LDAP Administrator &Password"), "" )
+                        ),
+                        `Left(
+                            `Password( `id( `te_valid_rootpw ), `opt(`hstretch),
+                                    _("&Validate Password"), "" )
+                        ),
+                        `Left(
+                            `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types )
+                        ),
+                        `VSpacing(0.5),
+                        `VSquash(
+                            `HBox(
+                                `Left(
+                                    `InputField( `id( `te_directory ),`opt(`hstretch, `notify ),
+                                            _("&Database Directory") )
+                                ),
+                                `HSpacing( 0.5 ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_directory ), _("&Browse...") )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        Wizard::SetContentsButtons(caption, addDbWidget, "",
+                Label::BackButton(), Label::NextButton());
+        symbol ret = `next;
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            if( ret == `pb_directory )
+            {
+                string name = UI::AskForExistingDirectory( "/var/lib/ldap", _("Select Database Directory") );
+                if( name != nil ) UI::ChangeWidget( `te_directory, `Value, name );
+                continue;
+            }
+            else if ( ret == `te_directory )
+            {
+                user_changed_dbdir = true;
+            }
+            else if ( ret == `te_basedn )
+            {
+                if ( ( user_changed_dbdir != true ) && (numDbs > 0) ) {
+                    string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+                    suffix = String::Replace(suffix, ",", "_");
+                    suffix = String::CutRegexMatch(suffix, "[^0-9a-zA-Z_=-]", true);
+                    string dbdir = "/var/lib/ldap/" + suffix;
+                    UI::ChangeWidget( `te_directory, `Value, dbdir );
+                }
+            }
+            if (ret == `abort || ret == `cancel )
+            {
+                if(Popup::ReallyAbort(true))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            if (ret == `next ){
+                string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
+                string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
+                string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
+                string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
+                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+
+                //check values
+                if( suffix == "" )
+                {
+                    Popup::Error( _("Base DN must be set.") );
+                    continue;
+                }
+
+                list<map<string, string> > dblist = LdapServer::GetDatabaseList();
+                boolean exists = false;
+                foreach(map<string, string> db, dblist, {
+                    if ( suffix == db["suffix"]:"" )
+                    {
+                        Popup::Error( _("A database with that Base DN already exists.") );
+                        exists = true;
+                        break;
+                    }
+                } );
+                if ( exists )
+                {
+                    continue;
+                }
+                if( rootpw != "" && rootdn == "" )
+                {
+                    Popup::Error( _("Root DN must be set if a password is given.") );
+                    continue;
+                }
+                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
+                {
+                    Popup::Error( _("Password validation failed.") );
+                    continue;
+                }
+                if( directory == "" )
+                {
+                    Popup::Error( _("A directory must be specified.") );
+                    continue;
+                }
+                if ( SCR::Read(.target.dir, directory) == nil ) {
+                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
+                                        _("The directory does not exist. Create it?"),
+                                        Label::YesButton(), Label::NoButton(), `focus);
+                    if ( res == false ) {
+                        continue;
+                    } else {
+                        y2debug( "Create dir == true" );
+                        createDbDir = true;
+                    }
+                }
+                //create new database
+                map<string,string> db = $[
+                    "suffix"            : suffix,
+                    "directory"         : directory,
+                    "type"              : "bdb",
+                ];
+                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+                {
+                    rootdn = rootdn+","+suffix;
+                }
+                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
+                if( rootpw != "" )
+                {
+                    db = add( db, "passwd", rootpw );
+                    db = add( db, "cryptmethod", cryptmethod );
+                }
+                baseDb = db;
+                break;
+            }
+        }
+        return ret;
+    }
+    define symbol DbSyncProv()
+    {
+        string caption = _("Syncprov settings");
+        term contents = `Label("leer");
+        Wizard::SetContentsButtons(caption, contents, "",
+                Label::BackButton(), Label::NextButton());
+        symbol ret = `next;
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            if (ret == `abort || ret == `cancel )
+            {
+                if(Popup::ReallyAbort(true))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            if (ret == `next )
+                break;
+        }
+        return ret;
+    }
+    define symbol DbPpolicy()
+    {
+        string caption = _("ppolicy settings");
+        term contents = `Label("leer");
+        Wizard::SetContentsButtons(caption, contents, "",
+                Label::BackButton(), Label::FinishButton());
+        symbol ret = `next;
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            if (ret == `abort || ret == `cancel )
+            {
+                if(Popup::ReallyAbort(true))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            if (ret == `next )
+                break;
+        }
+        return ret;
+    }
+
+    global define any AddDbWizard()
+    {
+        map aliases = $[
+            "basics" : ``( AddDbBasic() ),
+            "syncprov" : ``( DbSyncProv() ),
+            "ppolicy" : ``( DbPpolicy() )
+        ];
+
+        map sequence = $[
+            "ws_start" : "basics",
+            "basics" : $[
+                `next  : `next,
+                `abort : `abort
+            ],
+            "syncprov" : $[
+                `next : "ppolicy",
+                `abort : `abort
+            ],
+            "ppolicy" : $[
+                `next : `next,
+                `abort : `abort
+            ]
+        ];
+        Wizard::CreateDialog();
+
+        any ret = Sequencer::Run(aliases, sequence);
+
+        UI::CloseDialog();
+        return ret;
+    }
+
+    global define map<string,string> GetDatabase()
+    {
+        return baseDb;
+    }
+    global define boolean GetCreateDir()
+    {
+        return createDbDir;
+    }
+}
