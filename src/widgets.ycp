@@ -195,93 +195,6 @@
             )
         );
 
-    term addDbWidget =
-        `HBox(
-            `HSpacing(0.25),
-            `VBox(
-                `Heading( _("Add Database") ),
-                `VSpacing( 1 ),
-                `Frame( _("General Settings"),
-                    `VBox(
-                        `TextEntry( `id( `te_basedn ), `opt(`notify ), _("&Base DN") ),
-                        `VSpacing( 0.5 ),
-                        `VSquash(
-                            `HBox(
-                                `TextEntry( `id( `te_rootdn ), _("&Root DN") ),
-                                `HSpacing( 0.5 ),
-                                `VBox(
-                                    `Bottom(
-                                        `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN"), true )
-                                    ),
-                                    `VSpacing( 0.3 )
-                                )
-                            )
-                        ),
-                        `VSpacing( 0.5 ),
-                        `HBox(
-                            `Password( `id( `te_rootpw ), _("LDAP &Password") ),
-                            `HSpacing( 0.5 ),
-                            `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
-                            `HSpacing( 0.5 ),
-                            `ComboBox( `id( `cb_cryptmethod ), _("&Encryption"), enc_types )
-                        ),
-                        `VSpacing( 0.5 ),
-                        `VSquash(
-                            `HBox(
-                                `TextEntry( `id( `te_directory ),`opt(`notify ), _("&Database Directory") ),
-                                `HSpacing( 0.5 ),
-                                `Bottom(
-                                    `PushButton( `id( `pb_directory ), _("&Browse...") )
-                                )
-                            )
-                        )
-                    )
-                ),
-                `VSpacing( 1 ),
-                `Frame( _("Password Policy Settings"),
-                    `VBox(
-                        `VSpacing(0.25),
-                        `HBox(
-                            `CheckBox( `id( `cb_ppolicy_overlay ),
-                                `opt(`notify ), _("Enable Password Policies"), false
-                            ),
-                            `HSpacing( `opt(`hstretch))
-                        ),
-                        `HBox(
-                            `CheckBox( `id( `cb_ppolicy_hashcleartext ),
-                                _("Hash Clear Text Passwords"), false
-                            ),
-                           `HSpacing( `opt(`hstretch))
-                        ),
-                        `HBox(
-                            `CheckBox( `id( `cb_ppolicy_uselockout ),
-                                _("Disclose \"Account Locked\" Status"), false
-                            ),
-                            `HSpacing( `opt(`hstretch))
-                        ),
-                        `HBox(
-                            `TextEntry( `id( `te_ppolicy_defaultpolicy ),
-                                _("Default Policy Object DN"), "cn=Default Password Policy" ),
-                            `HSpacing( 0.5 ),
-                            `VBox(
-                                `Bottom(
-                                    `CheckBox( `id( `cb_pp_append_basedn ),
-                                            _("&Append Base DN"), true
-                                    )
-                                ),
-                                `VSpacing( 0.3 )
-                            )
-                        ),
-                        `VSpacing(0.25)
-                    )
-                ),
-                `HBox(
-                    `PushButton( `id( `ok ), Label::OKButton() ),
-                    `PushButton( `id( `cancel ), Label::CancelButton() )
-                )
-            ),
-            `HSpacing(0.25)
-        );
 
     term generalDbWidget =
         `VBox(
@@ -580,4 +493,5 @@
         UI::CloseDialog();
         return retval;
     }
+
 }
