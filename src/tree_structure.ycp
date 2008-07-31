@@ -85,6 +85,7 @@ define boolean cb_read_daemon()
 ``{
     y2milestone("calling read handler for item \"daemon\"");
     boolean enabled = LdapServer::ReadServiceEnabled();
+    CWMFirewallInterfaces::OpenFirewallInit (fw_widget, "");
     if ( enabled )
     {
         UI::ChangeWidget( `rb_service_enable, `CurrentButton, `rb_yes );
@@ -146,6 +147,7 @@ define boolean cb_write_daemon()
     y2milestone("calling write handler for item \"daemon\"");
 
     symbol serviceEnabled = (symbol)UI::QueryWidget(`id(`rb_service_enable), `CurrentButton);
+    CWMFirewallInterfaces::OpenFirewallStore (fw_widget, "", $[]);
     if ( serviceEnabled == `rb_yes )
     {
         LdapServer::SetServiceEnabled( true );
