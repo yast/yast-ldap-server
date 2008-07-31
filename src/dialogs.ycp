@@ -184,7 +184,9 @@ term dlg_service_initial = `HSquash(
         `VBox(
             `Frame( _("Firewall Settings"),
                 `VBox(
-                    fw_widget["custom_widget"]:`Empty(),
+                    `ReplacePoint( `id( `rp_firewall ),
+                        `Empty()
+                    ),
                     `HStretch()
                 )
             )
@@ -201,8 +203,12 @@ any EnableServiceDialog()
     map<string, any> firewall_widget =
 	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
 
-    Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found",
-    Label::BackButton(), Label::NextButton() );
+    Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
+
+    UI::ReplaceWidget(`rp_firewall,
+            firewall_widget["custom_widget"]:`Empty()
+    );
+    CWMFirewallInterfaces::OpenFirewallInit (firewall_widget, "");
 
     if( (boolean)defaults["serviceEnabled"]:true )
     {
@@ -213,7 +219,6 @@ any EnableServiceDialog()
         UI::ChangeWidget( `cb_register_slp, `Enabled, false );
     }
 
-    CWMFirewallInterfaces::OpenFirewallInit (firewall_widget, "");
     any ret = nil;
     map event = $[];
     while( true )
@@ -447,11 +452,20 @@ any TreeDialog()
             callHandler( current_tree_item, "cb_read" );
             rebuild_widget_tree = false;
         }
-        ret = UI::UserInput();
+        map event = UI::WaitForEvent();
+        ret = event["ID"]:nil;
         y2milestone( "TreeDialog: seeing return value %1", ret );
+
         if( is( ret, string ) || ret == `wizardTree )
         {
             string new_item = Wizard::QueryTreeItem();
+
+            // workaround to catch changes in the firewall widget
+            if ( is( ret, string) && ( issubstring( (string)ret, "firewall" ) ) )
+            {
+                CWMFirewallInterfaces::OpenFirewallHandle (fw_widget, "", event);
+                continue;
+            }
 
             //check values of current tree item
             y2milestone( "wizard-->current item is %1", current_tree_item );

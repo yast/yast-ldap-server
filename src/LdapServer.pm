@@ -26,6 +26,7 @@ use YaST::YCP;
 our %TYPEINFO;
 
 YaST::YCP::Import ("Progress");
+YaST::YCP::Import ("SuSEFirewall");
 YaST::YCP::Import ("Service");
 
 my %error = ( msg => undef, details => undef );
@@ -141,6 +142,7 @@ BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read {
     y2milestone("");
 
+    SuSEFirewall->Read();
     my $progressItems = [ "Reading Startup Configuration", 
             "Reading Configuration Backend", 
             "Reading Configuration Data" ];
@@ -346,7 +348,7 @@ sub WriteServiceSettings {
     {
         SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
     }
-
+    SuSEFirewall->Write();
     my $wasEnabled = Service->Enabled("ldap");
     if ( !$wasEnabled && $serviceEnabled  )
     {
@@ -475,6 +477,7 @@ sub Write {
             return 0;
         }
         Progress->Finish();
+        SuSEFirewall->Write();
     } else {
         my $wasEnabled = Service->Enabled("ldap");
         if ( $wasEnabled && !$serviceEnabled  )
@@ -519,6 +522,7 @@ sub Write {
             SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
         }
 
+        SuSEFirewall->Write();
         if( ! SCR->Execute('.ldapserver.commitChanges' ) )
         {
             my $err = SCR->Error(".ldapserver");
