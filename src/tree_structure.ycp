@@ -1164,7 +1164,6 @@ void generateDynamicTreeItems()
     y2debug( "generating database tree items" );
     //generate database entries
 
-    y2milestone( "calling databases read handler" );
     list<map<string,string> > dblist = LdapServer::GetDatabaseList();
     integer i = 0;
     foreach( map<string,string> db, dblist, {
