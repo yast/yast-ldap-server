@@ -269,25 +269,35 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     }
     else if ( path->component_str(0) == "commitChanges" )
     {
-        if ( globals )
-            olc.updateEntry( *globals );
+        try {
+            if ( globals )
+                olc.updateEntry( *globals );
 
-        OlcSchemaList::const_iterator j;
-        for ( j = schema.begin(); j != schema.end() ; j++ )
-        {
-            olc.updateEntry(**j);
-        }
-        OlcDatabaseList::const_iterator i;
-        for ( i = databases.begin(); i != databases.end() ; i++ )
-        {
-            olc.updateEntry(**i);
-            OlcOverlayList overlays = (*i)->getOverlays();
-            OlcOverlayList::const_iterator k;
-            for ( k = overlays.begin(); k != overlays.end(); k++ )
+            OlcSchemaList::const_iterator j;
+            for ( j = schema.begin(); j != schema.end() ; j++ )
             {
-                y2milestone("Update overlay: %s", (*k)->getDn().c_str() );
-                olc.updateEntry(**k);
+                olc.updateEntry(**j);
             }
+            OlcDatabaseList::const_iterator i;
+            for ( i = databases.begin(); i != databases.end() ; i++ )
+            {
+                olc.updateEntry(**i);
+                OlcOverlayList overlays = (*i)->getOverlays();
+                OlcOverlayList::const_iterator k;
+                for ( k = overlays.begin(); k != overlays.end(); k++ )
+                {
+                    y2milestone("Update overlay: %s", (*k)->getDn().c_str() );
+                    olc.updateEntry(**k);
+                }
+            }
+        } catch ( LDAPException e ) {
+            std::string errstring = "Error while commiting changes to config database";
+            std::string details = e.getResultMsg() + ": " + e.getServerMsg();
+            
+            lastError->add(YCPString("summary"),
+                    YCPString(errstring) );
+            lastError->add(YCPString("description"), YCPString( details ) );
+            return YCPBoolean(false);
         }
     }
     else if ( path->component_str(0) == "addRootSaslRegexp" )
