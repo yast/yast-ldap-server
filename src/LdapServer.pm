@@ -346,8 +346,6 @@ sub Write {
             Progress->Finish();
             return 0;
         }
-        $rc = SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI');
-        y2milestone(Data::Dumper->Dump([$rc]));
 
         # FIXME:
         # Explicit cache flush, see bnc#350581 for details
@@ -438,6 +436,33 @@ sub Write {
             Progress->Finish();
             return 1;
         }
+
+        # these changes might require a restart of slapd
+        if ( $use_ldap_listener )
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'yes');
+        } 
+        else
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'no');
+        }
+        if ( $use_ldapi_listener )
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+        } 
+        else
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'no');
+        }
+        if ( $use_ldaps_listener )
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'yes');
+        } 
+        else
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+        }
+
         if( ! SCR->Execute('.ldapserver.commitChanges' ) )
         {
             my $err = SCR->Error(".ldapserver");
@@ -1197,6 +1222,30 @@ sub GetProtocolListenerEnabled
     {
         return 0;
     }
+}
+
+BEGIN { $TYPEINFO {SetProtocolListenerEnabled} = ["function", "boolean", "string", "boolean" ]; }
+sub SetProtocolListenerEnabled
+{
+    my ( $self, $protocol, $enabled ) = @_;
+    y2milestone("SetProtocolListenerEnabled $protocol $enabled");
+    if ( $protocol eq "ldap" )
+    {
+        $use_ldap_listener = $enabled;
+    }
+    elsif ( $protocol eq "ldapi" )
+    {
+        $use_ldapi_listener = $enabled;
+    }
+    elsif ( $protocol eq "ldaps" )
+    {
+        $use_ldaps_listener = $enabled;
+    }
+    else
+    {
+        return 0;
+    }
+    return 1;
 }
 1;
 # EOF

@@ -154,6 +154,33 @@ define boolean cb_write_daemon()
     {
         LdapServer::SetServiceEnabled( false );
     }
+
+    if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) )
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldap", true );
+    }
+    else
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldap", false );
+    }
+
+    if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldaps ), `Value ) )
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+    }
+    else
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldaps", false );
+    }
+
+    if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) )
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldapi", true );
+    }
+    else
+    {
+        LdapServer::SetProtocolListenerEnabled( "ldapi", false );
+    }
     return true;
 }
 
