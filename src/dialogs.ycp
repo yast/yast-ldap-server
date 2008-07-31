@@ -106,10 +106,18 @@ boolean callHandler( string item, string handler )
     return true;
 }
 
-void showTreeDialog( string name, boolean focus_tree )
+string showTreeDialog( string name, boolean focus_tree )
 {
     //create new item
-    term widget = (term)widget_map[name,"widget"]:`Label( "Loading widget for item '"+name+"' failed." );
+    term widget = nil;
+    if (! LdapServer::ReadServiceEnabled() )
+    {
+        if ( name != "daemon" ) {
+            Popup::Error( _("The LDAP Server is disabled currently, no configuration changes possible.") );
+            name = "daemon";
+        }
+    }
+    widget = (term)widget_map[name,"widget"]:`Label( "Loading widget for item '"+name+"' failed." );
 
     //get helps page
     string help_page = (string)widget_map[name,"help_page"]:name;
@@ -121,6 +129,8 @@ void showTreeDialog( string name, boolean focus_tree )
     Wizard::DisableBackButton();
 
     if( focus_tree ) UI::SetFocus( `id( `wizardTree ) );
+
+    return name;
 }
 
 
@@ -128,7 +138,7 @@ void showTreeDialog( string name, boolean focus_tree )
  ** dialog functions **
  **********************/
 
-term dlg_service = `HSquash(
+term dlg_service_initial = `HSquash(
     `VBox(
         `Heading( _("General Settings") ),
         `VBox(
@@ -172,7 +182,7 @@ any EnableServiceDialog()
     map<string, any> firewall_widget =
 	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
 
-    Wizard::SetContentsButtons( caption, dlg_service, HELPS["service_dialog"]:"help not found",
+    Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found",
     Label::BackButton(), Label::NextButton() );
 
     if( (boolean)defaults["serviceEnabled"]:true )
@@ -409,8 +419,8 @@ any TreeDialog()
             Wizard::CreateTree( widget_tree, _("Configuration:") );
 
             //select&show current item
+            current_tree_item = showTreeDialog( current_tree_item, ( widget_tree == [] ) ? false : true );
             Wizard::SelectTreeItem( current_tree_item );
-            showTreeDialog( current_tree_item, ( widget_tree == [] ) ? false : true );
             //initialize current dialog
             callHandler( current_tree_item, "cb_read" );
             rebuild_widget_tree = false;
@@ -436,10 +446,10 @@ any TreeDialog()
                 continue;
             }
 
-            current_tree_item = new_item;
-            showTreeDialog( new_item, (ret == `wizardTree) ? true : false );
+            current_tree_item = showTreeDialog( new_item, (ret == `wizardTree) ? true : false );
+            Wizard::SelectTreeItem( current_tree_item );
 
-            callHandler( new_item, "cb_read" );
+            callHandler( current_tree_item, "cb_read" );
 
         }
         else if( is( ret, symbol ) )

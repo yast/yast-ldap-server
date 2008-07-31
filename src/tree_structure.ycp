@@ -81,30 +81,64 @@ void update_schemalist( list<string> l )
     UI::ChangeWidget( `pb_delete, `Enabled, false );
 }
 
+define boolean cb_read_daemon()
+``{
+    y2milestone("calling read handler for item \"daemon\"");
+    boolean enabled = LdapServer::ReadServiceEnabled();
+    if ( enabled )
+    {
+        UI::ChangeWidget( `rb_service_enable, `CurrentButton, `rb_yes );
+    }
+    else
+    {
+        UI::ChangeWidget( `rb_service_enable, `CurrentButton, `rb_no );
+        UI::ChangeWidget( `fr_listener, `Enabled, false );
+        UI::ChangeWidget( `fr_firewall, `Enabled, false );
+    }
+    return true;
+}
+
+define boolean cb_input_daemon()
+``{
+    y2milestone("calling input handler for item \"daemon\"");
+    y2milestone("Handlercmd = %1", handler_cmd);
+
+    if ( handler_cmd == `rb_no ) // service was just disabled
+    {
+        UI::ChangeWidget( `fr_listener, `Enabled, false );
+        UI::ChangeWidget( `fr_firewall, `Enabled, false );
+    }
+    else if ( handler_cmd == `rb_yes ) // service was just disabled
+    {
+        UI::ChangeWidget( `fr_listener, `Enabled, true );
+        UI::ChangeWidget( `fr_firewall, `Enabled, true );
+    }
+
+    return true;
+}
+
+define boolean cb_write_daemon()
+``{
+    y2milestone("calling write handler for item \"daemon\"");
+
+    symbol serviceEnabled = (symbol)UI::QueryWidget(`id(`rb_service_enable), `CurrentButton);
+    if ( serviceEnabled == `rb_yes )
+    {
+        LdapServer::SetServiceEnabled( true );
+    }
+    else
+    {
+        LdapServer::SetServiceEnabled( false );
+    }
+    return true;
+}
+
 define boolean cb_read_schema()
 ``{
     y2milestone( "calling schema read handler" );
     list<string> inclist = LdapServer::GetSchemaList();
     update_schemalist( inclist );
     return true;
-}
-
-integer find_pos( list<string> l, string s )
-{
-    y2debug( "-------------- starting find_pos ----------------" );
-    y2debug( "searching in list '%1'", l );
-    y2debug( "for string '%1'", s );
-    y2debug( "size( l ) is '%1'", size( l ) );
-    if( size( l ) == 0 ) return -1;
-    integer i = 0;
-    integer ret = -1;
-    foreach( string str, l, {
-        y2debug( "comparing str '%1' with s '%2'", str, s );
-        y2debug( "current position is '%1'", i );
-        if( str == s ) ret = i;
-        i = i + 1;
-    } );
-    return ret;
 }
 
 define boolean cb_input_schema()
@@ -1005,7 +1039,10 @@ widget_map = $[
     ],
     "daemon" : $[
         "name"      : _("Startup Configuration"),
-        "widget"    : dlg_service_new
+        "widget"    : dlg_service,
+        "cb_read"   : ``( cb_read_daemon() ),
+        "cb_input"  : ``( cb_input_daemon() ),
+        "cb_write"  : ``( cb_write_daemon() )
     ],
     "global" : $[
         "children"  : [ "g_loglevel", "g_allow", "g_tls" ],

@@ -140,6 +140,7 @@ sub Read {
     my $serviceInfo = Service->FullInfo("ldap");
     my $isRunning = ( defined $serviceInfo->{"started"}) && ($serviceInfo->{"started"} == 0); # 0 == "running"
     my $isEnabled = $serviceInfo->{"start"} && $serviceInfo->{"start"} > 0;
+    $serviceEnabled = $isEnabled;
 
     y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
     y2milestone("IsRunning: " . $isRunning . " IsEnabled " . $isEnabled);
@@ -393,6 +394,22 @@ sub Write {
         }
         Progress->Finish();
     } else {
+        my $wasEnabled = Service->Enabled("ldap");
+        if ( $wasEnabled && !$serviceEnabled  )
+        {
+            # service was disabled during this session, just disable the service
+            # in the system, stop it and ignore any configuration changes.
+            my $progressItems = [ _("Stopping LDAP Server"),
+                    _("Disabling LDAP Server")
+                ];
+            Progress->New("De-activating OpenLDAP Server", "", 2, $progressItems, $progressItems, "");
+            Progress->NextStage();
+            Service->Disable("ldap");
+            Progress->NextStage();
+            Service->Stop("ldap");
+            Progress->Finish();
+            return 0;
+        }
         if( ! SCR->Execute('.ldapserver.commitChanges' ) )
         {
             my $err = SCR->Error(".ldapserver");
