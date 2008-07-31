@@ -34,6 +34,7 @@ my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $serviceEnabled = 0;
+my $serviceRunning = 1;
 my $registerSlp = 0;
 my $useLdapiForConfig = 0;
 my %dbDefaults = ();
@@ -138,12 +139,13 @@ sub Read {
     Progress->New("Initializing LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
     my $serviceInfo = Service->FullInfo("ldap");
-    my $isRunning = ( defined $serviceInfo->{"started"}) && ($serviceInfo->{"started"} == 0); # 0 == "running"
-    my $isEnabled = $serviceInfo->{"start"} && $serviceInfo->{"start"} > 0;
-    $serviceEnabled = $isEnabled;
-
     y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
+    my $isRunning = ( defined $serviceInfo->{"started"}) && ($serviceInfo->{"started"} == 0); # 0 == "running"
+    my $isEnabled = scalar(@{$serviceInfo->{"start"}}) > 0;
+    $serviceEnabled = $isEnabled;
+    $serviceRunning = $isRunning;
     y2milestone("IsRunning: " . $isRunning . " IsEnabled " . $isEnabled);
+
     
     Progress->NextStage();
     my $configBackend = SCR->Read('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND');
@@ -164,16 +166,26 @@ sub Read {
         }
         else
         {
-            # LDAP Server not running. Use slapcat to import the config
-            y2milestone("Using slapcat to import configuration");
-            my $rc = SCR->Execute('.target.bash_output', 
-                    "/usr/sbin/slapcat -F /etc/openldap/slapd.d -b cn=config" );
+            # check if configuration exists
+            if (SCR->Read(".target.size", '/etc/openldap/slapd.d/cn=config.ldif') <= 0)
+            {
+                $slapdConfChanged = 0;
+            }
+            else
+            {
+                # LDAP Server not running. Can't read the configuration until
+                # server started
+                $slapdConfChanged = 1;
+            }
+#            y2milestone("Using slapcat to import configuration");
+#            my $rc = SCR->Execute('.target.bash_output', 
+#                    "/usr/sbin/slapcat -F /etc/openldap/slapd.d -b cn=config" );
 #            y2milestone("slapcat result: ". Data::Dumper->Dump([$rc]));
-            SCR->Execute('.ldapserver.initFromLdif', $rc->{'stdout'});
-            $rc = SCR->Read('.ldapserver.databases' );
-            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
-            #$rc = SCR->Read('.ldapserver.global.tlsSettings' );
-            #y2milestone("tlsSettings: ". Data::Dumper->Dump([$rc]));
+#            SCR->Execute('.ldapserver.initFromLdif', $rc->{'stdout'});
+#            $rc = SCR->Read('.ldapserver.databases' );
+#            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
+#            #$rc = SCR->Read('.ldapserver.global.tlsSettings' );
+#            #y2milestone("tlsSettings: ". Data::Dumper->Dump([$rc]));
         }
     }
     else
@@ -291,7 +303,7 @@ sub Write {
     my $self = shift;
     y2milestone("LdapServer::Write");
     my $ret = 1;
-    if ( ! $usesBackConfig ) 
+    if ( ! $usesBackConfig || ! $slapdConfChanged ) 
     {
         my $progressItems = [ _("Writing Startup Configuration"),
                 _("Cleaning up config directory"),
@@ -408,7 +420,7 @@ sub Write {
             Progress->NextStage();
             Service->Stop("ldap");
             Progress->Finish();
-            return 0;
+            return 1;
         }
         if( ! SCR->Execute('.ldapserver.commitChanges' ) )
         {
@@ -538,6 +550,12 @@ sub SetServiceEnabled {
     my $self = shift;
     $serviceEnabled = shift;
     return 1;
+}
+
+BEGIN { $TYPEINFO {ReadServiceRunning} = ["function", "boolean"]; }
+sub ReadServiceRunning {
+    y2milestone("ReadServiceRunning $serviceRunning");
+    return $serviceRunning;
 }
 
 BEGIN { $TYPEINFO {ReadSLPEnabled} = ["function", "boolean"]; }

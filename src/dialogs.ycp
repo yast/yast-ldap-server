@@ -110,7 +110,7 @@ string showTreeDialog( string name, boolean focus_tree )
 {
     //create new item
     term widget = nil;
-    if (! LdapServer::ReadServiceEnabled() )
+    if ( !LdapServer::ReadServiceEnabled() || !LdapServer::ReadServiceRunning() )
     {
         if ( name != "daemon" ) {
             Popup::Error( _("The LDAP Server is disabled currently, no configuration changes possible.") );
@@ -408,7 +408,10 @@ any TreeDialog()
             //generate tree
             Wizard::DeleteTreeItems();
             deleteDynamicTreeItems();
-            generateDynamicTreeItems();
+            if ( LdapServer::ReadServiceRunning() )
+            {
+                generateDynamicTreeItems();
+            }
             widget_tree = generateTree();
             if( widget_tree == nil )
             {

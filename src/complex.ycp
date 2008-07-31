@@ -160,16 +160,27 @@ without installing the required packages."));
     y2milestone("OpenLDAP using backConfig: %1", hasBackconfig);
     y2milestone("OpenLDAP modifed config: %1", configModified);
     string configFile = "/etc/openldap/slapd.conf";
-    if ( !hasBackconfig && configModified )
+    if ( !hasBackconfig )
     {
-        return `migrate;
-
+        if ( configModified )
+        {
+            return `migrate;
+        }
+        else
+        {
+            // Start new config wizward
+            LdapServer::InitDbDefaults();
+            return `initial;
+        }
     }
-    else if (! configModified )
+    else
     {
-        // Start new config wizward
-        LdapServer::InitDbDefaults();
-        return `initial;
+        if (! configModified )
+        {
+            // Start new config wizward
+            LdapServer::InitDbDefaults();
+            return `initial;
+        }
     }
 
     return `next;
