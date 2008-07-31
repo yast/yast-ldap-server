@@ -25,7 +25,8 @@ any MainSequence() {
 
     /* FIXME: adapt to your needs */
     map aliases = $[
-    "tree"         : ``( TreeDialog() )
+        "tree"         : ``( TreeDialog() ),
+        "writeservice" : ``( WriteServiceDialog() )
     ];
 
     map sequence = $[
@@ -34,7 +35,12 @@ any MainSequence() {
             `abort      : `abort,
             `back       : `abort,
             `cancel     : `abort,
-            `next       : `next
+            `next       : `next,
+            `reread     : "writeservice",
+            `empty      : `empty
+        ],
+        "writeservice" : $[
+            `reread    : `reread
         ]
     ];
 
@@ -155,7 +161,8 @@ any LdapServerSequence() {
 	"read"	: ``( ReadDialog() ),
         "migrate" :  ``( MigrateSequence() ),
         "propose" : ``( ProposalSequence() ),
-	"main"	: ``( MainSequence() ),
+	"main"	  : ``( MainSequence() ),
+        "writeservice" : ``( WriteServiceDialog() ),
 	"write"	: ``( WriteDialog() )
     ];
 
@@ -165,7 +172,8 @@ any LdapServerSequence() {
 	    `abort	: `abort,
             `initial    : "propose",
             `migrate    : "migrate",
-	    `next	: "main"
+	    `next	: "main",
+            `reread     : "writeservice"
 	],
         "migrate" : $[
             `abort      : `abort,
@@ -178,8 +186,12 @@ any LdapServerSequence() {
         ],
 	"main" : $[
 	    `abort	: `abort,
-	    `next	: "write"
+	    `next	: "write",
+            `reread     : "read"
 	],
+        "writeservice" : $[
+            `reread    : "read"
+        ],
 	"write" : $[
 	    `abort	: `abort,
 	    `next	: `next

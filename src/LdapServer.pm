@@ -310,6 +310,62 @@ sub CreateBaseObjects()
     }
     return 1;
 }
+
+
+##
+ # Write all service-related settings (sysconfig, init.d)
+ # @return true on success
+ #
+BEGIN { $TYPEINFO{WriteServiceSettings} = ["function", "boolean"]; }
+sub WriteServiceSettings {
+    my $self = shift;
+    y2milestone("LdapServer::Write");
+    my $ret = 1;
+    # these changes might require a restart of slapd
+    if ( $use_ldap_listener )
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'yes');
+    } 
+    else
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'no');
+    }
+    if ( $use_ldapi_listener )
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+    } 
+    else
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'no');
+    }
+    if ( $use_ldaps_listener )
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'yes');
+    } 
+    else
+    {
+        SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+    }
+
+    my $wasEnabled = Service->Enabled("ldap");
+    if ( !$wasEnabled && $serviceEnabled  )
+    {
+        # service was disabled during this session, just disable the service
+        # in the system, stop it and ignore any configuration changes.
+        my $progressItems = [ _("Enabling LDAP Server"),
+                _("Starting LDAP Server")
+            ];
+        Progress->New(_("Activating OpenLDAP Server"), "", 2, $progressItems, $progressItems, "");
+        Progress->NextStage();
+        Service->Enable("ldap");
+        Progress->NextStage();
+        Service->Start("ldap");
+        Progress->Finish();
+        return 0;
+    }
+    return 1;
+}
+
 ##
  # Write all ldap-server settings
  # @return true on success

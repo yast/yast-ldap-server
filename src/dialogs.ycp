@@ -110,11 +110,30 @@ string showTreeDialog( string name, boolean focus_tree )
 {
     //create new item
     term widget = nil;
-    if ( !LdapServer::ReadServiceEnabled() || !LdapServer::ReadServiceRunning() )
+    if ( !LdapServer::ReadServiceEnabled() )
     {
         if ( name != "daemon" ) {
             Popup::Error( _("The LDAP Server is disabled currently, no configuration changes possible.") );
             name = "daemon";
+        }
+    }
+    else if ( !LdapServer::ReadServiceRunning() )
+    {
+        if ( name != "daemon" ) {
+            symbol ret = Popup::AnyQuestion3( _("The LDAP Server is not running."), _("Do you want to start it now to re-read its configuration data or do you want to creat a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+            name = "daemon";
+            if ( ret == `yes )
+            {
+                return "__reread__";
+            }
+            else if ( ret == `no )
+            {
+                return "__empty__";
+            }
+            else if ( ret == `retry )
+            {
+                return name;
+            }
         }
     }
     widget = (term)widget_map[name,"widget"]:`Label( "Loading widget for item '"+name+"' failed." );
@@ -450,6 +469,16 @@ any TreeDialog()
             }
 
             current_tree_item = showTreeDialog( new_item, (ret == `wizardTree) ? true : false );
+            if ( current_tree_item == "__reread__" )
+            {
+                ret = `reread;
+                break;
+            }
+            if ( current_tree_item == "__empty__" )
+            {
+                ret = `empty;
+                break;
+            }
             Wizard::SelectTreeItem( current_tree_item );
 
             callHandler( current_tree_item, "cb_read" );

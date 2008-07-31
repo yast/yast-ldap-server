@@ -153,6 +153,9 @@ without installing the required packages."));
     }
     boolean hasBackconfig = LdapServer::IsUsingBackconfig();
     boolean configModified = LdapServer::SlapdConfChanged(); //original shipped slapd.conf?
+
+    boolean serviceEnabled = LdapServer::ReadServiceEnabled();
+    boolean serviceRunning = LdapServer::ReadServiceRunning();
     boolean switchToBackConfig = false;
     boolean convert = false;
 
@@ -180,6 +183,25 @@ without installing the required packages."));
             // Start new config wizward
             LdapServer::InitDbDefaults();
             return `initial;
+        }
+        else if ( !serviceEnabled || !serviceRunning )
+        {
+            symbol ret = Popup::AnyQuestion3( _("You have an existing configuration but the LDAP Server is not running currently."), _("Do you want to start it now to re-read its configuration data or do you want to create a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+            if ( ret == `yes )
+            {
+                LdapServer::SetServiceEnabled( true );
+                return `reread;
+            }
+            else  if (ret == `no )
+            {
+                // Start new config wizward
+                LdapServer::InitDbDefaults();
+                return `initial;
+            }
+            else if ( ret == `retry )
+            {
+                return `abort;
+            }
         }
     }
 
@@ -406,6 +428,19 @@ symbol DoMigration()
     LdapServer::Read();
     return `next;
 }
+
+/**
+ * Write service settings dialog. This dialog writes only the service
+ * settings (sysconfig and init.d stuff)
+ * @return `reread if configuration needs to be reread and `next otherwise
+ */
+symbol WriteServiceDialog() {
+    Wizard::RestoreHelp(HELPS["write"]:"");
+    // LdapServer::AbortFunction = PollAbort;
+    boolean ret = LdapServer::WriteServiceSettings();
+    return ret ? `next : `reread;
+}
+
 /**
  * Write settings dialog
  * @return `abort if aborted and `next otherwise
