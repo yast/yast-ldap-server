@@ -44,21 +44,21 @@
                         `Left(
                             `HBox(
                                 `HWeight(1, `CheckBox( `id( `cb_interface_ldap), _("LDAP"), false )),
-                                `HWeight(1, `PushButton( `id( `pb_interface_ldap), "Interfaces ...")),
+                                //`HWeight(1, `PushButton( `id( `pb_interface_ldap), "Interfaces ...")),
                                 `HWeight(1, `HStretch())
                             )
                         ),
                         `Left(
                             `HBox(
                                 `HWeight(1, `CheckBox( `id( `cb_interface_ldaps), _("LDAP over SSL (ldaps)"), false )),
-                                `HWeight(1, `PushButton( `id( `pb_interface_ldaps), "Interfaces ...")),
+                                //`HWeight(1, `PushButton( `id( `pb_interface_ldaps), "Interfaces ...")),
                                 `HWeight(1, `HStretch())
                             )
                         ),
                         `Left(
                             `HBox(
                                 `HWeight(1, `CheckBox( `id( `cb_interface_ldapi), _("LDAP over IPC (ldapi)"), false ) ),
-                                `HWeight(1, `PushButton( `id( `pb_interface_ldapi), "Interfaces ...") ),
+                                //`HWeight(1, `PushButton( `id( `pb_interface_ldapi), "Interfaces ...") ),
                                 `HWeight(1, `HStretch())
                             )
                         )
