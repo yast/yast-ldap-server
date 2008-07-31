@@ -38,6 +38,14 @@ my $serviceRunning = 1;
 my $registerSlp = 0;
 my $useLdapiForConfig = 0;
 my %dbDefaults = ();
+
+my $use_ldapi_listener = 0;
+my $use_ldaps_listener = 0;
+my $use_ldap_listener = 0;
+my $ldapi_interfaces = "";
+my $ldaps_interfaces = "";
+my $ldap_interfaces = "";
+
 my @defaultIndexes = (
         { "name" => "objectclass",
           "eq" => YaST::YCP::Boolean(1) 
@@ -146,6 +154,14 @@ sub Read {
     $serviceRunning = $isRunning;
     y2milestone("IsRunning: " . $isRunning . " IsEnabled " . $isEnabled);
 
+    $use_ldapi_listener = ( "yes" eq SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI') );
+    $ldapi_interfaces = SCR->Read('.sysconfig.openldap.OPENLDAP_LDAPI_INTERFACES');
+
+    $use_ldaps_listener = ( "yes" eq SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPS') );
+    $ldaps_interfaces = SCR->Read('.sysconfig.openldap.OPENLDAP_LDAPS_INTERFACES');
+    
+    $use_ldap_listener = ( "yes" eq SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAP') );
+    $ldap_interfaces = SCR->Read('.sysconfig.openldap.OPENLDAP_LDAP_INTERFACES');
     
     Progress->NextStage();
     my $configBackend = SCR->Read('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND');
@@ -1160,5 +1176,27 @@ sub HaveCommonServerCertificate
     return YaST::YCP::Boolean(1);
 }
 
+BEGIN { $TYPEINFO {GetProtocolListenerEnabled} = ["function", "boolean", "string" ]; }
+sub GetProtocolListenerEnabled
+{
+    my ( $self, $protocol ) = @_;
+    y2milestone("GetProtocolListenerEnabled $protocol (ldapi $use_ldapi_listener, ldaps $use_ldaps_listener, ldap $use_ldap_listener");
+    if ( $protocol eq "ldap" )
+    {
+        return $use_ldap_listener;
+    }
+    elsif ( $protocol eq "ldapi" )
+    {
+        return $use_ldapi_listener;
+    }
+    elsif ( $protocol eq "ldaps" )
+    {
+        return $use_ldaps_listener;
+    }
+    else
+    {
+        return 0;
+    }
+}
 1;
 # EOF

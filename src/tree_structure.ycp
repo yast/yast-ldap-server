@@ -95,6 +95,30 @@ define boolean cb_read_daemon()
         UI::ChangeWidget( `fr_listener, `Enabled, false );
         UI::ChangeWidget( `fr_firewall, `Enabled, false );
     }
+    if ( LdapServer::GetProtocolListenerEnabled("ldap") )
+    {
+        UI::ChangeWidget( `cb_interface_ldap, `Value, true );
+    }
+    else
+    {
+        UI::ChangeWidget( `cb_interface_ldap, `Value, false );
+    }
+    if ( LdapServer::GetProtocolListenerEnabled("ldaps") )
+    {
+        UI::ChangeWidget( `cb_interface_ldaps, `Value, true );
+    }
+    else
+    {
+        UI::ChangeWidget( `cb_interface_ldaps, `Value, false );
+    }
+    if ( LdapServer::GetProtocolListenerEnabled("ldapi") )
+    {
+        UI::ChangeWidget( `cb_interface_ldapi, `Value, true );
+    }
+    else
+    {
+        UI::ChangeWidget( `cb_interface_ldapi, `Value, false );
+    }
     return true;
 }
 
