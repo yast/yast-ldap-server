@@ -935,11 +935,24 @@ sub AddPasswordPolicy
 {
     my ($self, $dbIndex, $ppolicy ) = @_;
     y2milestone("AddPasswordPolicy: ".Data::Dumper->Dump([$ppolicy])." ". scalar(keys %{$ppolicy}) );
+
     if ( 0 < scalar(keys %{$ppolicy}) )
     {
         $ppolicy->{'hashClearText'} = YaST::YCP::Boolean($ppolicy->{'hashClearText'});
         $ppolicy->{'useLockout'} = YaST::YCP::Boolean($ppolicy->{'useLockout'});
+        
+        # slapo-ppolicy requires ppolicy schema to be loaded
+        my @schema = $self->GetSchemaList();
+        if ( grep( !/^ppolicy$/, @schema ) )
+        {
+            my $rc = $self->AddSchemaToSchemaList("/etc/openldap/schema/ppolicy.schema");
+            if ( ! $rc )
+            {
+                return $rc;
+            }
+        }
     }
+
     if ( ! SCR->Write(".ldapserver.database.{".$dbIndex."}.ppolicy", $ppolicy ) ) {
         my $err = SCR->Error(".ldapserver");
         $self->SetError( $err->{'summary'}, $err->{'description'} );
