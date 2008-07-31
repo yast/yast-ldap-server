@@ -393,7 +393,13 @@ sub Write {
         }
         Progress->Finish();
     } else {
-        SCR->Execute('.ldapserver.commitChanges' );
+        if( ! SCR->Execute('.ldapserver.commitChanges' ) )
+        {
+            my $err = SCR->Error(".ldapserver");
+            y2error($err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return 0;
+        }
     }
     sleep(1);
     $configured = $ret;
