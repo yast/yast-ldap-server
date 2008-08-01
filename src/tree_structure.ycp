@@ -157,31 +157,33 @@ define boolean cb_write_daemon()
         LdapServer::SetServiceEnabled( false );
     }
 
-    if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) )
-    {
-        LdapServer::SetProtocolListenerEnabled( "ldap", true );
-    }
-    else
-    {
-        LdapServer::SetProtocolListenerEnabled( "ldap", false );
-    }
-
+    LdapServer::SetProtocolListenerEnabled( "ldap", (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) );
+    LdapServer::SetProtocolListenerEnabled( "ldapi", (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) );
     if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldaps ), `Value ) )
     {
-        LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+        map<string, any> tls = LdapServer::GetTlsConfig();
+        if ( (string)tls["caCertFile"]:"" != ""  &&
+             (string)tls["certFile"]:"" != ""  &&
+             (string)tls["certKeyFile"]:"" != "" )
+        {
+            LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+        }
+        else
+        {
+            if ( Popup::YesNoHeadline( _("Your TLS/SSL Configuration seems to be incomplete."),
+                    _("Do you really want to enable the \"ldaps\" protocol listener?") ) )
+            {
+                LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+            }
+            else
+            {
+                LdapServer::SetProtocolListenerEnabled( "ldaps", false );
+            }
+        }
     }
     else
     {
         LdapServer::SetProtocolListenerEnabled( "ldaps", false );
-    }
-
-    if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) )
-    {
-        LdapServer::SetProtocolListenerEnabled( "ldapi", true );
-    }
-    else
-    {
-        LdapServer::SetProtocolListenerEnabled( "ldapi", false );
     }
     return true;
 }
@@ -310,28 +312,6 @@ define boolean cb_write_allow()
 /*****************************
  ** tls handlers
  *****************************/
-
-define boolean cb_check_tls()
-``{
-    y2milestone( "calling tls check handler" );
-
-//    map<string,string> importPaths = LdapServer::ReadImportCertificates();
-//    boolean use_common_ca = LdapServer::ReadConfigureCommonServerCertificate();
-//    map<string,string> tlsSettings = (map<string,string>)LdapServer::ReadTlsSettings();
-//
-//    if( (boolean)UI::QueryWidget( `rb_yes, `Value ) && !(
-//            haskey( importPaths, "ServerCertificateFile" ) ||
-//            use_common_ca ||
-//            ( tlsSettings["TLSCertificateFile"]:nil != nil  && tlsSettings["TLSCertificateKeyFile"]:nil != nil ) )
-//       )
-//    {
-//            /*error popup*/
-//        callback_error = _("Choose a certificate if you want to activate TLS.");
-//        return false;
-//    }
-
-    return true;
-}
 
 define boolean cb_read_tls()
 ``{
@@ -1021,7 +1001,6 @@ widget_map = $[
                     /* Tree item */
         "name"      : _("TLS Settings"),
         "widget"    : tlsWidget,
-        "cb_check"  : ``( cb_check_tls() ),
         "cb_read"   : ``( cb_read_tls() ),
         "cb_write"  : ``( cb_write_tls() ),
         "cb_input"  : ``( cb_input_tls() )
