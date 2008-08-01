@@ -362,6 +362,7 @@ define boolean cb_read_tls()
         UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
         UI::ChangeWidget( `fr_import_cert, `Enabled, false );
     }
+    UI::ChangeWidget( `cb_ssl_listener_enabled, `Value, LdapServer::GetProtocolListenerEnabled("ldaps") );
     UI::ChangeWidget( `te_ca_file, `Value, tls["caCertFile"]:"" );
     UI::ChangeWidget( `te_cert_file, `Value, tls["certFile"]:"" );
     UI::ChangeWidget( `te_key_file, `Value, tls["certKeyFile"]:"" );
@@ -386,29 +387,18 @@ define boolean cb_write_tls()
                 "crlCheck"   : 0,
                 "verifyClient" : 0
             ];
-        if ( SCR::Read(.target.size, tlsSettings["caCertFile"]:"") <= 0)
+        if ( ! LdapServer::SetTlsConfig( tlsSettings ) )
         {
-            callback_error = _("CA Certificate File does not exist");
+            map<string, string> err = LdapServer::GetError();
+            callback_error = err["msg"]:"" + err["details"]:"";
             return false;
         }
-        if ( SCR::Read(.target.size, tlsSettings["certFile"]:"") <= 0)
-        {
-            callback_error = _("Certificate File does not exist");
-            return false;
-        }
-        if ( SCR::Read(.target.size, tlsSettings["certKeyFile"]:"") <= 0)
-        {
-            callback_error = _("Certificate Key File does not exist");
-            return false;
-        }
-
-        LdapServer::SetTlsConfig( tlsSettings );
+        LdapServer::SetProtocolListenerEnabled( "ldaps", (boolean) UI::QueryWidget( `id( `cb_ssl_listener_enabled ), `Value ) );
     }
     else
     {
-//        LdapServer::WriteConfigureCommonServerCertificate( false );
-//        LdapServer::WriteImportCertificates( $[] );
         map<string,any> tlsSettings = $[
+                "tls_active"  : false,
                 "certKeyFile" : "",
                 "certFile"    : "",
                 "caCertFile"  : "",
@@ -419,6 +409,7 @@ define boolean cb_write_tls()
             ];
 
         LdapServer::SetTlsConfig( tlsSettings );
+        LdapServer::SetProtocolListenerEnabled( "ldaps", false );
     }
     return true;
 }
@@ -435,6 +426,7 @@ define boolean cb_input_tls()
         if ( tls_enabled_cb )
         {
             UI::ChangeWidget( `cb_ssl_listener_enabled, `Enabled, true );
+            UI::ChangeWidget( `cb_ssl_listener_enabled, `Value, true );
             if ( common_cert_available )
             {
                 UI::ChangeWidget( `cb_use_common_cert, `Enabled, true );
