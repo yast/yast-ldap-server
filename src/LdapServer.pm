@@ -34,6 +34,7 @@ my $usingDefaults = 1;
 my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
+my $overwriteConfig = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
 my $registerSlp = 0;
@@ -377,8 +378,9 @@ sub Write {
     my $self = shift;
     y2milestone("LdapServer::Write");
     my $ret = 1;
-    if ( ! $usesBackConfig || ! $slapdConfChanged ) 
+    if ( ! $usesBackConfig || ! $slapdConfChanged || $overwriteConfig ) 
     {
+        $overwriteConfig = 0;
         my $progressItems = [ _("Writing Startup Configuration"),
                 _("Cleaning up config directory"),
                 _("Creating Configuration"),
@@ -606,6 +608,7 @@ sub UseDefaults
 {
     return YaST::YCP::Boolean($usingDefaults);
 }
+
 ##
  # Return packages needed to be installed and removed during
  # Autoinstallation to insure module has all needed software
@@ -887,7 +890,8 @@ sub GetInitialDefaults
         $self->InitDbDefaults();
     }
     y2milestone(Data::Dumper->Dump([\%dbDefaults]));
-   $usingDefaults = 1;
+    $usingDefaults = 1;
+    $overwriteConfig = 1;
     return \%dbDefaults;
 }
 
