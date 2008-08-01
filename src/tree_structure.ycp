@@ -386,6 +386,22 @@ define boolean cb_write_tls()
                 "crlCheck"   : 0,
                 "verifyClient" : 0
             ];
+        if ( SCR::Read(.target.size, tlsSettings["caCertFile"]:"") <= 0)
+        {
+            callback_error = _("CA Certificate File does not exist");
+            return false;
+        }
+        if ( SCR::Read(.target.size, tlsSettings["certFile"]:"") <= 0)
+        {
+            callback_error = _("Certificate File does not exist");
+            return false;
+        }
+        if ( SCR::Read(.target.size, tlsSettings["certKeyFile"]:"") <= 0)
+        {
+            callback_error = _("Certificate Key File does not exist");
+            return false;
+        }
+
         LdapServer::SetTlsConfig( tlsSettings );
     }
     else
