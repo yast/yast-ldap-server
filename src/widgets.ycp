@@ -194,6 +194,10 @@
                             )
                         )
                     )
+                ),
+                `VSpacing( 0.5 ),
+                `Left(
+                    `PushButton( `id( `pb_launch_ca ), _("Launch CA Management Module") )
                 )
             )
         );
