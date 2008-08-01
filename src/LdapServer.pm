@@ -755,13 +755,32 @@ sub SetTlsConfig
 {
     my $self = shift;
     my $tls = shift;
-    my $ret = SCR->Execute(".target.bash", 
-                           "/usr/bin/setfacl -m u:ldap:r ".$tls->{'certKeyFile'});
-    if($ret != 0) {
-        return $self->SetError(_("Can not set a filesystem acl on the private key"),
-                               "setfacl -m u:ldap:r "./etc/ssl/servercerts/serverkey.pem." failed.\n".
-                               "Do you have filesystem acl support disabled?" );
-        return 0;
+    if ( YaST::YCP::Boolean($tls->{'tls_active'}) )
+    {
+        if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
+        {
+            $self->SetError( _("CA Certificate File does not exist"), "");
+            return 0;
+        }
+        if ( SCR->Read(".target.size", $tls->{"certFile"}) <= 0)
+        {
+            $self->SetError( _("Certificate File does not exist"), "" );
+            return 0;
+        }
+        if ( SCR->Read(".target.size", $tls->{"certKeyFile"}) <= 0)
+        {
+            $self->SetError( _("Certificate Key File does not exist"), "");
+            return 0;
+        }
+
+        if ( SCR->Execute(".target.bash", 
+                               "/usr/bin/setfacl -m u:ldap:r ".$tls->{'certKeyFile'}) )
+        {
+            $self->SetError(_("Can not set a filesystem acl on the private key"),
+                                   "setfacl -m u:ldap:r ".$tls->{'certKeyFile'}." failed.\n".
+                                   "Do you have filesystem acl support disabled?" );
+            return 0;
+        }
     }
     my $rc = SCR->Write('.ldapserver.global.tlsSettings', $tls );
     return 1;
@@ -774,7 +793,7 @@ sub SetTlsConfigCommonCert
     my $ret = SCR->Execute(".target.bash", 
                            "/usr/bin/setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem");
     if($ret != 0) {
-        return $self->SetError(_("Can not set a filesystem acl on the private key"),
+        $self->SetError(_("Can not set a filesystem acl on the private key"),
                                "setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem failed.\n".
                                "Do you have filesystem acl support disabled?" );
         return 0;
@@ -1273,7 +1292,7 @@ BEGIN { $TYPEINFO {GetProtocolListenerEnabled} = ["function", "boolean", "string
 sub GetProtocolListenerEnabled
 {
     my ( $self, $protocol ) = @_;
-    y2milestone("GetProtocolListenerEnabled $protocol (ldapi $use_ldapi_listener, ldaps $use_ldaps_listener, ldap $use_ldap_listener");
+    y2milestone("GetProtocolListenerEnabled $protocol (ldapi $use_ldapi_listener, ldaps $use_ldaps_listener, ldap $use_ldap_listener)");
     if ( $protocol eq "ldap" )
     {
         return $use_ldap_listener;
