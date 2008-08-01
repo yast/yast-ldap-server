@@ -755,6 +755,14 @@ sub SetTlsConfig
 {
     my $self = shift;
     my $tls = shift;
+    my $ret = SCR->Execute(".target.bash", 
+                           "/usr/bin/setfacl -m u:ldap:r ".$tls->{'certKeyFile'});
+    if($ret != 0) {
+        return $self->SetError(_("Can not set a filesystem acl on the private key"),
+                               "setfacl -m u:ldap:r "./etc/ssl/servercerts/serverkey.pem." failed.\n".
+                               "Do you have filesystem acl support disabled?" );
+        return 0;
+    }
     my $rc = SCR->Write('.ldapserver.global.tlsSettings', $tls );
     return 1;
 }
