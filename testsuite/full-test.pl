@@ -14,56 +14,8 @@ my $pwd = $ENV{'PWD'};
 print "$pwd\n";
 exit 1 if (!defined $pwd || $pwd eq "");
 
-my $new_database = 'o=Müller GmbH & Co/KG,c=com';
+my $new_database = 'o=Müller GmbH & Co/KG,c=DE';
 
-init_testsetup();
-
-T39_ReadSLPEnabled();
-T40_WriteSLPEnabled();
-
-exit;
-
-T01_Interface();
-T02_Version();
-T03_Capabilities();
-T04_ReadDatabaseList();
-T05_ReadDatabase();
-T06_ReadIndex();
-T07_ReadSchemaIncludeList();
-T08_ReadAllowList();
-T21_ReadTLS();
-T09_AddDatabase();
-T10_EditDatabase();
-T11_AddIndex();
-T14_RecreateIndex();
-T23_ReadIndex2();
-T12_EditIndex();
-T14_RecreateIndex();
-T23_ReadIndex2();
-T13_DeleteIndex();
-T14_RecreateIndex();
-T15_WriteSchemaIncludeList();
-T16_WriteAllowList();
-T17_AddLoglevel();
-T18_DeleteLoglevel();
-T19_WriteLoglevel();
-T20_ReadLoglevel();
-T22_WriteTLS();
-
-T04_ReadDatabaseList();
-T35_ReadDatabase2();
-T36_ReadIndex2();
-T07_ReadSchemaIncludeList();
-T08_ReadAllowList();
-T21_ReadTLS();
-
-T37_CheckCommonServerCertificate();
-T38_ConfigureCommonServerCertificate();
-T21_ReadTLS();
-
-T39_ReadSLPEnabled();
-T40_WriteSLPEnabled();
-   
 sub printError {
     my $err = shift;
     foreach my $k (keys %$err) {
@@ -156,7 +108,7 @@ sub T05_ReadDatabase {
     print STDERR "------------------- T05_ReadDatabase ---------------------\n";
     print "------------------- T05_ReadDatabase ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadDatabase('"dc=suse,dc=de"');
+    my $res = YaPI::LdapServer->ReadDatabase($new_database);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -170,7 +122,7 @@ sub T06_ReadIndex {
     print STDERR "------------------- T06_ReadIndex ---------------------\n";
     print "------------------- T06_ReadIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex('"dc=suse,dc=de"');
+    my $res = YaPI::LdapServer->ReadIndex("dc=site");
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -180,11 +132,11 @@ sub T06_ReadIndex {
     }
 }
 
-sub T07_ReadSchemaIncludeList {
-    print STDERR "------------------- T07_ReadSchemaIncludeList ---------------------\n";
-    print "------------------- T07_ReadSchemaIncludeList ---------------------\n";
+sub T07_ReadSchemaList {
+    print STDERR "------------------- T07_ReadSchemaList ---------------------\n";
+    print "------------------- T07_ReadSchemaList ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadSchemaIncludeList();
+    my $res = YaPI::LdapServer->ReadSchemaList();
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -213,12 +165,13 @@ sub T09_AddDatabase {
     print "------------------- T09_AddDatabase ---------------------\n";
 
     my $hash = {
-                database    => 'bdb',
+                type    => 'bdb',
                 suffix      => "$new_database",
                 rootdn      => 'cn=Admin,'."$new_database",
-                passwd      => "system",
+                rootpw_clear      => "system",
                 cryptmethod => 'SMD5',
                 directory   => "/var/lib/ldap/SuSE_Test_DB",
+                createdatabasedir => 1 
                };
 
     my $res = YaPI::LdapServer->AddDatabase($hash);
@@ -235,12 +188,27 @@ sub T10_EditDatabase {
     print STDERR "------------------- T10_EditDatabase ---------------------\n";
     print "------------------- T10_EditDatabase ---------------------\n";
 
-    my $suffix = "$new_database";
+    my $suffix = "dc=does_not_exists";
     my $hash = {
-                rootdn  => 'cn=Administrator,'."$new_database",
+                rootdn  => 'cn=Administrator,'."$suffix",
                };
 
     my $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$msg])."\n";
+    } else {
+        print "FAILED: \n";
+        printError("This test should return an error");
+    }
+
+    $suffix = $new_database;
+    $hash = {
+                rootdn  => 'cn=Administrator,'."$suffix",
+               };
+
+    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -250,7 +218,7 @@ sub T10_EditDatabase {
     }
 
     $hash = { 
-              passwd  => "tralla",
+              rootpw_clear  => "tralla",
               cryptmethod => "CRYPT"
             };
 
@@ -263,38 +231,46 @@ sub T10_EditDatabase {
         print STDERR Data::Dumper->Dump([$res])."\n";
     }
 
-    $hash = { 
-              cachesize  => "20000",
-            };
-
-    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
-    if( not defined $res ) {
-        my $msg = YaPI::LdapServer->Error();
-        printError($msg);
-    } else {
-        print "OK: \n";
-        print STDERR Data::Dumper->Dump([$res])."\n";
-    }
-
-    $hash = { 
-              checkpoint  => "2048 10",
-            };
-    
-    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
-    if( not defined $res ) {
-        my $msg = YaPI::LdapServer->Error();
-        printError($msg);
-    } else {
-        print "OK: \n";
-        print STDERR Data::Dumper->Dump([$res])."\n";
-    }
+#    $hash = { 
+#              cachesize  => "20000",
+#            };
+#
+#    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
+#    if( not defined $res ) {
+#        my $msg = YaPI::LdapServer->Error();
+#        printError($msg);
+#    } else {
+#        print "OK: \n";
+#        print STDERR Data::Dumper->Dump([$res])."\n";
+#    }
+#
+#    $hash = { 
+#              checkpoint  => "2048 10",
+#            };
+#    
+#    $res = YaPI::LdapServer->EditDatabase($suffix, $hash);
+#    if( not defined $res ) {
+#        my $msg = YaPI::LdapServer->Error();
+#        printError($msg);
+#    } else {
+#        print "OK: \n";
+#        print STDERR Data::Dumper->Dump([$res])."\n";
+#    }
 }
 
-sub T11_AddIndex {
+sub T11_EditIndex {
     print STDERR "------------------- T11_AddIndex ---------------------\n";
     print "------------------- T11_AddIndex ---------------------\n";
 
-    my $res = YaPI::LdapServer->AddIndex("$new_database", { attr => "uid,cn", param => "eq"});
+    my $res = YaPI::LdapServer->EditIndex("$new_database", { "name" => "uid", "eq" => 1, "pres" => 0});
+    if( not defined $res ) {
+        my $msg = YaPI::LdapServer->Error();
+        printError($msg);
+    } else {
+        print "OK: \n";
+        print STDERR Data::Dumper->Dump([$res])."\n";
+    }
+    $res = YaPI::LdapServer->EditIndex("$new_database", { "name" => "cn", "eq" => 1, "pres" => 0});
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -304,20 +280,6 @@ sub T11_AddIndex {
     }
 }
 
-sub T12_EditIndex {
-    print STDERR "------------------- T12_EditIndex ---------------------\n";
-    print "------------------- T12_EditIndex ---------------------\n";
-
-    my $res = YaPI::LdapServer->EditIndex("$new_database", "2de23a0b16b428bf1e175cba305d9563",
-                                          { attr => "uid,cn,gidnumber", param => "eq"});
-    if( not defined $res ) {
-        my $msg = YaPI::LdapServer->Error();
-        printError($msg);
-    } else {
-        print "OK: \n";
-        print STDERR Data::Dumper->Dump([$res])."\n";
-    }
-}
 
 sub T13_DeleteIndex {
     print STDERR "------------------- T13_DeleteIndex ---------------------\n";
@@ -333,34 +295,13 @@ sub T13_DeleteIndex {
     }
 }
 
-sub T14_RecreateIndex {
-    print STDERR "------------------- T14_RecreateIndex ---------------------\n";
-    print "------------------- T14_RecreateIndex ---------------------\n";
+sub T15_AddSchema {
+    print STDERR "------------------- T15_AddSchema ---------------------\n";
+    print "------------------- T15_AddSchema ---------------------\n";
 
-    my $res = YaPI::LdapServer->RecreateIndex("$new_database");
-    if( not defined $res ) {
-        my $msg = YaPI::LdapServer->Error();
-        printError($msg);
-    } else {
-        print "OK: \n";
-        print STDERR Data::Dumper->Dump([$res])."\n";
-    }
-}
+    my $schemas = '/etc/openldap/schema/ppolicy.schema';
 
-sub T15_WriteSchemaIncludeList {
-    print STDERR "------------------- T15_WriteSchemaIncludeList ---------------------\n";
-    print "------------------- T15_WriteSchemaIncludeList ---------------------\n";
-
-    my $schemas = [
-                   '/etc/openldap/schema/core.schema',
-                   '/etc/openldap/schema/cosine.schema',
-                   '/etc/openldap/schema/inetorgperson.schema',
-                   '/etc/openldap/schema/rfc2307bis.schema',
-                   '/etc/openldap/schema/yast2userconfig.schema',
-                   '/etc/openldap/schema/samba3.schema'
-                  ];
-
-    my $res = YaPI::LdapServer->WriteSchemaIncludeList($schemas);
+    my $res = YaPI::LdapServer->AddSchema($schemas);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -495,7 +436,7 @@ sub T23_ReadIndex2() {
     print STDERR "------------------- T23_ReadIndex2 ---------------------\n";
     print "------------------- T23_ReadIndex2 ---------------------\n";
 
-    my $res = YaPI::LdapServer->ReadIndex("$new_database");
+    my $res = YaPI::LdapServer->ReadIndex($new_database);
     if( not defined $res ) {
         my $msg = YaPI::LdapServer->Error();
         printError($msg);
@@ -591,3 +532,48 @@ sub T40_WriteSLPEnabled
     }
 }
 
+init_testsetup();
+
+T39_ReadSLPEnabled();
+T40_WriteSLPEnabled();
+exit;
+#
+#T01_Interface();
+#T02_Version();
+#T03_Capabilities();
+T04_ReadDatabaseList();
+T06_ReadIndex();
+T07_ReadSchemaList();
+#T08_ReadAllowList();
+#T21_ReadTLS();
+#T09_AddDatabase();
+T10_EditDatabase();
+T05_ReadDatabase();
+T11_EditIndex();
+T23_ReadIndex2();
+#T12_EditIndex();
+#T23_ReadIndex2();
+#T13_DeleteIndex();
+T15_AddSchema();
+T07_ReadSchemaList();
+#T16_WriteAllowList();
+#T17_AddLoglevel();
+#T18_DeleteLoglevel();
+#T19_WriteLoglevel();
+#T20_ReadLoglevel();
+#T22_WriteTLS();
+#
+#T04_ReadDatabaseList();
+#T35_ReadDatabase2();
+#T36_ReadIndex2();
+#T07_ReadSchemaIncludeList();
+#T08_ReadAllowList();
+#T21_ReadTLS();
+#
+#T37_CheckCommonServerCertificate();
+#T38_ConfigureCommonServerCertificate();
+#T21_ReadTLS();
+#
+#T39_ReadSLPEnabled();
+#T40_WriteSLPEnabled();
+   
