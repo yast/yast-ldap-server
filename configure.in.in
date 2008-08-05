@@ -11,10 +11,10 @@
 @YAST2-CHECKS-YCP@
 
 AC_LANG_PUSH(C++)
-yast_found_ldappplib=no
+yast_found_ldapcpplib=no
 AC_CHECK_HEADER(LDAPSchema.h,[yast_found_ldapcpplib=yes])
 if [[ "$yast_found_ldapcpplib" = "no" ]]; then
-     AC_MSG_ERROR(Headers for ldapcpplib are missing. Please install the package ldapcpplib-devel.)
+     AC_MSG_ERROR(Headers for ldapcpplib are missing. Please install the package libldapcpp-devel.)
 fi
 yast_found_boost=no
 AC_CHECK_HEADER(boost/shared_ptr.hpp,[yast_found_boost=yes])
