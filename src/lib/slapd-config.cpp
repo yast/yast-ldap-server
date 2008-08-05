@@ -457,6 +457,12 @@ const std::vector<LDAPAttrType> OlcSchemaConfig::getAttributeTypes() const
     return res;
 }
 
+void OlcSchemaConfig::resetMemberAttrs()
+{
+    std::string name(this->getStringValue("cn"));
+    entryIndex = splitIndexFromString( name, m_name );
+}
+
 OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
 {
     log_it(0, "OlcTlsSettings OlcGlobalConfig::getTlsSettings() const ");
@@ -468,35 +474,6 @@ void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
     tls.applySettings( *this );
 }
 
-//std::map<std::string, std::list<std::string> > OlcGlobalConfig::toMap() const
-//{
-//    std::map<std::string, std::list<std::string> > resMap;
-//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
-//    if ( at ) 
-//    {
-//        StringList values = at->getValues();
-//        StringList::const_iterator j;
-//        std::list<std::string> valList;
-//        for ( j = values.begin(); j != values.end(); j++ )
-//        {
-//            valList.push_back(*j);
-//        }
-//        resMap.insert(std::make_pair("suffix", valList));
-//    }
-//    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
-//    if ( at ) 
-//    {
-//        StringList values = at->getValues();
-//        StringList::const_iterator j;
-//        std::list<std::string> valList;
-//        for ( j = values.begin(); j != values.end(); j++ )
-//        {
-//            valList.push_back(*j);
-//        }
-//        resMap.insert(std::make_pair("type", valList));
-//    }
-//    return resMap;
-//}
 
 bool OlcConfigEntry::isDatabaseEntry ( const LDAPEntry& e )
 {
@@ -608,7 +585,14 @@ void OlcConfigEntry::updateEntryDn()
 
 void OlcConfigEntry::clearChangedEntry()
 {
-        m_dbEntryChanged = LDAPEntry();     
+   m_dbEntryChanged = LDAPEntry();     
+}
+
+void OlcConfigEntry::resetEntries( const LDAPEntry &e )
+{
+    m_dbEntry = e;
+    m_dbEntryChanged = e;
+    this->resetMemberAttrs();
 }
 
 OlcOverlay* OlcOverlay::createFromLdapEntry( const LDAPEntry& e)
@@ -638,36 +622,11 @@ const std::string OlcOverlay::getType() const
     return m_type;
 }
 
-
-//std::map<std::string, std::list<std::string> > OlcDatabase::toMap() const
-//{
-//    std::map<std::string, std::list<std::string> > resMap;
-//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcsuffix");
-//    if ( at ) 
-//    {
-//        StringList values = at->getValues();
-//        StringList::const_iterator j;
-//        std::list<std::string> valList;
-//        for ( j = values.begin(); j != values.end(); j++ )
-//        {
-//            valList.push_back(*j);
-//        }
-//        resMap.insert(std::make_pair("suffix", valList));
-//    }
-//    at = m_dbEntryChanged.getAttributeByName("olcDatabase");
-//    if ( at ) 
-//    {
-//        StringList values = at->getValues();
-//        StringList::const_iterator j;
-//        std::list<std::string> valList;
-//        for ( j = values.begin(); j != values.end(); j++ )
-//        {
-//            valList.push_back(*j);
-//        }
-//        resMap.insert(std::make_pair("type", valList));
-//    }
-//    return resMap;
-//}
+void OlcOverlay::resetMemberAttrs()
+{
+    std::string type(this->getStringValue("olcoverlay"));
+    entryIndex = splitIndexFromString( type, m_type );
+}
 
 void OlcDatabase::setSuffix( const std::string &suffix)
 {
@@ -704,25 +663,11 @@ OlcOverlayList& OlcDatabase::getOverlays()
     return m_overlays;
 }
 
-//std::map<std::string, std::list<std::string> > OlcBdbDatabase::toMap() const
-//{
-//    std::map<std::string, std::list<std::string> > resMap = 
-//            OlcDatabase::toMap();
-//
-//    const LDAPAttribute *at = m_dbEntryChanged.getAttributeByName("olcDbNoSync");
-//    if ( at )
-//    {
-//        StringList values = at->getValues();
-//        StringList::const_iterator j;
-//        std::list<std::string> valList;
-//        for ( j = values.begin(); j != values.end(); j++ )
-//        {
-//            valList.push_back(*j);
-//        }
-//        resMap.insert(std::make_pair("nosync", valList));
-//    }
-//    return resMap;
-//}
+void OlcDatabase::resetMemberAttrs()
+{
+    std::string type(this->getStringValue("olcdatabase"));
+    entryIndex = splitIndexFromString( type, m_type );
+}
 
 bool OlcDatabase::isBdbDatabase( const LDAPEntry& e )
 {
@@ -938,7 +883,18 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
 
 OlcConfig::OlcConfig(LDAPConnection *lc) : m_lc(lc)
 {
-    
+}
+
+bool OlcConfig::hasConnection() const
+{
+    if ( m_lc )
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
@@ -972,9 +928,10 @@ void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
     }
 }
 
-void OlcConfig::updateEntry( const OlcConfigEntry &oce )
+void OlcConfig::updateEntry( OlcConfigEntry &oce )
 {
     try {
+        bool reread = true;
         if ( oce.isNewEntry () ) 
         {
             m_lc->add(&oce.getChangedEntry());
@@ -986,7 +943,20 @@ void OlcConfig::updateEntry( const OlcConfigEntry &oce )
                 m_lc->modify( oce.getDn(), &ml );
             } else {
                 log_it(0,oce.getDn() + ": no changes" );
+                reread = false;
             }
+        }
+        // re-read Entry from Server
+        if ( reread )
+        {
+            LDAPSearchResults *sr = m_lc->search( oce.getDn(), LDAPConnection::SEARCH_BASE);
+            LDAPEntry *e = sr->getNext();
+            if ( e ) {
+                log_it(0,"Re-read Entry " + e->getDN() );
+                oce.resetEntries( *e );
+                delete(e);
+            }
+            delete(sr);
         }
     } catch (LDAPException e) {
         log_it(0, e.getResultMsg() + " " + e.getServerMsg() );
