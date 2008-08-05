@@ -19,7 +19,6 @@ import "HTML";
 import "DNS";
 import "CaMgm";
 import "Report";
-import "YaPI::LdapServer";
 
 include "ldap-server/helps.ycp";
 include "ldap-server/tree_structure.ycp";
