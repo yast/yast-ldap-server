@@ -911,14 +911,6 @@ define boolean cb_write_ppolicy()
             map<string, string> err = LdapServer::GetError();
             callback_error = err["msg"]:"" + "\n" + err["details"]:"";
         }
-//       list<any> pp_overlay = [ "ppolicy", ppolicy ];
-//       list<any> overlays = [ pp_overlay ];
-//       db = add( db, "overlay", overlays);
-//       list<string> inclist = LdapServer::ReadSchemaIncludeList();
-//       if(! contains( inclist, "/etc/openldap/schema/ppolicy.schema" ) ){
-//           inclist = add(inclist,  "/etc/openldap/schema/ppolicy.schema" );
-//           LdapServer::WriteSchemaIncludeList(inclist);
-//       }
     } else {
         map<string,any> ppolicy_map = LdapServer::GetPpolicyOverlay(index);
         if ( size(ppolicy_map) == 0 )
@@ -933,21 +925,6 @@ define boolean cb_write_ppolicy()
                 map<string, string> err = LdapServer::GetError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
             }
-
-//       map<string,string> ppolicy_map = LdapServer::GetPasswordPolicyOverlay(suffix);
-//       if ( ppolicy_map != nil ){
-//           list<any> newoverlay = [];
-//           list<any> empty_pp_ol = ["ppolicy", nil ];
-//           integer i = 0;
-//           foreach( list<any> i, db["overlay"]:[], {
-//               if ((string)i[0]:"" != "ppolicy") {
-//                   newoverlay = add(newoverlay, i);
-//               } else {
-//                   newoverlay = add(newoverlay, empty_pp_ol);
-//               }
-//           });
-//           db["overlay"] = newoverlay;
-//       }
         }
     }
     return result;
