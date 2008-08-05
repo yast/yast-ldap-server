@@ -118,7 +118,7 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     if ( path->component_str(0) == "global" ) {
         y2milestone("Global Write");
         return WriteGlobal(path->at(1), arg, arg2);
-    } else if ( path->component_str(0) == "database" ) {
+    } else if ( (path->component_str(0) == "database") && (path->length() > 1) ) {
         y2milestone("Database Write");
         return WriteDatabase(path->at(1), arg, arg2);
     } else if ( path->component_str(0) == "schema" ) {
@@ -146,11 +146,26 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     y2milestone("Execute Path %s", path->toString().c_str() );
     if ( path->component_str(0) == "init" )
     {
-
-        LDAPConnection *lc = new LDAPConnection("ldapi:///");
-        SaslExternalHandler sih;
-        lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
-        olc = OlcConfig(lc); 
+        if ( ! olc.hasConnection() )
+        {
+            LDAPConnection *lc = new LDAPConnection("ldapi:///");
+            try {
+                SaslExternalHandler sih;
+                lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+            }
+            catch ( LDAPException e)
+            {
+                std::string errstring = "Error connecting to LDAP Server";
+                std::string details = e.getResultMsg() + ": " + e.getServerMsg();
+                
+                lastError->add(YCPString("summary"),
+                        YCPString(errstring) );
+                lastError->add(YCPString("description"), YCPString( details ) );
+                delete(lc);
+                return YCPBoolean(false);
+            }
+            olc = OlcConfig(lc);
+        }
     }
     if ( path->component_str(0) == "initFromLdif" )
     {
@@ -273,17 +288,17 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             if ( globals )
                 olc.updateEntry( *globals );
 
-            OlcSchemaList::const_iterator j;
+            OlcSchemaList::iterator j;
             for ( j = schema.begin(); j != schema.end() ; j++ )
             {
                 olc.updateEntry(**j);
             }
-            OlcDatabaseList::const_iterator i;
+            OlcDatabaseList::iterator i;
             for ( i = databases.begin(); i != databases.end() ; i++ )
             {
                 olc.updateEntry(**i);
                 OlcOverlayList overlays = (*i)->getOverlays();
-                OlcOverlayList::const_iterator k;
+                OlcOverlayList::iterator k;
                 for ( k = overlays.begin(); k != overlays.end(); k++ )
                 {
                     y2milestone("Update overlay: %s", (*k)->getDn().c_str() );
