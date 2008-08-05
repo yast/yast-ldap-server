@@ -22,12 +22,14 @@ use MIME::Base64;
 use X500::DN;
 use ycp;
 use YaST::YCP;
+use YaPI;
 
 our %TYPEINFO;
 
 YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("SuSEFirewall");
 YaST::YCP::Import ("Service");
+YaST::YCP::Import ("SCR");
 
 my %error = ( msg => undef, details => undef );
 my $usingDefaults = 1;
@@ -142,13 +144,14 @@ my @added_databases = ();
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read {
     y2milestone("");
-
     SuSEFirewall->Read();
+
     my $progressItems = [ "Reading Startup Configuration", 
             "Reading Configuration Backend", 
             "Reading Configuration Data" ];
-    Progress->New("Initializing LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
+    Progress->New("Initializing LDAP Server Configuration", " ", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
+
     my $serviceInfo = Service->FullInfo("ldap");
     y2milestone("Serviceinfo: ". Data::Dumper->Dump([$serviceInfo]));
     my $isRunning = ( defined $serviceInfo->{"started"}) && ($serviceInfo->{"started"} == 0); # 0 == "running"
@@ -221,7 +224,7 @@ sub Read {
             $slapdConfChanged = 1;
         }
 
-        y2milestone("ConfigModifed: " . $slapdConfChanged);
+        y2milestone("ConfigModified: " . $slapdConfChanged);
     }
         
     Progress->Finish();
@@ -1109,8 +1112,8 @@ sub AddPasswordPolicy
         $ppolicy->{'useLockout'} = YaST::YCP::Boolean($ppolicy->{'useLockout'});
         
         # slapo-ppolicy requires ppolicy schema to be loaded
-        my @schema = $self->GetSchemaList();
-        if ( grep( !/^ppolicy$/, @schema ) )
+        my $schema = $self->GetSchemaList();
+        if ( ! grep( /^ppolicy$/, @{$schema} ) )
         {
             my $rc = $self->AddSchemaToSchemaList("/etc/openldap/schema/ppolicy.schema");
             if ( ! $rc )
