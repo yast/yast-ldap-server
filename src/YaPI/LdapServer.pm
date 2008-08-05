@@ -12,11 +12,11 @@ use YaPI::LdapServer
 
 \@dbList = ReadDatabaseList()
 
- Returns a List of databases (suffix).
+ Returns a list of configured databases.
 
 $bool = AddDatabase(\%valueMap)
 
- Creates a new database section in the configuration file
+ Creates a new database
 
 $bool = EditDatabase($suffix,\%valueMap)
 
@@ -30,29 +30,17 @@ $bool = EditDatabase($suffix,\%valueMap)
 
  Returns a List of Maps with all index statements for this database
 
-$bool = AddIndex($suffix,\%indexMap)
+$bool = EditIndex($suffix,\%indexMap)
 
  Add a new index statement %indexMap to the database section
 
-$bool = EditIndex($suffix,$index_md5,\%indexMap)
+\@list = ReadSchemaList()
 
- Replace the index $index_md5 in the database section
+ Returns a list of all included schema items
 
-$bool = DeleteIndex($suffix,$index_md5)
+$bool = AddSchema($schemaFile)
 
- Delete the index $index_md5 statement in the database section
-
-$bool = RecreateIndex($suffix)
-
- Regenerate indices
-
-\@list = ReadSchemaIncludeList()
-
- Returns a list of all included schema files
-
-$bool = WriteSchemaIncludeList(\@list)
-
- Writes all schema includes preserving order.
+ Add an additional Schema item
 
 \@list = ReadAllowList()
 
@@ -132,43 +120,43 @@ BEGIN {
     push @INC, '/usr/share/YaST2/modules/';
 }
 
-our $VERSION="1.1.0";
 
 use strict;
 use vars qw(@ISA);
-no warnings qw( uninitialized );
-
 use YaST::YCP;
+use YaPI;
 use ycp;
-
-#use Locale::gettext;
-#use POSIX ();     # Needed for setlocale()
-
-#POSIX::setlocale(LC_MESSAGES, "");
+textdomain("ldap-server");
 
 use Digest::MD5 qw(md5_hex);
 use Digest::SHA1 qw(sha1);
 use MIME::Base64;
 use X500::DN;
 
-use YaPI;
 @YaPI::LdapServer::ISA = qw( YaPI );
 
-textdomain("ldap-server");
 
 YaST::YCP::Import ("SCR");
 YaST::YCP::Import ("Ldap");
+YaST::YCP::Import ("LdapServer");
 YaST::YCP::Import ("Service");
 
+our $VERSION="1.2.0";
+our @CAPABILITIES = ( 'SLES9' );
 our %TYPEINFO;
-our @CAPABILITIES = (
-                     'SLES9'
-                    );
 
 =item *
 C<\@dbList = ReadDatabaseList()>
 
-Returns a List of databases (suffix). 
+Returns a List of databases. Each element of the list is a hash reference
+with the following elements:
+
+ * 'index' : The index of the database. Frontend Database has index -1, 
+        config database has index 0 and first "real" database has index 1.
+
+ * 'suffix': The base DN the database is servinng e.g. 'dc=example,dc=com'
+ 
+ * 'type': The database type e.g. 'bdb' or 'config'
 
 EXAMPLE:
 
@@ -184,13 +172,23 @@ EXAMPLE:
 
 =cut
 
-BEGIN { $TYPEINFO{ReadDatabaseList} = ["function", ["list", "string"]]; }
+BEGIN { $TYPEINFO{ReadDatabaseList} = ["function", ["list", [ "map", "string", "string"]] ]; }
 sub ReadDatabaseList {
     my $self = shift;
     
-    my $dbList = SCR->Read( ".ldapserver.databaselist" );
+    my $rc = SCR->Execute('.ldapserver.init' );
+    if ( ! $rc )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
+    }
+
+    my $dbList = SCR->Read('.ldapserver.databases');
     if(! defined $dbList) {
-        return $self->SetError(%{SCR->Error(".ldapserver")}); 
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_READ_FAILED";
+        return $self->SetError(%{$err});
     }
     return $dbList;
 }
@@ -204,7 +202,7 @@ If the database exists, nothing is done and undef is returned.
 
 Supported keys in %valueMap are:
  
- * database: The database type (required)
+ * type: The database type (required)
  
  * suffix: The suffix (required)
  
@@ -214,13 +212,17 @@ Supported keys in %valueMap are:
 
  * rootdn: The Root DN 
  
- * passwd: The plain Root Password (requires rootdn)
+ * rootpw: The hashed RootDN Password (requires rootdn)
+
+ * rootpw_clear: The plain Root Password (requires rootdn)
 
  * cryptmethod: The crypt method; allowed values are (CRYPT, SMD5, SHA, SSHA, PLAIN); default is 'SSHA'
  
- * cachesize: The cachesize(bdb/ldbm) (optional; default 10000)
+ * entrycache: The cachesize (optional; default 10000)
  
- * checkpoint: The checkpoint(bdb) (optional; default 1024 5)
+ * idlcache: The cachesize (optional; default 10000)
+ 
+ * checkpoint: The bdb checkpoint setting as an array reference (optional; default [1024, 5])
 
 If no rootdn and passwd is set, the base object is not added to the
 LDAP server.
@@ -228,12 +230,12 @@ LDAP server.
 EXAMPLE:
 
  my $hash = {
-             database    => 'bdb',
-             suffix      => 'dc=example,dc=com',
-             rootdn      => "cn=Admin,dc=example,dc=com",
-             passwd      => "system",
-             cryptmethod => 'SMD5',
-             directory   => "/var/lib/ldap/db1",
+             database     => 'bdb',
+             suffix       => 'dc=example,dc=com',
+             rootdn       => "cn=Admin,dc=example,dc=com",
+             rootpw_clear => "system",
+             cryptmethod  => 'SMD5',
+             directory    => "/var/lib/ldap/db1",
             };
 
  my $res = YaPI::LdapServer->AddDatabase($hash);
@@ -250,30 +252,30 @@ sub AddDatabase {
     my $self = shift;
     my $data = shift;
 
-    my $passwd_string = undef;
-    my $cryptMethod   = "SSHA";
-    my $cachesize     = undef;
+    my $entrycache    = undef;
+    my $idlcache      = undef;
     my $checkpoint    = undef;
-    my $hash = {};
     my $addDBHash = {};
+
+    my $cryptMethod = "SSHA";
 
     y2debug("YaPI::LdapServer.pm AddDatabase: ".Data::Dumper->Dump([$data]));
     ################
     # check database
     ################
-    if(!defined $data->{database} || $data->{database} eq "") {
+    if(!defined $data->{type} || $data->{type} eq "") {
                                           # error message at parameter check
         return $self->SetError(summary => "Missing parameter 'database'",
                                code => "PARAM_CHECK_FAILED");
     }
-    if ( !grep( ($_ eq $data->{database}), ("bdb", "ldbm") ) ) {
+    if ( !grep( ($_ eq $data->{type}), ("bdb", "hdb") ) ) {
         return $self->SetError(summary => sprintf(
                                    # error at paramter check
-                                 __("Database type '%s' is not supported. Allowed are 'bdb' and 'ldbm'."),
-                                                  $data->{database}),
+                                 __("Database type '%s' is not supported. Allowed are 'bdb' and 'hdb'."),
+                                                  $data->{type}),
                                code => "PARAM_CHECK_FAILED");
     }
-    $addDBHash->{type} = $data->{database};
+    $addDBHash->{type} = $data->{type};
 
     ################
     # check suffix
@@ -372,28 +374,31 @@ sub AddDatabase {
                                    description => "'$data->{rootdn}' must be below the '$data->{suffix}'",
                                    code => "PARAM_CHECK_FAILED");
         }
-        $hash->{rootdn} = $data->{rootdn};
+        $addDBHash->{rootdn} = $data->{rootdn};
     }
     
     ##############################
     # check passwd and cryptmethod
     ##############################
        
-    if(exists $data->{passwd}) {
+    if(exists $data->{rootpw}) {
         
-        if(!exists $hash->{rootdn} || $hash->{rootdn} eq "") {
+        if(!exists $addDBHash->{rootdn} || $addDBHash->{rootdn} eq "") {
             # parameter check failed
             return $self->SetError(summary => __("To set a password, you must define 'rootdn'."),
                                    code => "PARAM_CHECK_FAILED");
         }
         
-        if((!defined $data->{passwd} || $data->{passwd} eq "") &&
-           (! defined $data->{rootpw} || $data->{rootpw} eq "" ) ){
+        if( (!defined $data->{rootpw} || $data->{rootpw} eq "") && 
+            (!defined $data->{rootpw_clear} || $data->{rootpw_clear} eq "" ) ){
             # parameter check failed
-            return $self->SetError(summary => __("Define 'passwd'."),
+            return $self->SetError(summary => __("Define 'rootpw'."),
                                    code => "PARAM_CHECK_FAILED");
         }
-	if(defined $data->{passwd} && $data->{passwd} ne "") {
+
+	if( (! defined $data->{rootpw} || $data->{rootpw} eq "") && 
+	    ( defined $data->{rootpw_clear} && $data->{rootpw_clear} ne "") ) {
+
             if(defined $data->{cryptmethod} && $data->{cryptmethod} ne "") {
                 $cryptMethod = $data->{cryptmethod};
             }
@@ -404,32 +409,33 @@ sub AddDatabase {
                                                           $cryptMethod),
                                        code => "PARAM_CHECK_FAILED");
             }
+            my $passwd_string = "";
             
             if( $cryptMethod eq "CRYPT" ) {
                 my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
-                $passwd_string = crypt $data->{passwd},$salt;
+                $passwd_string = crypt $data->{rootpw_clear},$salt;
                 $passwd_string = "{crypt}".$passwd_string;
             } elsif( $cryptMethod eq "SMD5" ) {
                 my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
                                  (int(rand 26)+65), (int(rand 26)+65));
                 my $ctx = new Digest::MD5();
-                $ctx->add($data->{passwd});
+                $ctx->add($data->{rootpw_clear});
                 $ctx->add($salt);
                 $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
             } elsif( $cryptMethod eq "SHA"){
-                my $digest = sha1($data->{passwd});
+                my $digest = sha1($data->{rootpw_clear});
                 $passwd_string = "{sha}".encode_base64($digest, "");
             } elsif( $cryptMethod eq "SSHA"){
                 my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
                                  (int(rand 26)+65), (int(rand 26)+65));
-                my $digest = sha1($data->{passwd}.$salt);
+                my $digest = sha1($data->{rootpw_clear}.$salt);
                 $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
             } else {
-                $passwd_string = $data->{passwd};
+                $passwd_string = $data->{rootpw_clear};
             }
-            $hash->{rootpw} = $passwd_string;
+            $addDBHash->{rootpw} = $passwd_string;
         } else {
-            $hash->{rootpw} = $data->{rootpw};
+            $addDBHash->{rootpw} = $data->{rootpw};
         }
     }
     
@@ -458,72 +464,98 @@ sub AddDatabase {
                                code => "DIR_DOES_NOT_EXIST");
         }
     }
-    $hash->{directory} = $data->{directory};
+    my $owner = SCR->Read('.sysconfig.openldap.OPENLDAP_USER');
+    my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
+    if ( SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$data->{directory}) )
+    {
+        return $self->SetError( summary => _("Could adjust ownership of database directory."),
+                                description => "",
+                                code => "DIR_CHOWN_FAILED" );
+    }
+
+    $addDBHash->{directory} = $data->{directory};
 
     ##################
-    # check cachesize
+    # check cachesizes
     ##################
-    if(defined $data->{cachesize} && $data->{cachesize} ne "") {
+    if(defined $data->{entrycache} && $data->{entrycache} ne "") {
 
-        if($data->{cachesize} !~ /^\d+$/) {
+        if($data->{entrycache} !~ /^\d+$/) {
             return $self->SetError(summary => __("Invalid cache size value."),
-                                   description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
+                                   description => "entrycache = '".$data->{entrycache}."'. Must be a integer value",
                                    code => "PARAM_CHECK_FAILED");
         }
-        $cachesize = $data->{cachesize};
+        $entrycache = $data->{entrycache};
     }
-    if(! exists $data->{cachesize}) {
+    if(! exists $data->{entrycache}) {
         # set default if parameter does not exist
-        $cachesize = 10000;
+        $entrycache = 10000;
     }
-    $hash->{cachesize} = $cachesize;
+    $addDBHash->{entrycache} = YaST::YCP::Integer($entrycache);
     
-    if($data->{database} eq "bdb") {
+    if(defined $data->{idlcache} && $data->{idlcache} ne "") {
+
+        if($data->{idlcache} !~ /^\d+$/) {
+            return $self->SetError(summary => __("Invalid cache size value."),
+                                   description => "idlcache = '".$data->{idlcache}."'. Must be a integer value",
+                                   code => "PARAM_CHECK_FAILED");
+        }
+        $idlcache = $data->{idlcache};
+    }
+    if(! exists $data->{idlcache}) {
+        # set default if parameter does not exist
+        $idlcache = 10000;
+    }
+    $addDBHash->{idlcache} = YaST::YCP::Integer($idlcache);
+
+    
+    if( ($data->{type} eq "bdb") && ($data->{type} eq "hdb" ) ){
         ##################
         # check checkpoint
         ##################
-        if(defined $data->{checkpoint} && $data->{checkpoint} ne "") {
-            my @cp = split(/\s+/, $data->{checkpoint});
+        if(defined $data->{checkpoint} && (scalar($data->{checkpoint}) != 2) ) {
+            my @cp = @{$data->{checkpoint} };
             if(!defined $cp[0] || !defined $cp[1] ||
                $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
                 return $self->SetError(summary => __("Invalid checkpoint value."),
                                        description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
                                        code => "PARAM_CHECK_FAILED");
             }
-            $checkpoint = $cp[0]." ".$cp[1];
+            $checkpoint = $data->{checkpoint};
         }
         if(! exists $data->{checkpoint}) {
             # set default if parameter does not exist
-            $checkpoint = "1024 5";
+            $checkpoint = ["1024,  5"];
         }
-        $hash->{checkpoint} = $checkpoint;
+        $addDBHash->{checkpoint} = [ YaST::YCP::Integer($checkpoint->[0]), YaST::YCP::Integer( $checkpoint->[1] ) ];
     }
-    if ( exists $data->{'overlay'} ){
-        $hash->{'overlay'} = $data->{'overlay'};
-    }
+#    if ( exists $data->{'overlay'} ){
+#        $addDBHash->{'overlay'} = $data->{'overlay'};
+#    }
 
-    if(SCR->Read(".target.size", $hash->{directory}."/DB_CONFIG") < 0) {
+    if(SCR->Read(".target.size", $addDBHash->{directory}."/DB_CONFIG") < 0) {
         my $DB_CONFIG = "set_cachesize 0 15000000 1\n".
                         "set_lg_bsize 2097152\n".
                         "set_lg_regionmax 262144\n".
                         "set_flags DB_LOG_AUTOREMOVE\n";
 
-        if(! SCR->Write(".target.string", $hash->{directory}."/DB_CONFIG", $DB_CONFIG)) {
+        if(! SCR->Write(".target.string", $addDBHash->{directory}."/DB_CONFIG", $DB_CONFIG)) {
             return $self->SetError(summary => "Can not create DB_CONFIG file.",
                                    code => "SCR_WRITE_FAILED");
         }
     }
 
-    if(! defined SCR->Execute(".ldapserver.adddatabase", $addDBHash)) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
+    if ( ! SCR->Write(".ldapserver.database.new.", $addDBHash ) )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_WRITE_FAILED";
+        return $self->SetError(%{$err});
     }
 
-    if(! SCR->Write(".ldapserver.database", $data->{suffix}, $hash)) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-
-    if(! $self->SwitchService(1)) {
-        return undef;
+    if(! SCR->Execute(".ldapserver.commitChanges") ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
     }
 
     # do not add the base entry, if we have nothing to bind with.
@@ -586,21 +618,16 @@ Supported keys in %valueMap are:
  
  * rootdn: The Root DN
  
- * passwd: The Root Password
+ * rootpw: The Root Password
+
+ * rootpw_clear: The cleartext Root Password
  
  * cryptmethod: The crypt method; allowed values are (CRYPT, SMD5, SHA, SSHA, PLAIN); default is 'SSHA'
 
- * cachesize: The cachesize(bdb/ldbm)
- 
- * checkpoint: The checkpoint(bdb)
-
-If the key is defined, but the value is 'undef' the option will be deleted.
 If a key is not defined, the option is not changed.
 If the key is defined and a value is specified, this value will be set.
 
-cryptmethod can not be deleted. It will be deleted if you delete passwd.
-
-If you delete rootdn, passwd is also deleted.
+If you delete rootdn, rootpw is also deleted.
 
 EXAMPLE:
 
@@ -637,14 +664,34 @@ sub EditDatabase {
         return $self->SetError(summary => "Missing 'data'",
                                code => "PARAM_CHECK_FAILED");
     }
-    y2debug("YaPI::LdapServer.pm EditDatabase: ".Data::Dumper->Dump([$data]));
+    y2milestone("YaPI::LdapServer.pm EditDatabase: $suffix: ".Data::Dumper->Dump([$data]));
+
+    # check if database exists and find index
+    my $dblist = $self->ReadDatabaseList();
+    y2milestone("EditDatabase: ".Data::Dumper->Dump([$dblist]));
+    my $index = -2;
+
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
+        }
+    }
+
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
+    }
+
     ###################
     # work on rootdn
     ###################
     if(exists $data->{rootdn} && ! defined $data->{rootdn}) {
 
         $editHash->{rootdn} = undef;
-        $data->{passwd} = undef;        # delete also passwd
+        $data->{rootpw} = undef;        # delete also passwd
 
     } elsif(exists $data->{rootdn}) {
         if(! defined X500::DN->ParseRFC2253($data->{rootdn})) {
@@ -668,18 +715,18 @@ sub EditDatabase {
     ###################
     # work on passwd
     ###################
-    if(exists $data->{passwd} && ! defined $data->{passwd}) {
-        
+    if(exists $data->{rootpw} && ! defined $data->{rootpw}) {
         $editHash->{rootpw} = undef;
-        
-    } elsif(exists $data->{passwd}) {
+    } elsif ( exists $data->{rootpw} && defined $data->{rootpw} && $data->{rootpw} ne "" ) {
+        $editHash->{rootpw} = $data->{rootpw};
+    } elsif(exists $data->{rootpw_clear}) {
 
-        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+        if(!defined $data->{rootpw_clear} || $data->{rootpw_clear} eq "") {
                                                # parameter check failed
             return $self->SetError(summary => __("Define 'passwd'."),
                                    code => "PARAM_CHECK_FAILED");
         }
-        if(!defined $data->{passwd} || $data->{passwd} eq "") {
+        if(!defined $data->{rootpw_clear} || $data->{rootpw_clear} eq "") {
                                    # parameter check failed
             return $self->SetError(summary => __("Define 'passwd'."),
                                    code => "PARAM_CHECK_FAILED");
@@ -698,109 +745,43 @@ sub EditDatabase {
 
         if( $cryptMethod eq "CRYPT" ) {
             my $salt =  pack("C2",(int(rand 26)+65),(int(rand 26)+65));
-            $passwd_string = crypt $data->{passwd},$salt;
+            $passwd_string = crypt $data->{rootpw_clear},$salt;
             $passwd_string = "{crypt}".$passwd_string;
         } elsif( $cryptMethod eq "SMD5" ) {
             my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
                              (int(rand 26)+65), (int(rand 26)+65));
             my $ctx = new Digest::MD5();
-            $ctx->add($data->{passwd});
+            $ctx->add($data->{rootpw_clear});
             $ctx->add($salt);
             $passwd_string = "{smd5}".encode_base64($ctx->digest.$salt, "");
         } elsif( $cryptMethod eq "SHA"){
-            my $digest = sha1($data->{passwd});
+            my $digest = sha1($data->{rootpw_clear});
             $passwd_string = "{sha}".encode_base64($digest, "");
         } elsif( $cryptMethod eq "SSHA"){
             my $salt =  pack("C5",(int(rand 26)+65),(int(rand 26)+65),(int(rand 26)+65),
                              (int(rand 26)+65), (int(rand 26)+65));
-            my $digest = sha1($data->{passwd}.$salt);
+            my $digest = sha1($data->{rootpw_clear}.$salt);
             $passwd_string = "{ssha}".encode_base64($digest.$salt, "");
         } else {
-            $passwd_string = $data->{passwd};
+            $passwd_string = $data->{rootpw_clear};
         }
         # set new rootpw
         
         $editHash->{rootpw} = $passwd_string;
     }
 
-    ###################
-    # work on cachesize
-    ###################
-    if(exists $data->{cachesize} && !defined $data->{cachesize}) {
-        # Delete cachesize option
-
-        $editHash->{cachesize} = undef;
-
-    } elsif(exists $data->{cachesize}) {
-
-        if(defined $data->{cachesize} && $data->{cachesize} ne "") {
-
-            if($data->{cachesize} !~ /^\d+$/) {
-                return $self->SetError(summary => __("Invalid cache size value."),
-                                       description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
-                                       code => "PARAM_CHECK_FAILED");
-            }
-            # set new cachesize
-
-            $editHash->{cachesize} = $data->{cachesize};
-
-        } else {
-            return $self->SetError(summary => __("Invalid cache size value."),
-                                   description => "cachesize = '".$data->{cachesize}."'. Must be a integer value",
-                                   code => "PARAM_CHECK_FAILED");
-        }
-    }
-
-    ####################
-    # work on checkpoint
-    ####################
-    if(exists $data->{checkpoint}) {
-
-        if(!defined $data->{checkpoint}) {
-            # Delete checkpoint option
-
-            $editHash->{checkpoint} = undef;
-
-        } else {
-
-            my $db = $self->ReadDatabase($suffix);
-            return undef if(! defined $db);
-
-            if($db->{database} eq "bdb") {
-
-                if($data->{checkpoint} ne "") {
-                    my @cp = split(/\s+/, $data->{checkpoint});
-                    if(!defined $cp[0] || !defined $cp[1] ||
-                       $cp[0] !~ /^\d+$/ || $cp[1] !~ /^\d+$/) {
-
-                        return $self->SetError(summary => __("Invalid checkpoint value."),
-                                               description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
-                                               code => "PARAM_CHECK_FAILED");
-                    }
-                    my $checkpoint = $cp[0]." ".$cp[1];
-                    # set new checkpoint
-
-                    $editHash->{checkpoint} = $checkpoint;
-
-                } else {
-                    return $self->SetError(summary => __("Invalid checkpoint value."),
-                                           description => "checkpoint = '".$data->{checkpoint}."'.\n Must be two integer values seperated by space.",
-                                           code => "PARAM_CHECK_FAILED");
-                }
-            }
-        }
-    }
-    if ( exists $data->{'overlay'} ){
-        $editHash->{'overlay'} = $data->{'overlay'};
-    }
-
-
     y2debug("YaPI::EditDatabase ". Data::Dumper->Dump([$data]) );
     y2debug("YaPI::EditDatabase edithash: ". Data::Dumper->Dump([$editHash]) );
-    if(! SCR->Write(".ldapserver.database", $suffix, $editHash)) {
+    if(! SCR->Write(".ldapserver.database.{$index}" , $editHash)) {
         my $err = SCR->Error(".ldapserver");
         $err->{description} = $err->{summary}."\n\n".$err->{description};
         $err->{summary} = __("Database edit failed.");
+        $err->{code} = "SCR_WRITE_FAILED";
+        return $self->SetError(%{$err});
+    }
+    if(! SCR->Execute(".ldapserver.commitChanges") ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
         return $self->SetError(%{$err});
     }
 
@@ -814,21 +795,24 @@ Read the database section with the suffix B<$suffix>.
 
 Returned keys in %valueMap are:
  
- * database: The database type
+ * type: The database type
  
  * suffix: The suffix
  
  * rootdn: The Root DN
  
- * passwd: The Root Password
+ * rootpw: The Root Password Hash
  
- * directory: The Directory where the database files are(bdb/ldbm)
+ * directory: The Directory where the database files are (bdb/hdb)
  
- * cachesize: The cachesize(bdb/ldbm)
+ * entrycache: The size of the entrycache
  
- * checkpoint: The checkpoint(bdb)
+ * idlcache: The size of the idlcache
+
+ * checkpoint: The checkpoint setting (A reference to a list see
+   AddDatabase()
  
-There can be some more, if they are in this databse section.
+There can be some more, depending on the database's configuration
 
 EXAMPLE:
 
@@ -854,27 +838,53 @@ sub ReadDatabase {
         return $self->SetError(summary => __("Missing parameter 'suffix'."),
                                code => "PARAM_CHECK_FAILED");
     }
-    my $dbHash = SCR->Read( ".ldapserver.database", $suffix );
+    # check if database exists and find index
+    my $dblist = $self->ReadDatabaseList();
+    my $index = -2;
+    my $type = "";
+
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
+            $type = $db->{'type'};
+        }
+    }
+
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
+    }
+
+    my $dbHash = SCR->Read( ".ldapserver.database.{$index}" );
     if(! defined $dbHash) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_READ_FAILED";
+        return $self->SetError(%{$err});
     }
-    if(exists $dbHash->{index}) {
-        # we have a special function to maintain 'index'
-        delete $dbHash->{index};
-    }
+    $dbHash->{'type'} = $type;
     return $dbHash;
 }
 
 =item *
 C<\@indexList = ReadIndex($suffix)>
 
-Returns a List of Maps with all index statements for this database. The "keys" are:
+Returns a Map of Maps with all defined indexes for a database. The keys of
+the outer Map are LDAP Attribute Type (e.g. 'objectClass'), the keys in the
+inner Maps are booleans for the specific type of indexes.
 
- * 'attr', an attribute or an attribute list
-
- * 'param', a number of special index parameters 
-
- * 'md5', a MD5 sum of this index. This numer is needed for EditIndex and DeleteIndex
+ {
+   'objectClass' => {
+                      'eq' => 1
+                    },
+   'cn' => {
+             'sub' => 1,
+             'pres' => 1,
+             'eq' => 1
+           }
+ }
 
 EXAMPLE:
 
@@ -894,60 +904,59 @@ BEGIN { $TYPEINFO{ReadIndex} = ["function", ["list", ["map", "string", "string"]
 sub ReadIndex {
     my $self = shift;
     my $suffix = shift;
-    my @idxList = ();
 
     if(! defined $suffix || $suffix eq "") {
                                           # error message at parameter check
         return $self->SetError(summary => __("Missing parameter 'suffix'."),
                                code => "PARAM_CHECK_FAILED");
     }
-    my $dbHash = SCR->Read( ".ldapserver.database", $suffix );
-    unless ( ( defined $dbHash) && (%$dbHash) ){
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    if(exists $dbHash->{index} && defined $dbHash->{index} &&
-       ref $dbHash->{index} eq "ARRAY") {
-        
-        foreach my $idx (@{$dbHash->{index}}) {
-            my $idxHash = {};
-            
-            my ($attr, $method, $empty) = split(/\s+/, $idx);
-            if(!(! defined $empty || $empty eq "")) {
-                return $self->SetError(summary => "Index parsing error.",
-                                       code => "PARSING_ERROR");
-            }
-            
-            $idxHash->{attr} = $attr;
-            $idxHash->{param} = $method;
-            
-            my $md5 = md5_hex( $attr." ".$method );
-            $idxHash->{md5} = $md5;
-            push @idxList, $idxHash;
+    my $dblist = $self->ReadDatabaseList();
+    my $index = -2;
+
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
         }
-        
     }
-    return \@idxList;
+    
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
+    }
+
+    my $idxList = SCR->Read( ".ldapserver.database.{$index}.indexes" );
+
+    return $idxList;
 }
 
 =item *
-C<$bool = AddIndex($suffix,\%indexMap)>
+C<$bool = EditIndex($suffix,\%indexMap)>
 
-Add a new index statement B<%indexMap> to the database section B<$suffix>.
+Add/or change the indexing of a single AttributeType.
 
-The indexMap has two keys
+The indexMap has up to four keys
 
- * 'attr', an attribute or an attribute list
+ * 'name', A single AttributeType
 
- * 'param', a number of special index parameters 
+ * 'eq', A boolean to indicate whether an equality index should be created 
+
+ * 'sub', A boolean to indicate whether a substring index should be created 
+
+ * 'pres', A boolean to indicate whether a presence index should be created 
 
 EXAMPLE:
 
  my $newIndex = {
-                 'attr'  => "uid,cn",
-                 'param' => "eq"
+                 'name'  => "uid",
+                 'eq' => 1,
+                 'pres' => 1,
+                 'sub' => 0
                 };
 
- my $res = YaPI::LdapServer->AddIndex("dc=example,dc=com", $newIndex);
+ my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", $newIndex);
  if( not defined $res ) {
      # error
  } else {
@@ -956,254 +965,66 @@ EXAMPLE:
 
 =cut
 
-BEGIN { $TYPEINFO{AddIndex} = ["function", "boolean", "string", [ "map", "string", "string"] ]; }
-sub AddIndex {
-    my $self = shift;
-    my $suffix = shift;
-    my $indexHash = shift;
-    my $orig_idxArray = undef;
-    my @new_idx = ();
-
-    if(!defined $suffix || $suffix eq "") {
-        return $self->SetError(summary => "Missing parameter 'suffix'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-    if(!defined $indexHash || !defined $indexHash->{attr} || 
-       !defined $indexHash->{param} ) {
-        return $self->SetError(summary => "Missing parameter 'index'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    my $md5 = md5_hex( $indexHash->{attr}." ".$indexHash->{param} );
-    
-    $orig_idxArray = $self->ReadIndex($suffix);
-    if(! defined $orig_idxArray) {
-        return $self->SetError( summary => "Database '$suffix' does not exist",
-                                code => "PARAM_CHECK_FAILED" );
-    }
-    
-    foreach my $idx (@{$orig_idxArray}) {
-        if($idx->{md5} eq $md5) {
-            return $self->SetError(summary => "Index already exists",
-                                   code => "PARAM_CHECK_FAILED");
-        }
-        push @new_idx, $idx->{attr}." ".$idx->{param};
-    }
-    push @new_idx, $indexHash->{attr}." ".$indexHash->{param};
-    
-    if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    return 1;
-}
-
-=item *
-C<$bool = EditIndex($suffix,$index_md5,\%indexMap)>
-
-Replace the index B<$index_md5> in the database section B<$suffix> by the new index
-statement B<%indexMap>.
-
-The indexMap has two keys
-
- * 'attr', an attribute or an attribute list
-
- * 'param', a number of special index parameters 
-
-EXAMPLE:
-
- my $newIndex = {
-                 'attr'  => "uid,cn",
-                 'param' => "eq"
-                };
-
- my $res = YaPI::LdapServer->EditIndex("dc=example,dc=com", "eacc11456b6c2ae4e1aef0fa287e02b0",
-                                       $newIndex);
- if( not defined $res ) {
-     # error
- } else {
-        print "OK: \n";
- }
-
-=cut
-
-BEGIN { $TYPEINFO{EditIndex} = ["function", "boolean", "string", "string", 
-                                [ "map", "string", "string"]]; }
+BEGIN { $TYPEINFO{EditIndex} = ["function", "boolean", "string", [ "map", "string", "any"] ]; }
 sub EditIndex {
     my $self = shift;
     my $suffix = shift;
-    my $idx_md5 = shift;
     my $indexHash = shift;
     my $orig_idxArray = undef;
     my @new_idx = ();
-    my $found = 0;
-
-    if(!defined $suffix) {
-        return $self->SetError(summary => "Missing parameter 'suffix'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    if(!defined $idx_md5 || $idx_md5 !~ /^[[:xdigit:]]+$/ ) {
-        return $self->SetError(summary => "Missing parameter 'idx_md5'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    if(!defined $indexHash || !defined $indexHash->{attr} || 
-       !defined $indexHash->{param} ) {
-        return $self->SetError(summary => "Missing parameter 'index'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-    
-    $orig_idxArray = $self->ReadIndex($suffix);
-    if(! defined $orig_idxArray) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    
-    foreach my $idx (@{$orig_idxArray}) {
-        if($idx->{md5} eq $idx_md5) {
-            push @new_idx, $indexHash->{attr}." ".$indexHash->{param};
-            $found = 1;
-        } else {
-            push @new_idx, $idx->{attr}." ".$idx->{param};
-        }
-    }
-    if(!$found) {
-        return $self->SetError(summary => "No such 'index'.",
-                               description => "MD5 '$idx_md5' not found in this database",
-                               code => "PARAM_CHECK_FAILED");
-    }
-    
-    if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    return 1;
-}
-
-=item *
-C<$bool = DeleteIndex($suffix,$index_md5)>
-
-Delete the index B<$index_md5> statement in the database section B<$suffix>. 
-
-EXAMPLE:
-
- my $res = YaPI::LdapServer->DeleteIndex("dc=example,dc=com", "338a980b4eebe87365a4077067ce1559");
- if( not defined $res ) {
-     # error
- } else {
-     print "OK: \n";
- }
-
-=cut
-
-BEGIN { $TYPEINFO{DeleteIndex} = ["function", "boolean", "string", "string" ]; }
-sub DeleteIndex {
-    my $self = shift;
-    my $suffix = shift;
-    my $idx_md5 = shift;
-    my $orig_idxArray = undef;
-    my @new_idx = ();
-    my $found = 0;
-
-    if(!defined $suffix) {
-        return $self->SetError(summary => "Missing parameter 'suffix'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-
-    if(!defined $idx_md5 || $idx_md5 !~ /^[[:xdigit:]]+$/ ) {
-        return $self->SetError(summary => "Missing parameter 'idx_md5'",
-                               code => "PARAM_CHECK_FAILED");
-    }
-    
-    $orig_idxArray = $self->ReadIndex($suffix);
-    if(! defined $orig_idxArray) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    
-    foreach my $idx (@{$orig_idxArray}) {
-        if($idx->{md5} eq $idx_md5) {
-            $found = 1;
-        } else {
-            push @new_idx, $idx->{attr}." ".$idx->{param};
-        }
-    }
-    if(!$found) {
-        return $self->SetError(summary => "No such 'index'.",
-                               description => "MD5 '$idx_md5' not found in this database",
-                               code => "PARAM_CHECK_FAILED");
-    }
-    
-    if(! SCR->Write(".ldapserver.database", $suffix, { index => \@new_idx })) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
-    }
-    return 1;
-}
-
-=item *
-C<$bool = RecreateIndex($suffix)>
-
-Regenerate indices based upon the current contents of a 
-database determined by $suffix. This function stops the 
-ldapserver, call slapindex and start the ldapserver again.
-
-EXAMPLE:
-
- my $res = YaPI::LdapServer->RecreateIndex("dc=example,dc=com");
- if( not defined $res ) {
-     # error
- } else {
-     print "OK: \n";
- }
-
-=cut
-
-BEGIN { $TYPEINFO{RecreateIndex} = ["function", "boolean", "string" ]; }
-sub RecreateIndex {
-    my $self = shift;
-    my $suffix = shift;
-    my $err = 0;
 
     if(!defined $suffix || $suffix eq "") {
         return $self->SetError(summary => "Missing parameter 'suffix'",
                                code => "PARAM_CHECK_FAILED");
     }
-
-    my $object = X500::DN->ParseRFC2253($suffix);
-    if(! defined $object) {
-        return $self->SetError(summary => "Wrong parameter 'suffix'",
-                               description => "'$suffix' is no DN",
+    if(!defined $indexHash || !defined $indexHash->{name} ) {
+        return $self->SetError(summary => "Missing parameter 'index'",
                                code => "PARAM_CHECK_FAILED");
     }
+    
+    my $dblist = $self->ReadDatabaseList();
+    my $index = -2;
 
-    if(! $self->SwitchService(0)) {
-        return undef;
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
+        }
+    }
+    
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
     }
 
-    $suffix = $object->getRFC2253String();
-    
-    if(0 != SCR->Execute(".target.bash", "slapindex -b '$suffix'") ) {
-        $err = 1;
+    $indexHash->{'pres'} = YaST::YCP::Boolean($indexHash->{'pres'});
+    $indexHash->{'eq'} = YaST::YCP::Boolean($indexHash->{'eq'});
+    $indexHash->{'sub'} = YaST::YCP::Boolean($indexHash->{'sub'});
+    if(! SCR->Write(".ldapserver.database.{$index}.index", $indexHash) ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_WRITE_FAILED";
+        return $self->SetError(%{$err});
     }
-    
-    if(! $self->SwitchService(1)) {
-        return undef;
-    }
-    
-    if($err) {
-        return $self->SetError(summary => "Can not create new index",
-                               code => "SCR_EXECUTE_FAILED");
+    if(! SCR->Execute(".ldapserver.commitChanges") ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
     }
     return 1;
 }
 
 =item *
-C<\@list = ReadSchemaIncludeList()>
+C<\@list = ReadSchemaList()>
 
-Returns a list of all included schema files in the order they appear in the config files.
+Returns a list of all included schemas items
 
 EXAMPLE:
 
  use Data::Dumper;
 
- my $res = YaPI::LdapServer->ReadSchemaIncludeList();
+ my $res = YaPI::LdapServer->ReadSchemaList();
  if( not defined $res ) {
      # error
  } else {
@@ -1213,41 +1034,28 @@ EXAMPLE:
 
 =cut
 
-BEGIN { $TYPEINFO{ReadSchemaIncludeList} = ["function", ["list", "string"] ]; }
-sub ReadSchemaIncludeList {
+BEGIN { $TYPEINFO{ReadSchemaList} = ["function", ["list", "string"] ]; }
+sub ReadSchemaList {
     my $self = shift;
 
-    my $global = SCR->Read( ".ldapserver.global" );
-    if(! defined $global) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
+    my $schemaList = SCR->Read( ".ldapserver.schemaList" );
+    if(! defined $schemaList) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_READ_FAILED";
+        return $self->SetError(%{$err});
     }
-    if(exists $global->{schemainclude} && defined $global->{schemainclude} &&
-       ref $global->{schemainclude} eq "ARRAY") {
-        return $global->{schemainclude};
-    }
-    return ();
+    return $schemaList;
 }
 
 =item *
-C<$bool = WriteSchemaIncludeList(\@list)>
+C<$bool = AddSchema($file)>
 
-Writes all schema includes preserving order.
-
-You have to restart the LDAP Server with YaPI::LdapServer->SwitchService(1)
-to activate these changes. 
+Adds an additional schema item. $file is the absolute pathname of the file
+to add.  It can either be in .schema or LDIF format.
 
 EXAMPLE:
 
- my $schemas = [
-                '/etc/openldap/schema/core.schema',
-                '/etc/openldap/schema/cosine.schema',
-                '/etc/openldap/schema/inetorgperson.schema',
-                '/etc/openldap/schema/rfc2307bis.schema',
-                '/etc/openldap/schema/yast2userconfig.schema',
-                '/etc/openldap/schema/samba3.schema'
-               ];
-
- my $res = YaPI::LdapServer->WriteSchemaIncludeList($schemas);
+ my $res = YaPI::LdapServer->AddSchema("/etc/openldap/schema/ppolicy.schema");
  if( not defined $res ) {
      # error
  } else {
@@ -1256,26 +1064,41 @@ EXAMPLE:
 
 =cut
 
-BEGIN { $TYPEINFO{WriteSchemaIncludeList} = ["function", "boolean", ["list", "string"] ]; }
-sub WriteSchemaIncludeList {
+BEGIN { $TYPEINFO{AddSchema} = ["function", "boolean", ["list", "string"] ]; }
+sub AddSchema {
     my $self = shift;
-    my $incList = shift;
+    my $file = shift;
 
-    if(!defined $incList || ref($incList) ne "ARRAY" ) {
-        return $self->SetError(summary => "Include list is missing",
+    if(!defined $file || $file eq "" ) {
+        return $self->SetError(summary => "File name is missing",
                                code => "PARAM_CHECK_FAILED");
     }
-
-    foreach my $path (@{$incList}) {
-        if(! -e $path) {
-            return $self->SetError(summary => "File does not exist.",
-                                   description => "'$path' does not exist",
-                                   code => "PARAM_CHECK_FAILED");
-        }
-    }
     
-    if(! SCR->Write(".ldapserver.global", { schemainclude => $incList })) {
-        return $self->SetError(%{SCR->Error(".ldapserver")});
+    my $ret = 0;
+
+    if ( $file =~ /.schema$/ )
+    {
+        $ret = SCR->Write(".ldapserver.schema.addFromSchemafile", $file );
+    }
+    elsif ( $file =~ /.ldif$/ )
+    {
+        $ret = SCR->Write(".ldapserver.schema.addFromLdif", $file );
+    }
+    else
+    {
+        return $self->SetError(summary => "File format not supported",
+                               code => "SCHEMA_UNKNOWN_FORMAT");
+    }
+
+    if (! $ret ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
+    }
+    if(! SCR->Execute(".ldapserver.commitChanges") ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
     }
     return 1;
 }
