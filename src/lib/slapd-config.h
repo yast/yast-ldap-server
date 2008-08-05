@@ -48,7 +48,9 @@ class OlcConfigEntry
         inline const LDAPEntry& getChangedEntry() const {
             return m_dbEntryChanged;
         }
+
         virtual void clearChangedEntry();     
+        virtual void resetEntries( const LDAPEntry &le );
 
         bool isNewEntry() const;
         bool isDeletedEntry() const;
@@ -74,6 +76,7 @@ class OlcConfigEntry
         virtual std::string toLdif() const;
 
     protected:
+        virtual void resetMemberAttrs() {};
         virtual void updateEntryDn();
 
         int entryIndex;
@@ -105,6 +108,7 @@ class OlcOverlay : public OlcConfigEntry
         const std::string getType() const;
 
     protected:
+        virtual void resetMemberAttrs();
         std::string m_type;
 };
 
@@ -132,6 +136,7 @@ class OlcDatabase : public OlcConfigEntry
         OlcOverlayList& getOverlays() ;
 
     protected:
+        virtual void resetMemberAttrs();
         virtual void updateEntryDn();
         std::string m_type;
         OlcOverlayList m_overlays;
@@ -194,6 +199,7 @@ class OlcSchemaConfig : public OlcConfigEntry
         const std::vector<LDAPAttrType> getAttributeTypes() const;
 
     private:
+        virtual void resetMemberAttrs();
         std::string m_name;
 };
 
@@ -236,13 +242,14 @@ class OlcConfig {
 
     public:
         OlcConfig(LDAPConnection *lc=0 );
+        bool hasConnection() const;
 
         boost::shared_ptr<OlcGlobalConfig> getGlobals();
         OlcDatabaseList getDatabases();
         OlcSchemaList getSchemaNames();
 
         void setGlobals( OlcGlobalConfig &olcg);
-        void updateEntry( const OlcConfigEntry &oce );
+        void updateEntry( OlcConfigEntry &oce );
 
         static SlapdConfigLogCallback *logCallback;
         static void setLogCallback( SlapdConfigLogCallback *lcb );
