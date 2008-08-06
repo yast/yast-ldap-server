@@ -942,7 +942,7 @@ sub InitDbDefaults
     $dbDefaults{'rootpw_clear'} = "";
     $dbDefaults{'pwenctype'} = "SSHA";
     $dbDefaults{'entrycache'} = 10000;
-    $dbDefaults{'idlcache'} = 10000;
+    $dbDefaults{'idlcache'} = 30000;
     $dbDefaults{'checkpoint'} = [ YaST::YCP::Integer(1024),
             YaST::YCP::Integer(5) ];
     
@@ -979,7 +979,7 @@ sub ReadFromDefaults
     my $self = shift;
     
     my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
-    my $database = { 'type' => 'bdb',
+    my $database = { 'type' => 'hdb',
                      'suffix' => $dbDefaults{'basedn'},
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,

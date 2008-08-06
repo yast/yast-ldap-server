@@ -24,7 +24,6 @@
         list enc_types = [
             `item( `id( "CRYPT"), "CRYPT", enctype == "CRYPT" ),
             `item( `id( "SMD5" ), "SMD5", enctype == "SMD5" ),
-            `item( `id( "SHA" ), "SHA", enctype == "SHA" ),
             `item( `id( "SSHA" ), "SSHA", enctype == "SSHA" ),
             `item( `id( "PLAIN" ), "PLAIN", enctype == "PLAIN" )
         ];
@@ -174,7 +173,7 @@
                 map<string,string> db = $[
                     "suffix"            : suffix,
                     "directory"         : directory,
-                    "type"              : "bdb",
+                    "type"              : "hdb",
                 ];
                 if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
                 {
