@@ -62,6 +62,7 @@ any ProposalSequence() {
 
     map aliases = $[
         "startup"   : ``( EnableServiceDialog() ),
+        "tlssettings" : ``( TlsConfigDialog() ),
         "database"   : ``( ProposalDialog() ),
         "summary"   : ``(SummaryDialog() ),
         "advanced"  :  ``(MainSequence() ),
@@ -71,6 +72,9 @@ any ProposalSequence() {
     map sequence = $[
         "ws_start"  : "startup",
         "startup"   : $[
+            `next   : "tlssettings"
+        ],
+        "tlssettings" : $[
             `next   : "database"
         ],
         "database"   : $[

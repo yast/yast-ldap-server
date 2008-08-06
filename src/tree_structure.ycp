@@ -365,8 +365,24 @@ define boolean cb_write_tls()
                 "caCertDir"  : "",
                 "crlFile"    : "",
                 "crlCheck"   : 0,
-                "verifyClient" : 0
+                "verifyClient" : 0,
+                "tls_active" : true
             ];
+        if ( (string)tlsSettings["caCertFile"]:"" == "" )
+        {
+            callback_error = _("Please select a valid CA Certificate File");
+            return false;
+        }
+        if ( (string)tlsSettings["certFile"]:"" == "" )
+        {
+            callback_error = _("Please select a valid Certificate File");
+            return false;
+        }
+        if ( (string)tlsSettings["certKeyFile"]:"" == "" )
+        {
+            callback_error = _("Please select a valid Certificate Key File");
+            return false;
+        }
         if ( ! LdapServer::SetTlsConfig( tlsSettings ) )
         {
             map<string, string> err = LdapServer::GetError();
@@ -466,6 +482,7 @@ define boolean cb_input_tls()
     else if( handler_cmd == `pb_launch_ca )
     {
         WFM::CallFunction("ca_mgm", [] );
+        cb_read_tls();
     }
     //reread tls page
     return true;
