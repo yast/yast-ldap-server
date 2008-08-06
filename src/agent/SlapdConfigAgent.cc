@@ -746,16 +746,22 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                 {
                     if ( ! i.value().isNull() )
                         tls.setCaCertFile(i.value()->asString()->value_cstr() );
+                    else
+                        tls.setCaCertFile("");
                 }
                 else if ( key == "certFile" )
                 {
                     if ( ! i.value().isNull() )
                         tls.setCertFile(i.value()->asString()->value_cstr() );
+                    else
+                        tls.setCertFile("");
                 }
                 else if ( key == "certKeyFile" )
                 {
                     if ( ! i.value().isNull() )
                         tls.setCertKeyFile(i.value()->asString()->value_cstr() );
+                    else
+                        tls.setCertKeyFile("");
                 }
                 else if ( key == "crlCheck" )
                 {
@@ -764,6 +770,9 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                 {
                     if ( ! i.value().isNull() )
                         tls.setCrlFile (i.value()->asString()->value_cstr() );
+                    else
+                        tls.setCertKeyFile("");
+
                 }
                 else if ( key == "verifyClient" )
                 {

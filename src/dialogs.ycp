@@ -256,6 +256,41 @@ any EnableServiceDialog()
     return ret;
 }
 
+any TlsConfigDialog()
+{
+    Wizard::SetContentsButtons( caption, tlsWidget, HELPS["tls_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
+    LdapServer::InitGlobals();
+    cb_read_tls();
+    any ret = nil;
+    while( true )
+    {
+        ret = UI::UserInput();
+        y2milestone( "TlsConfigDialog: seeing return value '%1'", ret );
+
+        if( ret == `back || ret == `abort || ret == `cancel)
+        {
+            break;
+        }
+        else if( ret == `next || ret == `finish )
+        {
+            if (! cb_write_tls() )
+            {
+                Report::Error( callback_error );
+                continue;
+            }
+            break;
+        }
+        else if( is( ret, symbol ) )
+        {
+            handler_cmd = (symbol)ret;
+            cb_input_tls();
+        }
+    }
+
+    return ret;
+
+}
+
 any ProposalDialog()
 {
     map <string, any> defaults = LdapServer::GetInitialDefaults();

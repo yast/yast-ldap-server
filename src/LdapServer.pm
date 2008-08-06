@@ -43,6 +43,7 @@ my $registerSlp = 0;
 my $useLdapiForConfig = 0;
 my %dbDefaults = ();
 
+my $globals_initialized = 0;
 my $use_ldapi_listener = 0;
 my $use_ldaps_listener = 0;
 my $use_ldap_listener = 0;
@@ -761,7 +762,7 @@ sub SetTlsConfig
 {
     my $self = shift;
     my $tls = shift;
-    if ( YaST::YCP::Boolean($tls->{'tls_active'}) )
+    if ( $tls->{'tls_active'} )
     {
         if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
         {
@@ -950,6 +951,27 @@ sub InitDbDefaults
     return 1;
 }
 
+BEGIN { $TYPEINFO {InitGlobals} = ["function", "boolean"]; }
+sub InitGlobals
+{
+    my $self = shift;
+    if ( ! $globals_initialized )
+    {
+        SCR->Execute('.ldapserver.initGlobals' );
+        if(! $self->HaveCommonServerCertificate() )
+        {
+            y2milestone( _("Common server certificate not available. StartTLS is disabled.") );
+        }
+        else
+        {
+            $self->SetTlsConfigCommonCert();
+            $self->SetProtocolListenerEnabled("ldaps", 1);
+        }
+        $globals_initialized = 1;
+    }
+    return 1;
+}
+
 BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
 sub ReadFromDefaults
 {
@@ -976,7 +998,7 @@ sub ReadFromDefaults
                         ]
                       };
 
-    SCR->Execute('.ldapserver.initGlobals' );
+    $self->InitGlobals();
     SCR->Execute('.ldapserver.initSchema' );
     my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
     if ( ! $rc ) {
