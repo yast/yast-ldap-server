@@ -1223,19 +1223,30 @@ sub AddDatabase
     }
     my $rc;
     $db->{'rootpw'} = $self->HashPassword($db->{'pwenctype'}, $db->{'rootpw_clear'} );
-    if ( $index > 0 )
+    if ( $index == 0 )
     {
-        $rc = SCR->Write(".ldapserver.database.new.{".$index."}", $db);
+        # calculate new database index
+        $index =  (scalar(@{$self->GetDatabaseList()} )) - 1;
     }
-    else
-    {
-        $rc = SCR->Write(".ldapserver.database.new.", $db);
-    }
+    $rc = SCR->Write(".ldapserver.database.new.{$index}", $db);
     if(! $rc ) {
         my $err = SCR->Error(".ldapserver");
         y2error("Adding Database failed: ".$err->{'summary'}." ".$err->{'description'});
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
+    }
+    my @acls = ('to dn.subtree="'. $db->{'suffix'} .'" attrs=userPassword by self write by * auth', 
+                # 'to attrs=shadowLastChange by self write by * read', 
+                'to dn.subtree="'. $db->{'suffix'} .'" by * read');
+    foreach my $acl (@acls )
+    {
+        $rc = SCR->Write(".ldapserver.database.{$index}.access", $acl );
+        if(! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding default ACLs failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return 0;
+        }
     }
     return 1;
 }
