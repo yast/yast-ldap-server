@@ -12,6 +12,7 @@
 
 package LdapServer;
 
+textdomain("ldap-server");
 use strict;
 
 use Data::Dumper;
