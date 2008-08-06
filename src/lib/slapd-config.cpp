@@ -653,6 +653,16 @@ const std::string OlcDatabase::getType() const
     return this->m_type;
 }
 
+void OlcDatabase::addAccessControl(const std::string& acl, int index )
+{
+    if ( index < 0 )
+    {
+        StringList sl = this->getStringValues( "olcAccess" );
+        index = sl.size();
+    }
+    this->addIndexedStringValue( "olcAccess", acl, index );
+}
+
 void OlcDatabase::addOverlay(boost::shared_ptr<OlcOverlay> overlay)
 {
     m_overlays.push_back(overlay);
@@ -747,6 +757,14 @@ void OlcConfigEntry::addStringValue(const std::string &type, const std::string &
         LDAPAttribute newAttr(type, value);
         m_dbEntryChanged.addAttribute(newAttr);
     }
+}
+
+void OlcConfigEntry::addIndexedStringValue(const std::string &type,
+        const std::string &value, int index)
+{
+    std::ostringstream oStr;
+    oStr << "{" << index << "}" << value;
+    this->addStringValue( type, oStr.str() );
 }
 
 int OlcConfigEntry::getIntValue( const std::string &type ) const

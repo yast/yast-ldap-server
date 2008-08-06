@@ -115,15 +115,26 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
 
-    if ( path->component_str(0) == "global" ) {
+    if ( path->component_str(0) == "global" )
+    {
         y2milestone("Global Write");
         return WriteGlobal(path->at(1), arg, arg2);
-    } else if ( (path->component_str(0) == "database") && (path->length() > 1) ) {
+    }
+    else if ( (path->component_str(0) == "database") && (path->length() > 1) )
+    {
         y2milestone("Database Write");
         return WriteDatabase(path->at(1), arg, arg2);
-    } else if ( path->component_str(0) == "schema" ) {
+    }
+    else if ( path->component_str(0) == "schema" )
+    {
         y2milestone("Schema Write");
         return WriteSchema(path->at(1), arg, arg2);
+    }
+    else if ( path->component_str(0) == "sambaACLHack" )
+    {
+        // FIXME: remove this, when ACL support in WriteDatabase() is implemented
+        y2error("Warning: sambaACL is currently not implemented");
+        return YCPBoolean(true);
     } else {
         lastError->add(YCPString("summary"), YCPString("Write Failed") );
         std::string msg = "Unsupported SCR path: `.ldapserver.";
@@ -167,7 +178,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             olc = OlcConfig(lc);
         }
     }
-    if ( path->component_str(0) == "initFromLdif" )
+    else if ( path->component_str(0) == "initFromLdif" )
     {
         std::istringstream ldifstream(arg->asString()->value_cstr());
         LdifReader ldif(ldifstream);
@@ -811,7 +822,6 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
             dbIndexStr = "";
         }
     }
-    YCPMap dbMap= arg->asMap();
     int dbIndex = -2;
     if ( dbIndexStr[0] == '{' )
     {
@@ -834,12 +844,13 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     bool ret = false;
     if ( databaseAdd )
     {
+        YCPMap dbMap= arg->asMap();
         y2milestone("creating new Database");
         if ( dbIndex == -2 )
         {
             dbIndex = databases.size()-1; //Database indexes start counting from -1
         }
-        else if ( (dbIndex <=0) || (dbIndex > (int)databases.size()-2) ) 
+        else if ( (dbIndex <=0) || (dbIndex > (int)databases.size()-1) ) 
         {
             lastError->add(YCPString("summary"), YCPString("Adding Database Failed") );
             std::string msg = "Invalid Index for new Database";
@@ -925,6 +936,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
             {
                 if ( path->length() == 1 )
                 {
+                    YCPMap dbMap= arg->asMap();
                     YCPValue val = dbMap.value( YCPString("rootdn") );
                     if ( ! val.isNull()  && val->isString() )
                     {
@@ -1029,6 +1041,12 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 }
                             }
                         }
+                        ret = true;
+                    }
+                    else if ( dbComponent == "access" )
+                    {
+                        y2milestone("adding ACL rule: %s", arg->asString()->value_cstr() );
+                        (*i)->addAccessControl(arg->asString()->value_cstr());
                         ret = true;
                     }
                     else
