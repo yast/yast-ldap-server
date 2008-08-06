@@ -183,8 +183,8 @@
                 if( rootdn != "" ) db = add( db, "rootdn", rootdn );
                 if( rootpw != "" )
                 {
-                    db = add( db, "passwd", rootpw );
-                    db = add( db, "cryptmethod", cryptmethod );
+                    db = add( db, "rootpw_clear", rootpw );
+                    db = add( db, "pwenctype", cryptmethod );
                 }
                 baseDb = db;
                 break;
