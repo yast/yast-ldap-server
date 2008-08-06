@@ -227,9 +227,9 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             std::string dbtype(dbMap->value(YCPString("type"))->asString()->value_cstr());
             y2milestone("Database Type: %s", dbtype.c_str());
             boost::shared_ptr<OlcDatabase> db;
-            if ( dbtype == "bdb" )
+            if ( dbtype == "bdb" || dbtype == "hdb" )
             {
-                db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase() );
+                db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase(dbtype) );
             } 
             else
             {
@@ -266,7 +266,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     }
                     continue;
                 }
-                if ( dbtype == "bdb" )
+                if ( dbtype == "bdb" || dbtype == "hdb" )
                 {
                     boost::shared_ptr<OlcBdbDatabase> bdb = 
                         boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
@@ -860,9 +860,9 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
         y2milestone("Database will get Index: %d", dbIndex);
         std::string dbtype(dbMap->value(YCPString("type"))->asString()->value_cstr());
         boost::shared_ptr<OlcDatabase> db;
-        if ( dbtype == "bdb" )
+        if ( dbtype == "bdb" || dbtype == "hdb" )
         {
-            db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase() );
+            db = boost::shared_ptr<OlcDatabase>(new OlcBdbDatabase( dbtype ) );
         } 
         else
         {
@@ -899,7 +899,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 }
                 continue;
             }
-            if ( dbtype == "bdb" )
+            if ( dbtype == "bdb" || dbtype == "hdb" )
             {
                 boost::shared_ptr<OlcBdbDatabase> bdb = 
                     boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
