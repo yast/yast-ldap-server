@@ -203,6 +203,7 @@ any EnableServiceDialog()
 	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
 
     Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
+    Wizard::HideBackButton();
 
     UI::ReplaceWidget(`rp_firewall,
             firewall_widget["custom_widget"]:`Empty()
@@ -212,10 +213,12 @@ any EnableServiceDialog()
     if( (boolean)defaults["serviceEnabled"]:true )
     {
         UI::ChangeWidget( `rb_yes, `Value, true );
+        Wizard::SetNextButton( `next, Label::NextButton());
     }
     else
     {
         UI::ChangeWidget( `cb_register_slp, `Enabled, false );
+        Wizard::SetNextButton( `finish , Label::FinishButton());
     }
 
     any ret = nil;
@@ -246,10 +249,12 @@ any EnableServiceDialog()
         {
             defaults["serviceEnabled"] = true;
             UI::ChangeWidget( `cb_register_slp, `Enabled, true );
+            Wizard::SetNextButton( `next , Label::NextButton());
         } else if( ret == `rb_no )
         {
             defaults["serviceEnabled"] = false;
             UI::ChangeWidget( `cb_register_slp, `Enabled, false );
+            Wizard::SetNextButton( `finish , Label::FinishButton());
         }
     }
 

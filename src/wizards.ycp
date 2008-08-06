@@ -72,21 +72,19 @@ any ProposalSequence() {
     map sequence = $[
         "ws_start"  : "startup",
         "startup"   : $[
-            `next   : "tlssettings"
+            `next   : "tlssettings",
+            `finish : `abort
         ],
         "tlssettings" : $[
             `next   : "database"
         ],
         "database"   : $[
             `next   : "summary",
-            `back   : `back,
             `abort  : `abort,
         ],
         "summary"   : $[
             `next   : "write",
-            `back   : `back,
-            `abort  : `back,
-            `cancel : `back,
+            `abort  : `abort,
             `advanced : "advanced"
         ],
 	"advanced" : $[
