@@ -1222,6 +1222,7 @@ sub AddDatabase
         }
     }
     my $rc;
+    $db->{'rootpw'} = $self->HashPassword($db->{'pwenctype'}, $db->{'rootpw_clear'} );
     if ( $index > 0 )
     {
         $rc = SCR->Write(".ldapserver.database.new.{".$index."}", $db);
