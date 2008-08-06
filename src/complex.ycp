@@ -480,10 +480,11 @@ any SummaryDialog() {
     /* Frame label */
     term contents =
         `VBox(
-            `RichText( summary ),
-            `Right(
-                `PushButton( `id(`pb_advanced), _("Advanced Configuration") )
-            )
+            `RichText( summary )
+            //,
+            //`Right(
+            //    `PushButton( `id(`pb_advanced), _("Advanced Configuration") )
+            //)
         );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
