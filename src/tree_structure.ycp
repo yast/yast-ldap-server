@@ -1061,7 +1061,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     y2milestone( "adding database item '%1' as '%2'", label, item_name );
 
-    if ( type == "bdb" )
+    if ( type == "bdb" || type == "hdb" )
     {
         widget_map[item_name] = bdb_item_map;
         widget_map[item_name + "_index"] = dbIndex;
