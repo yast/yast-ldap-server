@@ -10,6 +10,11 @@ This package is the public Yast2 API to managing a LDAP Server.
 
 use YaPI::LdapServer
 
+$bool = Init()
+
+ Initializes the API, needs to be called first, before any
+ other API call.
+
 \@dbList = ReadDatabaseList()
 
  Returns a list of configured databases.
@@ -144,6 +149,28 @@ YaST::YCP::Import ("Service");
 our $VERSION="1.2.0";
 our @CAPABILITIES = ( 'SLES9' );
 our %TYPEINFO;
+
+=item *
+C<\$bool = Init()>
+
+Initializes the API, needs to be called first, before any
+other API call.
+
+=cut
+
+BEGIN { $TYPEINFO{Init} = ["function", "boolean"]; }
+sub Init()
+{
+    my $self = shift;
+    my $rc = SCR->Execute('.ldapserver.init' );
+    if ( ! $rc )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "INIT_FAILED";
+        return $self->SetError(%{$err});
+    }
+    return 1;
+}
 
 =item *
 C<\@dbList = ReadDatabaseList()>
