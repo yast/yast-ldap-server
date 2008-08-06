@@ -147,7 +147,7 @@ class OlcDatabase : public OlcConfigEntry
 class OlcBdbDatabase : public  OlcDatabase 
 {
     public:
-        OlcBdbDatabase();
+        OlcBdbDatabase( const std::string& type = "hdb");
         OlcBdbDatabase( const LDAPEntry& le );
         void setDirectory( const std::string &dir);
 
