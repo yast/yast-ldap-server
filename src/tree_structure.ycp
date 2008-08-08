@@ -526,7 +526,7 @@ define boolean cb_input_databases()
         if (ret == `next )
         {
             rebuild_widget_tree = true;
-            if ( ! LdapServer::AddDatabase(0, LdapDatabase::ReadDatabase(), LdapDatabase::GetCreateDir() ) )
+            if ( ! LdapServer::AddDatabase(0, LdapDatabase::GetDatabase(), LdapDatabase::GetCreateDir() ) )
             {
                 map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
