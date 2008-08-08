@@ -466,6 +466,14 @@ sub Write {
             Progress->Finish();
             return 0;
         }
+        if ( $use_ldaps_listener )
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'yes');
+        } 
+        else
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+        }
         $rc = Service->Restart("ldap");
         if (! $rc )
         {
