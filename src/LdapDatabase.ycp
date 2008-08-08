@@ -10,15 +10,20 @@
 
     module "Database";
 
-    map <string, string> baseDb = $[];
+    map <string, any> baseDb = $[];
     boolean createDbDir = false;
 
 
-    define symbol AddDbBasic()
+    global define symbol AddDbBasic( boolean createDefaults )
     {
         boolean user_changed_dbdir = false;
-        list dblist = LdapServer::ReadDatabaseList();
-        integer numDbs = size(dblist)-2; // don't count frontend and Config DB
+        map <string, any> db = $[];
+        integer numDbs = 0;
+        if ( ! createDefaults )
+        {
+            list dblist = LdapServer::ReadDatabaseList();
+            numDbs = size(dblist)-2; // don't count frontend and Config DB
+        }
         string caption = _("New Database");
         string enctype = "SSHA";
         list enc_types = [
@@ -81,6 +86,28 @@
             );
         Wizard::SetContentsButtons(caption, addDbWidget, "",
                 Label::BackButton(), Label::NextButton());
+        if ( createDefaults )
+        {
+            db = LdapServer::CreateInitialDefaults();
+            boolean append_checked = true;
+
+            if( db["rootdn"]:"" != "" )
+            {
+                integer pos = search( db["rootdn"]:"", db["suffix"]:"" );
+                if( pos > -1 )
+                {
+                    db["rootdn"] = substring( db["rootdn"]:"", 0, pos-1 );
+                } else
+                {
+                    append_checked = false;
+                }
+            }
+            UI::ChangeWidget(`id( `te_basedn), `Value, db["suffix"]:"" );
+            UI::ChangeWidget(`id( `te_rootdn), `Value, db["rootdn"]:"" );
+            UI::ChangeWidget(`id( `cb_append_basedn), `Value, append_checked );
+            UI::ChangeWidget(`id( `te_directory), `Value, db["directory"]:"" );
+            UI::ChangeWidget(`id( `cb_cryptmethod), `Value, db["pwenctype"]:"" );
+        }
         symbol ret = `next;
         while(true) {
             ret = (symbol)UI::UserInput();
@@ -129,19 +156,22 @@
                     continue;
                 }
 
-                list<map<string, string> > dblist = LdapServer::ReadDatabaseList();
-                boolean exists = false;
-                foreach(map<string, string> db, dblist, {
-                    if ( suffix == db["suffix"]:"" )
-                    {
-                        Popup::Error( _("A database with that Base DN already exists.") );
-                        exists = true;
-                        break;
-                    }
-                } );
-                if ( exists )
+                if ( ! createDefaults )
                 {
-                    continue;
+                    list<map<string, string> > dblist = LdapServer::ReadDatabaseList();
+                    boolean exists = false;
+                    foreach(map<string, string> db, dblist, {
+                        if ( suffix == db["suffix"]:"" )
+                        {
+                            Popup::Error( _("A database with that Base DN already exists.") );
+                            exists = true;
+                            break;
+                        }
+                    } );
+                    if ( exists )
+                    {
+                        continue;
+                    }
                 }
                 if( rootpw != "" && rootdn == "" )
                 {
@@ -169,12 +199,11 @@
                         createDbDir = true;
                     }
                 }
-                //create new database
-                map<string,string> db = $[
-                    "suffix"            : suffix,
-                    "directory"         : directory,
-                    "type"              : "hdb",
-                ];
+
+                db = add( db, "suffix", suffix );
+                db = add( db, "directory", directory );
+                db = add( db, "type", "hdb" );
+
                 if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
                 {
                     rootdn = rootdn+","+suffix;
@@ -245,7 +274,7 @@
     global define any AddDbWizard()
     {
         map aliases = $[
-            "basics" : ``( AddDbBasic() ),
+            "basics" : ``( AddDbBasic(false) ),
             "syncprov" : ``( DbSyncProv() ),
             "ppolicy" : ``( DbPpolicy() )
         ];
@@ -273,7 +302,7 @@
         return ret;
     }
 
-    global define map<string,string> GetDatabase()
+    global define map<string,any> GetDatabase()
     {
         return baseDb;
     }
