@@ -586,7 +586,7 @@ sub Summary {
             .'<p>'._("Start LDAP Server: ").'<code>'.($defaults->{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
             .'<p>'._("Register at SLP Service: ").'<code>'.($defaults->{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>'
             .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
-            .'<p>'._("Database Suffix: ").'<code>'.$defaults->{'basedn'}.'</code></p>'
+            .'<p>'._("Database Suffix: ").'<code>'.$defaults->{'suffix'}.'</code></p>'
             .'<p>'._("Administrator DN: ").'<code>'.$defaults->{'rootdn'}.'</code></p>';
 
     return $string;
@@ -935,8 +935,9 @@ sub InitDbDefaults
         push @rdn, "dc=".$rdn;   
     }
     my $basedn = join ',', @rdn ;
-    y2milestone("basedn: $basedn");
-    $dbDefaults{'basedn'} = $basedn;
+    y2milestone("suffix: $basedn");
+    $dbDefaults{'suffix'} = $basedn;
+    $dbDefaults{'directory'} = "/var/lib/ldap";
     $dbDefaults{'rootdn'} = "cn=admin,".$basedn;
     $dbDefaults{'rootpw'} = "";
     $dbDefaults{'rootpw_clear'} = "";
@@ -980,7 +981,7 @@ sub ReadFromDefaults
     
     my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
     my $database = { 'type' => 'hdb',
-                     'suffix' => $dbDefaults{'basedn'},
+                     'suffix' => $dbDefaults{'suffix'},
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,
                      'directory' => '/var/lib/ldap',
@@ -1038,7 +1039,7 @@ sub ReadFromDefaults
             $self->ChangeDatabaseIndex(1, $idx );
         }
     }
-    push @added_databases, { suffix => $dbDefaults{'basedn'}, 
+    push @added_databases, { suffix => $dbDefaults{'suffix'}, 
                              rootdn => $dbDefaults{'rootdn'},
                              rootpw => $dbDefaults{'rootpw_clear'} };
     $usingDefaults = 0;
@@ -1202,7 +1203,7 @@ sub RemoveFromSchemaList
 }
 
 
-BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"], "boolean" ]; }
+BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"], "boolean" ]; }
 sub AddDatabase
 {
     my ($self, $index, $db, $createDir) = @_;
@@ -1236,6 +1237,8 @@ sub AddDatabase
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
     }
+
+    # add some default ACLs
     my @acls = ('to dn.subtree="'. $db->{'suffix'} .'" attrs=userPassword by self write by * auth', 
                 # 'to attrs=shadowLastChange by self write by * read', 
                 'to dn.subtree="'. $db->{'suffix'} .'" by * read');
@@ -1248,6 +1251,21 @@ sub AddDatabase
             $self->SetError( $err->{'summary'}, $err->{'description'} );
             return 0;
         }
+    }
+
+    # add some defaults to DB_CONFIG
+    my $dbconfig = [
+        "set_cachesize 0 15000000 1",
+        "set_lg_regionmax 262144",
+        "set_lg_bsize 2097152",
+        "set_flags DB_LOG_AUTOREMOVE"
+    ];
+    $rc = SCR->Write(".ldapserver.database.{$index}.dbconfig", $dbconfig );
+    if(! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        y2error("Adding DB_CONFIG failed: ".$err->{'summary'}." ".$err->{'description'});
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return 0;
     }
     return 1;
 }
