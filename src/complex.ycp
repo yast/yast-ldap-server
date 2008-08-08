@@ -189,7 +189,7 @@ without installing the required packages."));
             symbol ret = Popup::AnyQuestion3( _("You have an existing configuration but the LDAP Server is not running currently."), _("Do you want to start it now to re-read its configuration data or do you want to create a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
             if ( ret == `yes )
             {
-                LdapServer::SetServiceEnabled( true );
+                LdapServer::WriteServiceEnabled( true );
                 return `reread;
             }
             else  if (ret == `no )
@@ -298,7 +298,7 @@ be created"));
                 if (! LdapServer::MigrateSlapdConf())
                 {
                     y2milestone("LdapServer::MigrateSlapdConf failed");
-                    DisplayError( LdapServer::GetError() );
+                    DisplayError( LdapServer::ReadError() );
                     return `abort;
                 }
                 LdapServer::Read();
@@ -422,7 +422,7 @@ symbol DoMigration()
     if (! LdapServer::MigrateSlapdConf())
     {
         y2milestone("LdapServer::MigrateSlapdConf failed");
-        DisplayError( LdapServer::GetError() );
+        DisplayError( LdapServer::ReadError() );
         return `abort;
     }
     LdapServer::Read();
@@ -450,7 +450,7 @@ symbol WriteDialog() {
     // LdapServer::AbortFunction = PollAbort;
     boolean ret = LdapServer::Write();
     if (! ret ) {
-        map<string,string> err = LdapServer::GetError();
+        map<string,string> err = LdapServer::ReadError();
         if (err["details"]:"" != "" )
         {
             Popup::ErrorDetails( err["msg"]:"", err["details"]:"" );
@@ -518,7 +518,7 @@ any SummaryDialog() {
         {
             if ( ! LdapServer::ReadFromDefaults() )
             {
-                DisplayError( LdapServer::GetError() );
+                DisplayError( LdapServer::ReadError() );
                 ret = `abort;
             }
             break;

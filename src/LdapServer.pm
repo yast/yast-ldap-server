@@ -579,7 +579,7 @@ BEGIN { $TYPEINFO{Summary} = ["function", "string" ]; }
 sub Summary {
     # Configuration summary text for autoyast
     my $self = shift;
-    my $defaults = $self->GetInitialDefaults();
+    my $defaults = $self->CreateInitialDefaults();
     my $string;
 
     $string .= '<h2>'._("Startup Configuration").'</h2>'
@@ -654,8 +654,8 @@ sub ReadServiceEnabled {
     return $serviceEnabled;
 }
 
-BEGIN { $TYPEINFO {SetServiceEnabled} = ["function", "boolean", "boolean"]; }
-sub SetServiceEnabled {
+BEGIN { $TYPEINFO {WriteServiceEnabled} = ["function", "boolean", "boolean"]; }
+sub WriteServiceEnabled {
     my $self = shift;
     $serviceEnabled = shift;
     return 1;
@@ -673,10 +673,10 @@ sub ReadSLPEnabled {
     return $registerSlp;
 }
 
-BEGIN { $TYPEINFO {SetSLPEnabled} = ["function", "boolean", "boolean"]; }
-sub SetSLPEnabled {
+BEGIN { $TYPEINFO {WriteSLPEnabled} = ["function", "boolean", "boolean"]; }
+sub WriteSLPEnabled {
     my $self = shift;
-    y2milestone("SetSlpEnabled");
+    y2milestone("WriteSlpEnabled");
     $registerSlp = shift;
     return 1;
 }
@@ -701,20 +701,20 @@ sub SetError
     $error{'details'} = $details;
 }
 
-BEGIN { $TYPEINFO {GetError} = ["function", ["map", "string", "string"] ]; }
-sub GetError
+BEGIN { $TYPEINFO {ReadError} = ["function", ["map", "string", "string"] ]; }
+sub ReadError
 {
     return \%error;
 }
 
-BEGIN { $TYPEINFO {GetLogLevels} = ["function", [ "list", "string" ] ]; }
-sub GetLogLevels
+BEGIN { $TYPEINFO {ReadLogLevels} = ["function", [ "list", "string" ] ]; }
+sub ReadLogLevels
 {
     return  SCR->Read('.ldapserver.global.loglevel' );
 }
 
-BEGIN { $TYPEINFO {SetLogLevels} = ["function", "boolean", [ "list", "string" ] ]; }
-sub SetLogLevels
+BEGIN { $TYPEINFO {WriteLogLevels} = ["function", "boolean", [ "list", "string" ] ]; }
+sub WriteLogLevels
 {
     my $self = shift;
     my $lvls = shift;
@@ -722,20 +722,20 @@ sub SetLogLevels
     return 1;
 }
 
-BEGIN { $TYPEINFO {GetAllowFeatures} = ["function", [ "list", "string" ] ]; }
-sub GetAllowFeatures
+BEGIN { $TYPEINFO {ReadAllowFeatures} = ["function", [ "list", "string" ] ]; }
+sub ReadAllowFeatures
 {
     return  SCR->Read('.ldapserver.global.allow' );
 }
 
-BEGIN { $TYPEINFO {GetDisallowFeatures} = ["function", [ "list", "string" ] ]; }
-sub GetDisallowFeatures
+BEGIN { $TYPEINFO {ReadDisallowFeatures} = ["function", [ "list", "string" ] ]; }
+sub ReadDisallowFeatures
 {
     return  SCR->Read('.ldapserver.global.disallow' );
 }
 
-BEGIN { $TYPEINFO {SetAllowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
-sub SetAllowFeatures
+BEGIN { $TYPEINFO {WriteAllowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
+sub WriteAllowFeatures
 {
     my $self = shift;
     my $features = shift;
@@ -743,8 +743,8 @@ sub SetAllowFeatures
     return 1;
 }
 
-BEGIN { $TYPEINFO {SetDisallowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
-sub SetDisallowFeatures
+BEGIN { $TYPEINFO {WriteDisallowFeatures} = ["function", "boolean", [ "list", "string" ] ]; }
+sub WriteDisallowFeatures
 {
     my $self = shift;
     my $features = shift;
@@ -752,14 +752,14 @@ sub SetDisallowFeatures
     return 1;
 }
 
-BEGIN { $TYPEINFO {GetTlsConfig} = ["function", [ "map", "string", "any" ] ]; }
-sub GetTlsConfig
+BEGIN { $TYPEINFO {ReadTlsConfig} = ["function", [ "map", "string", "any" ] ]; }
+sub ReadTlsConfig
 {
     return SCR->Read('.ldapserver.global.tlsSettings' );
 }
 
-BEGIN { $TYPEINFO {SetTlsConfig} = ["function", "boolean", [ "map", "string", "any" ] ]; }
-sub SetTlsConfig
+BEGIN { $TYPEINFO {WriteTlsConfig} = ["function", "boolean", [ "map", "string", "any" ] ]; }
+sub WriteTlsConfig
 {
     my $self = shift;
     my $tls = shift;
@@ -794,8 +794,8 @@ sub SetTlsConfig
     return 1;
 }
 
-BEGIN { $TYPEINFO {SetTlsConfigCommonCert} = ["function", "boolean" ]; }
-sub SetTlsConfigCommonCert
+BEGIN { $TYPEINFO {WriteTlsConfigCommonCert} = ["function", "boolean" ]; }
+sub WriteTlsConfigCommonCert
 {
     my $self = shift;
     my $ret = SCR->Execute(".target.bash", 
@@ -816,7 +816,7 @@ sub SetTlsConfigCommonCert
                 "crlCheck"     => 0,
                 "verifyClient" => 0
     };
-    return $self->SetTlsConfig( $tlsSettings );
+    return $self->WriteTlsConfig( $tlsSettings );
 }
 
 BEGIN { $TYPEINFO {MigrateSlapdConf} = ["function", "boolean"]; }
@@ -886,10 +886,10 @@ sub MigrateSlapdConf
     return 1;
 }
 
-BEGIN { $TYPEINFO {GetInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
-sub GetInitialDefaults
+BEGIN { $TYPEINFO {CreateInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub CreateInitialDefaults
 {
-    y2milestone("GetInitialDefaults");
+    y2milestone("CreateInitialDefaults");
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
@@ -965,8 +965,8 @@ sub InitGlobals
         }
         else
         {
-            $self->SetTlsConfigCommonCert();
-            $self->SetProtocolListenerEnabled("ldaps", 1);
+            $self->WriteTlsConfigCommonCert();
+            $self->WriteProtocolListenerEnabled("ldaps", 1);
         }
         $globals_initialized = 1;
     }
@@ -1045,10 +1045,10 @@ sub ReadFromDefaults
     return 1;
 }
 
-BEGIN { $TYPEINFO {GetDatabaseList} = ["function", [ "list", [ "map" , "string", "string"] ] ]; }
-sub GetDatabaseList
+BEGIN { $TYPEINFO {ReadDatabaseList} = ["function", [ "list", [ "map" , "string", "string"] ] ]; }
+sub ReadDatabaseList
 {
-    y2milestone("GetDatabaseList");
+    y2milestone("ReadDatabaseList");
     my $self = shift;
     my $ret = ();
     my $rc = SCR->Read('.ldapserver.databases');
@@ -1063,21 +1063,21 @@ sub GetDatabaseList
     return $ret
 }
 
-BEGIN { $TYPEINFO {GetDatabase} = ["function", [ "map" , "string", "string"], "integer" ]; }
-sub GetDatabase
+BEGIN { $TYPEINFO {ReadDatabase} = ["function", [ "map" , "string", "string"], "integer" ]; }
+sub ReadDatabase
 {
     my ($self, $index) = @_;
-    y2milestone("GetDatabase ".$index);
+    y2milestone("ReadDatabase ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}" );
     y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
 
-BEGIN { $TYPEINFO {GetDatabaseIndexes} = ["function", [ "map" , "string", [ "map", "string", "boolean" ] ], "integer" ]; }
-sub GetDatabaseIndexes
+BEGIN { $TYPEINFO {ReadDatabaseIndexes} = ["function", [ "map" , "string", [ "map", "string", "boolean" ] ], "integer" ]; }
+sub ReadDatabaseIndexes
 {
     my ($self, $index) = @_;
-    y2milestone("GetDatabase ".$index);
+    y2milestone("ReadDatabaseIndexes ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}.indexes" );
     y2milestone( "Indexes: ".Data::Dumper->Dump([$rc]) );
     return $rc;
@@ -1095,21 +1095,21 @@ sub ChangeDatabaseIndex
     return $rc;
 }
 
-BEGIN { $TYPEINFO {GetOverlayList} = ["function", [ "list", [ "map" , "string", "string"] ], "integer" ]; }
-sub GetOverlayList
+BEGIN { $TYPEINFO {ReadOverlayList} = ["function", [ "list", [ "map" , "string", "string"] ], "integer" ]; }
+sub ReadOverlayList
 {
     my ($self, $index) = @_;
-    y2milestone("GetOverlayList ", $index);
+    y2milestone("ReadOverlayList ", $index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}.overlays" );
     y2milestone( "Overlays: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
 
-BEGIN { $TYPEINFO {GetPpolicyOverlay} = ["function", [ "map" , "string", "any" ], "integer" ]; }
-sub GetPpolicyOverlay
+BEGIN { $TYPEINFO {ReadPpolicyOverlay} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub ReadPpolicyOverlay
 {
     my ($self, $index) = @_;
-    y2milestone("GetPpolicyOverlay ", $index);
+    y2milestone("ReadPpolicyOverlay ", $index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}.ppolicy" );
     y2milestone( "Ppolicy: ".Data::Dumper->Dump([$rc]) );
     if ( defined $rc->{'hashClearText'} )
@@ -1135,7 +1135,7 @@ sub AddPasswordPolicy
         $ppolicy->{'useLockout'} = YaST::YCP::Boolean($ppolicy->{'useLockout'});
         
         # slapo-ppolicy requires ppolicy schema to be loaded
-        my $schema = $self->GetSchemaList();
+        my $schema = $self->ReadSchemaList();
         if ( ! grep( /^ppolicy$/, @{$schema} ) )
         {
             my $rc = $self->AddSchemaToSchemaList("/etc/openldap/schema/ppolicy.schema");
@@ -1155,11 +1155,11 @@ sub AddPasswordPolicy
     }
 }
 
-BEGIN { $TYPEINFO {GetSchemaList} = ["function", [ "list" , "string"] ]; }
-sub GetSchemaList
+BEGIN { $TYPEINFO {ReadSchemaList} = ["function", [ "list" , "string"] ]; }
+sub ReadSchemaList
 {
     my $self = @_;
-    y2milestone("GetSchemaList ");
+    y2milestone("ReadSchemaList ");
     my $rc = SCR->Read(".ldapserver.schemaList" );
     y2milestone( "SchemaList: ".Data::Dumper->Dump([$rc]) );
     return $rc;
@@ -1227,7 +1227,7 @@ sub AddDatabase
     if ( $index == 0 )
     {
         # calculate new database index
-        $index =  (scalar(@{$self->GetDatabaseList()} )) - 1;
+        $index =  (scalar(@{$self->ReadDatabaseList()} )) - 1;
     }
     $rc = SCR->Write(".ldapserver.database.new.{$index}", $db);
     if(! $rc ) {
@@ -1330,11 +1330,11 @@ sub HaveCommonServerCertificate
     return YaST::YCP::Boolean(1);
 }
 
-BEGIN { $TYPEINFO {GetProtocolListenerEnabled} = ["function", "boolean", "string" ]; }
-sub GetProtocolListenerEnabled
+BEGIN { $TYPEINFO {ReadProtocolListenerEnabled} = ["function", "boolean", "string" ]; }
+sub ReadProtocolListenerEnabled
 {
     my ( $self, $protocol ) = @_;
-    y2milestone("GetProtocolListenerEnabled $protocol (ldapi $use_ldapi_listener, ldaps $use_ldaps_listener, ldap $use_ldap_listener)");
+    y2milestone("ReadProtocolListenerEnabled $protocol (ldapi $use_ldapi_listener, ldaps $use_ldaps_listener, ldap $use_ldap_listener)");
     if ( $protocol eq "ldap" )
     {
         return $use_ldap_listener;
@@ -1353,11 +1353,11 @@ sub GetProtocolListenerEnabled
     }
 }
 
-BEGIN { $TYPEINFO {SetProtocolListenerEnabled} = ["function", "boolean", "string", "boolean" ]; }
-sub SetProtocolListenerEnabled
+BEGIN { $TYPEINFO {WriteProtocolListenerEnabled} = ["function", "boolean", "string", "boolean" ]; }
+sub WriteProtocolListenerEnabled
 {
     my ( $self, $protocol, $enabled ) = @_;
-    y2milestone("SetProtocolListenerEnabled $protocol $enabled");
+    y2milestone("WriteProtocolListenerEnabled $protocol $enabled");
     if ( $protocol eq "ldap" )
     {
         $use_ldap_listener = $enabled;

@@ -17,7 +17,7 @@
     define symbol AddDbBasic()
     {
         boolean user_changed_dbdir = false;
-        list dblist = LdapServer::GetDatabaseList();
+        list dblist = LdapServer::ReadDatabaseList();
         integer numDbs = size(dblist)-2; // don't count frontend and Config DB
         string caption = _("New Database");
         string enctype = "SSHA";
@@ -129,7 +129,7 @@
                     continue;
                 }
 
-                list<map<string, string> > dblist = LdapServer::GetDatabaseList();
+                list<map<string, string> > dblist = LdapServer::ReadDatabaseList();
                 boolean exists = false;
                 foreach(map<string, string> db, dblist, {
                     if ( suffix == db["suffix"]:"" )

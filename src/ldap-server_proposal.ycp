@@ -58,13 +58,13 @@ if(func == "MakeProposal") {
             if (!Package::Installed ("openldap2"))
             {
                 y2milestone ("Openldap2 is not installed. --> service disabled");
-                LdapServer::SetServiceEnabled (false);
+                LdapServer::WriteServiceEnabled (false);
             }
             else
             {
-                LdapServer::SetServiceEnabled( true );
+                LdapServer::WriteServiceEnabled( true );
             }
-            defaults = LdapServer::GetInitialDefaults();
+            defaults = LdapServer::CreateInitialDefaults();
             defaults["rootpw_clear"] = Users::GetRootPassword();
             LdapServer::SetInitialDefaults(defaults);
         }
@@ -192,8 +192,8 @@ without installing the required packages."));
         }
         Progress::off();
         LdapServer::ReadFromDefaults();
-        LdapServer::SetServiceEnabled( true );
-        LdapServer::SetLogLevels( ["none"] );
+        LdapServer::WriteServiceEnabled( true );
+        LdapServer::WriteLogLevels( ["none"] );
         Progress::on();
         if( !LdapServer::HaveCommonServerCertificate() )
         {
@@ -202,9 +202,9 @@ StartTLS is disabled.") );
         }
         else
         {
-            LdapServer::SetTlsConfigCommonCert();
+            LdapServer::WriteTlsConfigCommonCert();
         }
-        LdapServer::SetSLPEnabled( true );
+        LdapServer::WriteSLPEnabled( true );
         LdapServer::Write();
     }
 }
