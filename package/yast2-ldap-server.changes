@@ -1,4 +1,17 @@
 -------------------------------------------------------------------
+Fri Aug  8 12:50:21 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.0
+- Major rewrite of the whole module. yast2-ldap-server is using
+  OpenLDAP's configuration database (back-config) now instead of
+  /etc/openldap/slapd.conf
+- The module can handle /etc/sysconfig/openldap settings now.
+  (Fate#303058)
+- Automatically setup TLS if certificates exist (Fate#303165)
+- CA-Management Module can be launched from within 
+  yast2-ldap-server (Fate#303546)
+
+-------------------------------------------------------------------
 Fri May 16 16:49:30 CEST 2008 - rhafer@suse.de
 
 - Error out if Database does not exist in
