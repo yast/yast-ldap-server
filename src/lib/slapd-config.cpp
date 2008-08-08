@@ -458,7 +458,8 @@ const std::vector<LDAPAttrType> OlcSchemaConfig::getAttributeTypes() const
         LDAPAttrType currentAttr;
         std::string tmp;
         splitIndexFromString( *j, tmp );
-        currentAttr = LDAPAttrType( tmp );
+        currentAttr = LDAPAttrType( tmp, LDAP_SCHEMA_ALLOW_NO_OID | 
+                             LDAP_SCHEMA_ALLOW_QUOTED | LDAP_SCHEMA_ALLOW_OID_MACRO );
         res.push_back(currentAttr);
     }
     return res;
