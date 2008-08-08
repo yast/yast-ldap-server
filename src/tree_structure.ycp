@@ -537,16 +537,6 @@ define boolean cb_input_databases()
         {
             y2milestone( "Database creating aborted" );
         }
-//                if( LdapServer::AddDatabase( db ) )
-//                {
-//                    y2milestone( "adding database was successful, now trying to add widget tree item" );
-//                    rebuild_widget_tree = true;
-//                    break;
-//                } else {
-//                    y2milestone( "adding database was not successful" );
-//                }
-//            }
-//        }
     }
 
     return true;
