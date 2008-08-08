@@ -1049,6 +1049,17 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         (*i)->addAccessControl(arg->asString()->value_cstr());
                         ret = true;
                     }
+                    else if ( dbComponent == "dbconfig" )
+                    {
+                        YCPList argList = arg->asList();
+                        StringList dbConfList;
+                        for ( int j = 0; j < argList->size(); j++ )
+                        {
+                            dbConfList.add( argList->value(j)->asString()->value_cstr() );
+                        }
+                        (*i)->setStringValues("olcDbConfig", dbConfList );
+                        ret = true;
+                    }
                     else
                     {
                         lastError->add(YCPString("summary"), YCPString("Write Failed") );
