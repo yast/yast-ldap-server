@@ -194,7 +194,7 @@ term dlg_service_initial = `HSquash(
 );
 any EnableServiceDialog()
 {
-    map <string, any> defaults = LdapServer::GetInitialDefaults();
+    map <string, any> defaults = LdapServer::CreateInitialDefaults();
     map<string, any> firewall_settings = $[
             "services": [ "ldap" , "ldaps" ],
             "display_details": true,
@@ -298,7 +298,7 @@ any TlsConfigDialog()
 
 any ProposalDialog()
 {
-    map <string, any> defaults = LdapServer::GetInitialDefaults();
+    map <string, any> defaults = LdapServer::CreateInitialDefaults();
     string enctype = "";
     boolean useCommonCA = false;
     boolean common_ca_available = ( CaMgm::prop_selection == `def || CaMgm::prop_selection == `floppy || CaMgm::prop_selection == `expert );

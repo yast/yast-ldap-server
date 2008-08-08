@@ -96,7 +96,7 @@ define boolean cb_read_daemon()
         UI::ChangeWidget( `fr_listener, `Enabled, false );
         UI::ChangeWidget( `fr_firewall, `Enabled, false );
     }
-    if ( LdapServer::GetProtocolListenerEnabled("ldap") )
+    if ( LdapServer::ReadProtocolListenerEnabled("ldap") )
     {
         UI::ChangeWidget( `cb_interface_ldap, `Value, true );
     }
@@ -104,7 +104,7 @@ define boolean cb_read_daemon()
     {
         UI::ChangeWidget( `cb_interface_ldap, `Value, false );
     }
-    if ( LdapServer::GetProtocolListenerEnabled("ldaps") )
+    if ( LdapServer::ReadProtocolListenerEnabled("ldaps") )
     {
         UI::ChangeWidget( `cb_interface_ldaps, `Value, true );
     }
@@ -112,7 +112,7 @@ define boolean cb_read_daemon()
     {
         UI::ChangeWidget( `cb_interface_ldaps, `Value, false );
     }
-    if ( LdapServer::GetProtocolListenerEnabled("ldapi") )
+    if ( LdapServer::ReadProtocolListenerEnabled("ldapi") )
     {
         UI::ChangeWidget( `cb_interface_ldapi, `Value, true );
     }
@@ -150,40 +150,40 @@ define boolean cb_write_daemon()
     CWMFirewallInterfaces::OpenFirewallStore (fw_widget, "", $[]);
     if ( serviceEnabled == `rb_yes )
     {
-        LdapServer::SetServiceEnabled( true );
+        LdapServer::WriteServiceEnabled( true );
     }
     else
     {
-        LdapServer::SetServiceEnabled( false );
+        LdapServer::WriteServiceEnabled( false );
     }
 
-    LdapServer::SetProtocolListenerEnabled( "ldap", (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) );
-    LdapServer::SetProtocolListenerEnabled( "ldapi", (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) );
+    LdapServer::WriteProtocolListenerEnabled( "ldap", (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) );
+    LdapServer::WriteProtocolListenerEnabled( "ldapi", (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) );
     if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldaps ), `Value ) )
     {
-        map<string, any> tls = LdapServer::GetTlsConfig();
+        map<string, any> tls = LdapServer::ReadTlsConfig();
         if ( (string)tls["caCertFile"]:"" != ""  &&
              (string)tls["certFile"]:"" != ""  &&
              (string)tls["certKeyFile"]:"" != "" )
         {
-            LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+            LdapServer::WriteProtocolListenerEnabled( "ldaps", true );
         }
         else
         {
             if ( Popup::YesNoHeadline( _("Your TLS/SSL Configuration seems to be incomplete."),
                     _("Do you really want to enable the \"ldaps\" protocol listener?") ) )
             {
-                LdapServer::SetProtocolListenerEnabled( "ldaps", true );
+                LdapServer::WriteProtocolListenerEnabled( "ldaps", true );
             }
             else
             {
-                LdapServer::SetProtocolListenerEnabled( "ldaps", false );
+                LdapServer::WriteProtocolListenerEnabled( "ldaps", false );
             }
         }
     }
     else
     {
-        LdapServer::SetProtocolListenerEnabled( "ldaps", false );
+        LdapServer::WriteProtocolListenerEnabled( "ldaps", false );
     }
     return true;
 }
@@ -191,7 +191,7 @@ define boolean cb_write_daemon()
 define boolean cb_read_schema()
 ``{
     y2milestone( "calling schema read handler" );
-    list<string> inclist = LdapServer::GetSchemaList();
+    list<string> inclist = LdapServer::ReadSchemaList();
     update_schemalist( inclist );
     return true;
 }
@@ -201,7 +201,7 @@ define boolean cb_input_schema()
     y2milestone( "calling schema input handler" );
 
 
-    list<string> inclist = LdapServer::GetSchemaList();
+    list<string> inclist = LdapServer::ReadSchemaList();
     string current_item = (string)UI::QueryWidget( `sb_schemalist, `CurrentItem );
     y2milestone( "current_item is '%1'", current_item );
 
@@ -222,20 +222,20 @@ define boolean cb_input_schema()
         if ( regexpmatch( new_item, ".*\.schema$" ) ) 
         {
             if (! LdapServer::AddSchemaToSchemaList(new_item) ) {
-                map<string, string> err = LdapServer::GetError();
+                map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
-            list<string> inclist = LdapServer::GetSchemaList();
+            list<string> inclist = LdapServer::ReadSchemaList();
             update_schemalist( inclist );
         }
         else if (! LdapServer::AddLdifToSchemaList(new_item) )
         {
-            map<string, string> err = LdapServer::GetError();
+            map<string, string> err = LdapServer::ReadError();
             callback_error = err["msg"]:"" + "\n" + err["details"]:"";
             return false;
         } else {
-            list<string> inclist = LdapServer::GetSchemaList();
+            list<string> inclist = LdapServer::ReadSchemaList();
             update_schemalist( inclist );
         }
 
@@ -243,7 +243,7 @@ define boolean cb_input_schema()
     {
         if( current_item == nil ) return true;
         LdapServer::RemoveFromSchemaList(current_item);
-        list<string> inclist = LdapServer::GetSchemaList();
+        list<string> inclist = LdapServer::ReadSchemaList();
         update_schemalist( inclist );
     }
     return true;
@@ -261,7 +261,7 @@ define boolean cb_check_loglevel()
 define boolean cb_read_loglevel()
 ``{
     y2milestone( "calling loglevel read handler" );
-    list<string> lvls = LdapServer::GetLogLevels();
+    list<string> lvls = LdapServer::ReadLogLevels();
 
     UI::ChangeWidget( `msb_loglevel, `SelectedItems, lvls );
     return true;
@@ -273,7 +273,7 @@ define boolean cb_write_loglevel()
     list<string> idlist = (list<string>)UI::QueryWidget( `msb_loglevel, `SelectedItems );
 
     y2milestone( "writing loglevel: '%1'", idlist );
-    return LdapServer::SetLogLevels( idlist );
+    return LdapServer::WriteLogLevels( idlist );
 }
 
 /*****************************
@@ -288,8 +288,8 @@ define boolean cb_check_allow()
 define boolean cb_read_allow()
 ``{
     y2milestone( "calling allow read handler" );
-    list<string> allowlist = LdapServer::GetAllowFeatures();
-    list<string> disallowlist = LdapServer::GetDisallowFeatures();
+    list<string> allowlist = LdapServer::ReadAllowFeatures();
+    list<string> disallowlist = LdapServer::ReadDisallowFeatures();
     UI::ChangeWidget( `msb_allow, `SelectedItems, allowlist );
     UI::ChangeWidget( `msb_disallow, `SelectedItems, disallowlist );
     return true;
@@ -304,8 +304,8 @@ define boolean cb_write_allow()
     disallowlist = (list<string>)UI::QueryWidget( `msb_disallow, `SelectedItems );
 
     y2milestone( "writing allowlist: '%1'", allowlist );
-    LdapServer::SetAllowFeatures( allowlist );
-    LdapServer::SetDisallowFeatures( disallowlist );
+    LdapServer::WriteAllowFeatures( allowlist );
+    LdapServer::WriteDisallowFeatures( disallowlist );
     return true;
 }
 
@@ -316,7 +316,7 @@ define boolean cb_write_allow()
 define boolean cb_read_tls()
 ``{
     y2milestone( "calling tls read handler" );
-    map<string, any> tls = LdapServer::GetTlsConfig();
+    map<string, any> tls = LdapServer::ReadTlsConfig();
     y2milestone( "tls config %1", tls );
     if ( (string)tls["caCertFile"]:"" != ""  &&
          (string)tls["certFile"]:"" != ""  &&
@@ -342,7 +342,7 @@ define boolean cb_read_tls()
         UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
         UI::ChangeWidget( `fr_import_cert, `Enabled, false );
     }
-    UI::ChangeWidget( `cb_ssl_listener_enabled, `Value, LdapServer::GetProtocolListenerEnabled("ldaps") );
+    UI::ChangeWidget( `cb_ssl_listener_enabled, `Value, LdapServer::ReadProtocolListenerEnabled("ldaps") );
     UI::ChangeWidget( `te_ca_file, `Value, tls["caCertFile"]:"" );
     UI::ChangeWidget( `te_cert_file, `Value, tls["certFile"]:"" );
     UI::ChangeWidget( `te_key_file, `Value, tls["certKeyFile"]:"" );
@@ -383,13 +383,13 @@ define boolean cb_write_tls()
             callback_error = _("Please select a valid Certificate Key File");
             return false;
         }
-        if ( ! LdapServer::SetTlsConfig( tlsSettings ) )
+        if ( ! LdapServer::WriteTlsConfig( tlsSettings ) )
         {
-            map<string, string> err = LdapServer::GetError();
+            map<string, string> err = LdapServer::ReadError();
             callback_error = err["msg"]:"" + err["details"]:"";
             return false;
         }
-        LdapServer::SetProtocolListenerEnabled( "ldaps", (boolean) UI::QueryWidget( `id( `cb_ssl_listener_enabled ), `Value ) );
+        LdapServer::WriteProtocolListenerEnabled( "ldaps", (boolean) UI::QueryWidget( `id( `cb_ssl_listener_enabled ), `Value ) );
     }
     else
     {
@@ -404,8 +404,8 @@ define boolean cb_write_tls()
                 "verifyClient" : 0
             ];
 
-        LdapServer::SetTlsConfig( tlsSettings );
-        LdapServer::SetProtocolListenerEnabled( "ldaps", false );
+        LdapServer::WriteTlsConfig( tlsSettings );
+        LdapServer::WriteProtocolListenerEnabled( "ldaps", false );
     }
     return true;
 }
@@ -500,7 +500,7 @@ define boolean cb_check_databases()
 define boolean cb_read_databases()
 ``{
     y2milestone( "calling databases read handler" );
-    list<map<string,string> > dblist = LdapServer::GetDatabaseList();
+    list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
     string text = HTML::Para( HTML::Bold( _("Available Databases:") ) )+HTML::Newline();
     foreach( map<string,string> db, dblist, {
         string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
@@ -526,9 +526,9 @@ define boolean cb_input_databases()
         if (ret == `next )
         {
             rebuild_widget_tree = true;
-            if ( ! LdapServer::AddDatabase(0, LdapDatabase::GetDatabase(), LdapDatabase::GetCreateDir() ) )
+            if ( ! LdapServer::AddDatabase(0, LdapDatabase::ReadDatabase(), LdapDatabase::GetCreateDir() ) )
             {
-                map<string, string> err = LdapServer::GetError();
+                map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
@@ -574,7 +574,7 @@ define boolean cb_write_db()
 
     if( db["rootdn"]:"" != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
     {
-        map<string,string> olddb = LdapServer::GetDatabase(index);
+        map<string,string> olddb = LdapServer::ReadDatabase(index);
         string suffix =  olddb["suffix"]:"";
         db["rootdn"] = db["rootdn"]:"" + "," + suffix;
     }
@@ -650,7 +650,7 @@ define boolean cb_read_db()
         return false;
     }
 
-    map<string, string> db = LdapServer::GetDatabase( index );
+    map<string, string> db = LdapServer::ReadDatabase( index );
 
 //    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
 //    if( suffix == nil )
@@ -733,7 +733,7 @@ define boolean cb_read_bdb_index()
 {
     integer index = (integer) widget_map[current_tree_item, "index"]:nil;
     y2milestone("cb_read_bdb_index current item: %1, index %2", current_tree_item, index);
-    map<string, map<string, boolean> > idxMap = LdapServer::GetDatabaseIndexes( index );
+    map<string, map<string, boolean> > idxMap = LdapServer::ReadDatabaseIndexes( index );
     integer i=0;
     list newItems = [];
     foreach( string attr, map<string, boolean> idx, idxMap, {
@@ -771,7 +771,7 @@ define boolean cb_input_bdb_index()
         list<string> skip = [];
         string editAttr = "";
         map<string, boolean> idx = $[];
-        map<string, map<string, boolean> > idxMap = LdapServer::GetDatabaseIndexes( index );
+        map<string, map<string, boolean> > idxMap = LdapServer::ReadDatabaseIndexes( index );
         if (handler_cmd == `pb_idx_add ) {
             // skip attribute that already have an index defined
             foreach( string attr, map<string, boolean> idx, idxMap,
@@ -836,14 +836,14 @@ define boolean cb_read_ppolicy()
     y2milestone("cb_read_ppolicy()");
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     // Check for ppolicy overlay
-    map<string,any> ppolicy_map = LdapServer::GetPpolicyOverlay(index);
+    map<string,any> ppolicy_map = LdapServer::ReadPpolicyOverlay(index);
     if ( size(ppolicy_map) != 0 ){
         UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
         boolean pp_hash_cleartext = (boolean)ppolicy_map["hashClearText"]:nil;
         boolean pp_use_lockout = (boolean)ppolicy_map["useLockout"]:nil;
         string pp_default = (string)ppolicy_map["defaultPolicy"]:nil;
         boolean pp_append_checked = false;
-        map<string,string> olddb = LdapServer::GetDatabase(index);
+        map<string,string> olddb = LdapServer::ReadDatabase(index);
         string suffix =  olddb["suffix"]:"";
         integer pos = search( pp_default, suffix );
         if( pos > -1 )
@@ -912,7 +912,7 @@ define boolean cb_write_ppolicy()
         if (pp_default != "" ) {
             if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
             {
-                map<string,string> db = LdapServer::GetDatabase(index);
+                map<string,string> db = LdapServer::ReadDatabase(index);
                 string suffix =  db["suffix"]:"";
                 pp_default = pp_default+","+suffix;
             }
@@ -925,11 +925,11 @@ define boolean cb_write_ppolicy()
         y2milestone("Policy: %1", ppolicy);
         result = LdapServer::AddPasswordPolicy( index, ppolicy );
         if ( ! result ) {
-            map<string, string> err = LdapServer::GetError();
+            map<string, string> err = LdapServer::ReadError();
             callback_error = err["msg"]:"" + "\n" + err["details"]:"";
         }
     } else {
-        map<string,any> ppolicy_map = LdapServer::GetPpolicyOverlay(index);
+        map<string,any> ppolicy_map = LdapServer::ReadPpolicyOverlay(index);
         if ( size(ppolicy_map) == 0 )
         {
             result = true;
@@ -939,7 +939,7 @@ define boolean cb_write_ppolicy()
             // delete ppolicy
             result = LdapServer::AddPasswordPolicy( index, $[] );
             if ( ! result ) {
-                map<string, string> err = LdapServer::GetError();
+                map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
             }
         }
@@ -1080,7 +1080,7 @@ void generateDynamicTreeItems()
     y2debug( "generating database tree items" );
     //generate database entries
 
-    list<map<string,string> > dblist = LdapServer::GetDatabaseList();
+    list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
     integer i = 0;
     foreach( map<string,string> db, dblist, {
         string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
