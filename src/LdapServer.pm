@@ -1245,6 +1245,11 @@ sub AddDatabase
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
     }
+    # default indexing
+    foreach my $idx ( @defaultIndexes )
+    {
+        $self->ChangeDatabaseIndex($index, $idx );
+    }
 
     # add some default ACLs
     my @acls = ('to dn.subtree="'. $db->{'suffix'} .'" attrs=userPassword by self write by * auth', 
