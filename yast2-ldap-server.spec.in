@@ -14,8 +14,6 @@ Summary:	Configuration of the OpenLDAP server
 @BUILD@
 
 @INSTALL@
-rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.la
-rm -f $RPM_BUILD_ROOT/%{_libdir}/libslapdconfig.so
 rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.la
 rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.so
 
@@ -29,7 +27,6 @@ rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.so
 %defattr(-,root,root)
 %dir @yncludedir@/ldap-server
 %dir @moduledir@/YaPI
-%{_libdir}/libslapdconfig.so.*
 @yncludedir@/ldap-server/*
 @clientdir@/ldap-server.ycp
 @clientdir@/ldap-server_*.ycp
