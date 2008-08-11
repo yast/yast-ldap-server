@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Aug 11 10:06:42 CEST 2008 - rhafer@suse.de
+
+- Build libslapdconfig as a convenience library for now.
+- Version 2.17.1 
+
+-------------------------------------------------------------------
 Fri Aug  8 12:50:21 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.0
