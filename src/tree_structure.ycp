@@ -559,16 +559,21 @@ define boolean cb_write_db()
         return false;
     }
 
-    map<string,string> db = $[];
+    map<string,any> db = $[];
     db["rootdn"] = (string)UI::QueryWidget( `te_rootdn, `Value );
 
     if( db["rootdn"]:"" != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
     {
-        map<string,string> olddb = LdapServer::ReadDatabase(index);
+        map<string,any> olddb = LdapServer::ReadDatabase(index);
         string suffix =  olddb["suffix"]:"";
         db["rootdn"] = db["rootdn"]:"" + "," + suffix;
     }
-
+    db["entrycache"] = (integer)UI::QueryWidget( `if_entrycache, `Value );
+    db["idlcache"] = (integer)UI::QueryWidget( `if_idlcache, `Value );
+    integer kbytes = (integer)UI::QueryWidget( `if_checkpoint_kb, `Value );
+    integer min = (integer)UI::QueryWidget( `if_checkpoint_min, `Value );
+    list<integer> checkpoint = [ kbytes, min ];
+    db["checkpoint"] = checkpoint;
     y2milestone( "updated Database: %1", db );
 
     boolean res = LdapServer::UpdateDatabase( index, db);
@@ -640,7 +645,7 @@ define boolean cb_read_db()
         return false;
     }
 
-    map<string, string> db = LdapServer::ReadDatabase( index );
+    map<string, any> db = LdapServer::ReadDatabase( index );
 
 //    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
 //    if( suffix == nil )
@@ -689,10 +694,12 @@ define boolean cb_read_db()
     }
     UI::ChangeWidget( `te_rootdn, `Value, rootdn );
     UI::ChangeWidget( `cb_append_basedn, `Value, append_checked );
-//    UI::ChangeWidget( `te_rootpw, `Value, db["passwd"]:"" );
-//    UI::ChangeWidget( `te_valid_rootpw, `Value, db["passwd"]:"" );
-//    UI::ChangeWidget( `cb_cryptmethod, `Value, (string)db["cryptmethod"]:"SSHA" );
-//
+    UI::ChangeWidget( `if_entrycache, `Value, tointeger( (string)db["entrycache"]:"" ) );
+    UI::ChangeWidget( `if_idlcache, `Value, tointeger( (string)db["idlcache"]:"" ) );
+    list checkpoint = db["checkpoint"]:[];
+    UI::ChangeWidget( `if_checkpoint_kb, `Value, tointeger( (string)checkpoint[0]:"" ) );
+    UI::ChangeWidget( `if_checkpoint_min, `Value, tointeger( (string)checkpoint[1]:"" ) );
+
     return true;
 }
 
@@ -833,7 +840,7 @@ define boolean cb_read_ppolicy()
         boolean pp_use_lockout = (boolean)ppolicy_map["useLockout"]:nil;
         string pp_default = (string)ppolicy_map["defaultPolicy"]:nil;
         boolean pp_append_checked = false;
-        map<string,string> olddb = LdapServer::ReadDatabase(index);
+        map<string,any> olddb = LdapServer::ReadDatabase(index);
         string suffix =  olddb["suffix"]:"";
         integer pos = search( pp_default, suffix );
         if( pos > -1 )
@@ -902,7 +909,7 @@ define boolean cb_write_ppolicy()
         if (pp_default != "" ) {
             if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
             {
-                map<string,string> db = LdapServer::ReadDatabase(index);
+                map<string,any> db = LdapServer::ReadDatabase(index);
                 string suffix =  db["suffix"]:"";
                 pp_default = pp_default+","+suffix;
             }
@@ -936,6 +943,7 @@ define boolean cb_write_ppolicy()
     }
     return result;
 }
+
 
 /*****************************************
  **     tree structure definition       **

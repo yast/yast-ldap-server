@@ -163,7 +163,7 @@ class OlcBdbDatabase : public  OlcDatabase
         void setIdlCache( int cachesize );
 
         void setCheckPoint( int kbytes, int min );
-        //int[] getCheckPoint() const;
+        void getCheckPoint( int &kbytes, int& min) const;
 };
 
 class OlcTlsSettings;

@@ -1072,7 +1072,7 @@ sub ReadDatabaseList
     return $ret
 }
 
-BEGIN { $TYPEINFO {ReadDatabase} = ["function", [ "map" , "string", "string"], "integer" ]; }
+BEGIN { $TYPEINFO {ReadDatabase} = ["function", [ "map" , "string", "any"], "integer" ]; }
 sub ReadDatabase
 {
     my ($self, $index) = @_;
@@ -1283,11 +1283,25 @@ sub AddDatabase
     return 1;
 }
 
-BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "string"] ]; }
+BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"] ]; }
 sub UpdateDatabase 
 {
     my ($self, $index, $changes) = @_;
+    if ( defined $changes->{'entrycache'} )
+    {
+        $changes->{'entrycache'} = YaST::YCP::Integer( $changes->{'entrycache'} );
+    }
+    if ( defined $changes->{'idlcache'} )
+    {
+        $changes->{'idlcache'} = YaST::YCP::Integer( $changes->{'idlcache'} );
+    }
+    if ( defined $changes->{'checkpoint'} )
+    {
+        $changes->{'checkpoint'}->[0] = YaST::YCP::Integer( $changes->{'checkpoint'}->[0] );
+        $changes->{'checkpoint'}->[1] = YaST::YCP::Integer( $changes->{'checkpoint'}->[1] );
+    }
     y2milestone( "UpdateDatabase: ".Data::Dumper->Dump([$changes]) );
+
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
     y2milestone( "result: ".Data::Dumper->Dump([$rc]) );
     return $rc;

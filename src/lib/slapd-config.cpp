@@ -278,11 +278,18 @@ void OlcBdbDatabase::setCheckPoint( int kbytes, int min )
     this->setStringValue( "olcDbCheckpoint", oStr.str() );
 }
 
-//int[] OlcBdbDatabase::getCheckPoint()
-//{
-//    int[2] ret = { 0,0 };
-//    return ret;
-//}
+void OlcBdbDatabase::getCheckPoint( int& kbytes, int& min) const
+{
+    kbytes=0;
+    min=0;
+    std::string checkpointStr =  this->getStringValue("olcDbCheckpoint");
+    if (! checkpointStr.empty() )
+    {
+        std::istringstream iStr(checkpointStr);
+        iStr >> kbytes >> std::skipws >> min;
+    }
+    return;
+}
 
 OlcGlobalConfig::OlcGlobalConfig() : OlcConfigEntry()
 {
@@ -778,7 +785,11 @@ void OlcConfigEntry::addIndexedStringValue(const std::string &type,
 int OlcConfigEntry::getIntValue( const std::string &type ) const
 {
     StringList sl = this->getStringValues(type);
-    if ( sl.size() == 1 ) {
+    if ( sl.empty() )
+    {
+        return -1;
+    }
+    else if(sl.size() == 1 ) {
         std::istringstream iStr(*sl.begin());
         int value;
         iStr >> value;

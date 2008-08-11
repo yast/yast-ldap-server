@@ -213,24 +213,15 @@
                     `InputField( `id( `te_rootdn ), `opt( `hstretch ),
                         _("&Root DN") ),
                     `HSpacing( 0.5 ),
-                    `VBox(
-                        `Bottom(
-                            `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
-                        ),
-                        `VSpacing( 0.3 )
-                    )
+                    `Bottom(
+                        `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
+                    ),
+                    `HSpacing( 0.5 ),
+                    `Bottom(
+                        `PushButton( `id( `pb_changepw ), _("Change Password") )
+                    ),
+                    `VSpacing( 0.3 )
                 )
-            ),
-            `VSpacing( 0.5 ),
-            `Left(
-                `PushButton( `id( `pb_changepw ), _("Change Password") )
-//            ),
-//            `VSpacing( 0.5 ),
-//            `Left(
-//                `CheckBox( `id( `cb_dbreadonly ), _("Database is read-only"), false )
-//            ),
-//            `Left(
-//                `CheckBox( `id( `cb_dbmonitoring ), _("Enable Monitoring"), false )
             )
         );
 
@@ -239,7 +230,45 @@
             `VBox(
                 `Heading( _("Edit BDB Database") ),
                 `VSpacing( 1 ),
-                generalDbWidget
+                generalDbWidget,
+                `VSpacing( 0.5 ),
+                `VBox(
+                    `HBox(
+                        `HSquash(
+                            `IntField( `id( `if_entrycache ),
+                                    _("Entry Cache"), 0, 2000000000, 0
+                            )
+                        ),
+                        `HSpacing( 0.5 ),
+                        `HSquash(
+                            `IntField( `id( `if_idlcache ),
+                                _("Index Cache (IDL cache)"), 0, 2000000000, 0
+                            )
+                        ),
+                        `HStretch()
+                    )
+                ),
+                `VSpacing( 0.5 ),
+                `VBox(
+                    `Left(
+                        `Label( _("Checkpoint settings") )
+                    ),
+                    `HBox(
+                        `HSquash(
+                            `IntField( `id( `if_checkpoint_kb ),
+                                "", 0, 2000000000, 0
+                            )
+                        ),
+                        `Label( _("kilobytes") ),
+                        `HSquash(
+                            `IntField( `id( `if_checkpoint_min ),
+                                "", 0, 2000000000,0
+                            )
+                        ),
+                        `Label( _("minutes") ),
+                        `HStretch()
+                    )
+                )
             )
         );
     term editGenericDatabase =
@@ -253,7 +282,7 @@
 
     term editBdbIndexes =
         `VBox(
-            `Heading( _("Edit Index Configuration") ),
+            `Heading( _("Indexing Configuration") ),
             `Table(
                 `id( `tab_idx ),
                 `header( "Attrbute", "pres", "eq", "sub", "approx"),

@@ -503,12 +503,30 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
             YCPMap resMap;
             if ( path->length() == 1 )
             {
+                std::string dbtype = (*i)->getType();
+                resMap.add( YCPString( "type" ),
+                            YCPString( dbtype ) );
                 resMap.add( YCPString("suffix"), 
                             YCPString( (*i)->getStringValue("olcSuffix") ));
-                resMap.add( YCPString("directory"), 
-                            YCPString( (*i)->getStringValue("olcDbDirectory") ));
                 resMap.add( YCPString("rootdn"), 
                             YCPString( (*i)->getStringValue("olcRootDn") ));
+                if ( dbtype == "bdb" || dbtype == "hdb" )
+                {
+                    boost::shared_ptr<OlcBdbDatabase> bdb = 
+                        boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
+                    resMap.add( YCPString("directory"), 
+                                YCPString( bdb->getStringValue("olcDbDirectory") ));
+                    resMap.add( YCPString("entrycache"), 
+                                YCPInteger( bdb->getEntryCache() ));
+                    resMap.add( YCPString("idlcache"), 
+                                YCPInteger( bdb->getIdlCache() ));
+                    YCPList checkPoint;
+                    int kbytes, min;
+                    bdb->getCheckPoint(kbytes, min);
+                    checkPoint.add( YCPInteger(kbytes) );
+                    checkPoint.add( YCPInteger(min) );
+                    resMap.add( YCPString("checkpoint"), checkPoint );
+                }
                 return resMap;
             } else {
                 std::string dbComponent = path->component_str(1);
@@ -946,6 +964,28 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     if ( ! val.isNull() && val->isString() )
                     {
                         (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
+                    }
+                    if ( (*i)->getType() == "bdb" || (*i)->getType() == "hdb" )
+                    {
+                        boost::shared_ptr<OlcBdbDatabase> bdb = 
+                            boost::dynamic_pointer_cast<OlcBdbDatabase>(*i);
+                        val = dbMap.value( YCPString("entrycache") );
+                        if ( ! val.isNull() && val->isInteger() )
+                        {
+                            bdb->setEntryCache( val->asInteger()->value() );
+                        }
+                        val = dbMap.value( YCPString("idlcache") );
+                        if ( ! val.isNull() && val->isInteger() )
+                        {
+                            bdb->setIdlCache( val->asInteger()->value() );
+                        }
+                        val = dbMap.value( YCPString("checkpoint") );
+                        if ( ! val.isNull() && val->isList() )
+                        {
+                            YCPList cpList = val->asList();
+                            bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
+                                    cpList->value(1)->asInteger()->value() );
+                        }
                     }
                     ret = true;
                 } else {
