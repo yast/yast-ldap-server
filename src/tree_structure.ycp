@@ -578,57 +578,6 @@ define boolean cb_write_db()
 
     boolean res = LdapServer::UpdateDatabase( index, db);
 
- //   boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
- //   y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
- //   if( is_new_db == nil )
- //   {
- //                   /* Error Popup */
- //       callback_error = _("Unable to write settings for the current database.");
- //       y2error( "'new_db' key for item '%1' is nil", suffix );
- //       return false;
- //   }
- //   map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
- //   y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
-
- //   map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
- //   if( db == nil )
- //   {
- //                   /* Error Popup */
- //       callback_error = _("Unable to write settings for the current database.");
- //       y2error( "database is not in dbmap returned by ReadDatabase" );
- //       y2debug( "trying to read database '%1', dbmap is: '%2'", suffix, dbmap );
- //       return false;
- //   }
-
- //   string rootdn = "";
- //   rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
- //   if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
- //   {
- //       rootdn = rootdn + "," + suffix;
- //   }
- //   db["rootdn"] = rootdn;
-
- //   string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
- //   if( rootpw != "" ) {
- //       db["passwd"] = rootpw;
- //       db["cryptmethod"] = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
- //   }
-
- //   string checkResult = LdapServer::CheckDatabase( db );
- //   if( checkResult != "" ) {
- //       callback_error = checkResult;
- //       return false;
- //   }
-
- //   //write changes
- //   dbmap[suffix] = db;
- //   if( is_new_db )
- //   {
- //       LdapServer::WriteDatabaseNEW( dbmap );
- //   } else
- //   {
- //       LdapServer::WriteDatabase( dbmap );
- //   }
 
     return true;
 }
@@ -647,37 +596,6 @@ define boolean cb_read_db()
 
     map<string, any> db = LdapServer::ReadDatabase( index );
 
-//    string suffix = (string)widget_map[current_tree_item,"name"]:nil;
-//    if( suffix == nil )
-//    {
-//                    /* Error Popup */
-//        callback_error = _("Unable to read settings for the current database.");
-//        y2error( "'name' entry for item '%1' is nil", current_tree_item );
-//        return false;
-//    }
-//    y2milestone( "calling db read handler for suffix '%1'", suffix );
-//
-//    boolean is_new_db = (boolean)widget_map[current_tree_item,"new_db"]:nil;
-//    y2debug( "widget_map entry for item '%1': '%2'", suffix, widget_map[current_tree_item]:nil );
-//    if( is_new_db == nil )
-//    {
-//                    /* Error Popup */
-//        callback_error = _("Unable to read settings for the current database.");
-//        y2error( "'new_db' key for item '%1' is nil", current_tree_item );
-//        return false;
-//    }
-//    map<string,any> dbmap = is_new_db ? LdapServer::ReadDatabaseNEW() : LdapServer::ReadDatabase();
-//    y2debug( "settings map returned by ReadDatabase/ReadDatabaseNEW: %1", dbmap );
-//
-//    map<string,any> db = (map<string,any>)dbmap[suffix]:nil;
-//    if( db == nil )
-//    {
-//                    /* Error Popup */
-//        callback_error = _("Unable to read settings for the current database.");
-//        y2error( "Reading settings for database '%1' failed", suffix );
-//        return false;
-//    }
-//
     UI::ChangeWidget( `te_basedn, `Value, db["suffix"]:"" );
 
     string rootdn = db["rootdn"]:"";
