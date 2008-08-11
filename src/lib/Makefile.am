@@ -1,7 +1,7 @@
 #
 # Makefile.am for slapdconfig library
 #
-lib_LTLIBRARIES = libslapdconfig.la
+noinst_LTLIBRARIES = libslapdconfig.la
 
 libslapdconfig_la_SOURCES = slapd-config.cpp
 
