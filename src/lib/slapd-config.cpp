@@ -258,7 +258,14 @@ int OlcBdbDatabase::getEntryCache() const
 
 void OlcBdbDatabase::setEntryCache( int cachesize )
 {
-    this->setIntValue( "olcDbCachesize", cachesize );
+    if (! cachesize )
+    {
+        this->setStringValue( "olcDbCachesize", "" );
+    }
+    else
+    {
+        this->setIntValue( "olcDbCachesize", cachesize );
+    }
 }
 
 int OlcBdbDatabase::getIdlCache() const
@@ -268,14 +275,28 @@ int OlcBdbDatabase::getIdlCache() const
 
 void OlcBdbDatabase::setIdlCache( int cachesize )
 {
-    this->setIntValue( "olcDbIdlCachesize", cachesize );
+    if (! cachesize )
+    {
+        this->setStringValue( "olcDbIdlCachesize", "" );
+    }
+    else
+    {
+        this->setIntValue( "olcDbIdlCachesize", cachesize );
+    }
 }
 
 void OlcBdbDatabase::setCheckPoint( int kbytes, int min )
 {
-    std::ostringstream oStr;
-    oStr << kbytes << " " << min;
-    this->setStringValue( "olcDbCheckpoint", oStr.str() );
+    if ( !kbytes && !min )
+    {
+        this->setStringValue( "olcDbCheckpoint", "" );
+    }
+    else
+    {
+        std::ostringstream oStr;
+        oStr << kbytes << " " << min;
+        this->setStringValue( "olcDbCheckpoint", oStr.str() );
+    }
 }
 
 void OlcBdbDatabase::getCheckPoint( int& kbytes, int& min) const
