@@ -1,7 +1,6 @@
 {
     textdomain "ldap-server";
     module "LdapDatabase";
-    include "widgets.ycp";
     import "Label";
     import "LdapServer";
     import "Popup";
@@ -15,6 +14,52 @@
     string ldapconf_basedn = "";
     boolean createDbDir = false;
 
+
+    term editPolicy =
+        `Top(
+            `VBox(
+                `VSpacing( 1 ),
+                `Heading( _("Password Policy Settings") ),
+                `VBox( `VSpacing(0.25),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_overlay ),`opt(`notify ),
+                            _("Enable Password Policies"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_hashcleartext ),
+                            _("Hash Clear Text Passwords"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `HBox(
+                        `CheckBox( `id( `cb_ppolicy_uselockout ),
+                            _("Disclose \"Account Locked\" Status"), false
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `VSquash(
+                        `HBox(
+                            `InputField( `id( `te_ppolicy_defaultpolicy ),
+                                `opt( `hstretch ),
+                                _("Default Policy Object DN"), "cn=Default Policy"
+                            ),
+                            `HSpacing( 0.5 ),
+                            `VBox(
+                                `Bottom(
+                                    `CheckBox( `id( `cb_pp_append_basedn ),
+                                            _("&Append Base DN"), true
+                                    )
+                                ),
+                                `VSpacing( 0.3 )
+                            )
+                        )
+                    ),
+                    `VSpacing(0.25)
+                )
+            )
+        );
 
     global define symbol AddDbBasic( boolean createDefaults )
     {
@@ -367,6 +412,11 @@
             }
         }
         return true;
+    }
+
+    global term GetPpolicyWidget()
+    {
+        return editPolicy;
     }
 
     define symbol DbPpolicy()

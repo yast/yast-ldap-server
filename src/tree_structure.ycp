@@ -874,7 +874,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string, any> dbPpolicy = $[
         "name"      : _("Password Policy Configuration"),
-        "widget"    : editPolicy,
+        "widget"    : LdapDatabase::GetPpolicyWidget(),
         "index"     : index,
         "cb_read"   : ``(cb_read_ppolicy() ),
         "cb_input"  : ``(cb_input_ppolicy() ),
