@@ -995,6 +995,7 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
             m_lc->add(&oce.getChangedEntry());
         } else if (oce.isDeletedEntry() ) {
             m_lc->del(oce.getDn());
+            reread = false;
         } else {
             LDAPModList ml = oce.entryDifftoMod();
             if ( ! ml.empty() ) {
