@@ -302,6 +302,7 @@ any ProposalDialog()
     if ( ret == `next )
     {
         LdapServer::SetInitialDefaults(LdapDatabase::GetDatabase());
+        LdapServer::WriteLdapConfBase( LdapDatabase::GetLdapConfBase() );
     }
 
     return ret;

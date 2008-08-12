@@ -11,6 +11,7 @@
     module "Database";
 
     map <string, any> baseDb = $[];
+    string ldapconf_basedn = "";
     boolean createDbDir = false;
 
 
@@ -25,13 +26,7 @@
             numDbs = size(dblist)-2; // don't count frontend and Config DB
         }
         string caption = _("New Database");
-        string enctype = "SSHA";
-        list enc_types = [
-            `item( `id( "CRYPT"), "CRYPT", enctype == "CRYPT" ),
-            `item( `id( "SMD5" ), "SMD5", enctype == "SMD5" ),
-            `item( `id( "SSHA" ), "SSHA", enctype == "SSHA" ),
-            `item( `id( "PLAIN" ), "PLAIN", enctype == "PLAIN" )
-        ];
+
         term addDbWidget =
             `VBox(
                 `Heading( _("Basic Settings") ),
@@ -65,9 +60,6 @@
                             `Password( `id( `te_valid_rootpw ), `opt(`hstretch),
                                     _("&Validate Password"), "" )
                         ),
-                        `Left(
-                            `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types )
-                        ),
                         `VSpacing(0.5),
                         `VSquash(
                             `HBox(
@@ -80,6 +72,9 @@
                                     `PushButton( `id( `pb_directory ), _("&Browse...") )
                                 )
                             )
+                        ),
+                        `Left(
+                            `CheckBox(`id( `cb_ldapconf), _("Use this database as the default for OpenLDAP clients"), true )
                         )
                     )
                 )
@@ -106,7 +101,14 @@
             UI::ChangeWidget(`id( `te_rootdn), `Value, db["rootdn"]:"" );
             UI::ChangeWidget(`id( `cb_append_basedn), `Value, append_checked );
             UI::ChangeWidget(`id( `te_directory), `Value, db["directory"]:"" );
-            UI::ChangeWidget(`id( `cb_cryptmethod), `Value, db["pwenctype"]:"" );
+        }
+        if ( numDbs == 0 )
+        {
+            UI::ChangeWidget(`id( `cb_ldapconf), `Value, true );
+        }
+        else
+        {
+            UI::ChangeWidget(`id( `cb_ldapconf), `Value, false );
         }
         symbol ret = `next;
         while(true) {
@@ -147,7 +149,6 @@
                 string rootdn = String::CutBlanks( (string)UI::QueryWidget( `te_rootdn, `Value ) );
                 string rootpw = (string)UI::QueryWidget( `te_rootpw, `Value );
                 string directory = String::CutBlanks( (string)UI::QueryWidget( `te_directory, `Value ) );
-                string cryptmethod = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
 
                 //check values
                 if( suffix == "" )
@@ -212,7 +213,11 @@
                 if( rootpw != "" )
                 {
                     db = add( db, "rootpw_clear", rootpw );
-                    db = add( db, "pwenctype", cryptmethod );
+                    db = add( db, "pwenctype", "SSHA" );
+                }
+                if( (boolean)UI::QueryWidget( `cb_ldapconf, `Value ) )
+                {
+                    ldapconf_basedn = suffix;
                 }
                 baseDb = db;
                 break;
@@ -223,7 +228,7 @@
     define symbol DbSyncProv()
     {
         string caption = _("Syncprov settings");
-        term contents = `Label("leer");
+        term contents = `Label("");
         Wizard::SetContentsButtons(caption, contents, "",
                 Label::BackButton(), Label::NextButton());
         symbol ret = `next;
@@ -309,5 +314,9 @@
     global define boolean GetCreateDir()
     {
         return createDbDir;
+    }
+    global define string GetLdapConfBase()
+    {
+        return ldapconf_basedn;
     }
 }
