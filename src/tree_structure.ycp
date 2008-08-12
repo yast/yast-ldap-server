@@ -526,11 +526,34 @@ define boolean cb_input_databases()
         if (ret == `next )
         {
             rebuild_widget_tree = true;
-            if ( ! LdapServer::AddDatabase(0, LdapDatabase::GetDatabase(), LdapDatabase::GetCreateDir() ) )
+            map <string,any> newDb = LdapDatabase::GetDatabase();
+            if ( ! LdapServer::AddDatabase(0, newDb, LdapDatabase::GetCreateDir() ) )
             {
                 map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
+            }
+            map <string,any> ppolicy = LdapDatabase::GetPpolicy();
+            if ( size(ppolicy) > 0 )
+            {
+                list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
+                integer dbindex=0;
+                foreach( map<string,string> db, dblist, {
+                    if (db["suffix"]:"" == newDb["suffix"]:"" )
+                    {
+                        dbindex=tointeger(db["index"]:"0");
+                        break;
+                    }
+                });
+                if (dbindex > 0)
+                {
+                    if ( ! LdapServer::AddPasswordPolicy( dbindex, ppolicy ) )
+                    {
+                        map<string, string> err = LdapServer::ReadError();
+                        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+                        return false;
+                    }
+                }
             }
             LdapServer::WriteLdapConfBase( LdapDatabase::GetLdapConfBase() );
         }
@@ -730,72 +753,14 @@ define boolean cb_input_ppolicy()
     y2milestone("cb_input_ppolicy()");
     string treeItem = current_tree_item;
     y2milestone( "calling db input handler for item '%1'", treeItem );
-    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    if ( handler_cmd == `cb_ppolicy_overlay ) {
-        if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, true );
-        } else {
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, false );
-        }
-    }
-    return true;
+    return LdapDatabase::DbPpolicyInput( handler_cmd );
 }
 
 define boolean cb_read_ppolicy()
 {
     y2milestone("cb_read_ppolicy()");
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    // Check for ppolicy overlay
-    map<string,any> ppolicy_map = LdapServer::ReadPpolicyOverlay(index);
-    if ( size(ppolicy_map) != 0 ){
-        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
-        boolean pp_hash_cleartext = (boolean)ppolicy_map["hashClearText"]:nil;
-        boolean pp_use_lockout = (boolean)ppolicy_map["useLockout"]:nil;
-        string pp_default = (string)ppolicy_map["defaultPolicy"]:nil;
-        boolean pp_append_checked = false;
-        map<string,any> olddb = LdapServer::ReadDatabase(index);
-        string suffix =  olddb["suffix"]:"";
-        integer pos = search( pp_default, suffix );
-        if( pos > -1 )
-        {
-
-            string chkSuffix = substring( pp_default, pos );
-            if ( chkSuffix == suffix )
-            {
-                pp_default = substring( pp_default, 0, pos-1 );
-                pp_append_checked = true;
-            }
-        }
-        if ( pp_hash_cleartext ){
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
-        } else {
-            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
-        }
-        if ( pp_use_lockout ){
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
-        } else {
-            UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
-        }
-        if ( pp_default != "" ){
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
-        } else {
-            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
-            UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
-        }
-    } else {
-        UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
-        UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
-        UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
-        UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
-    }
-    return true;
+    return LdapDatabase::DbPpolicyRead( index );
 }
 
 define boolean cb_write_ppolicy()
@@ -804,61 +769,23 @@ define boolean cb_write_ppolicy()
     y2milestone("cb_write_policy() treeitem: '%1'", treeItem);
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     boolean result = true;
-    if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
-        boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
-        boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
-        string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-        map<string,any> ppolicy = $[];
-        if (hashcleartext )
-        {
-            ppolicy = add( ppolicy, "hashClearText", true);
-        }
-        else
-        {
-            ppolicy = add( ppolicy, "hashClearText", false);
-        }
-        if (uselockout)
-        {
-            ppolicy = add( ppolicy, "useLockout", true);
-        }
-        else
-        {
-            ppolicy = add( ppolicy, "useLockout", false);
-        }
-        if (pp_default != "" ) {
-            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-            {
-                map<string,any> db = LdapServer::ReadDatabase(index);
-                string suffix =  db["suffix"]:"";
-                pp_default = pp_default+","+suffix;
-            }
-            ppolicy = add( ppolicy, "defaultPolicy", pp_default);
-        }
-        else
-        {
-            ppolicy = add( ppolicy, "defaultPolicy", "");
-        }
-        y2milestone("Policy: %1", ppolicy);
+    map<string,any> ppolicy = LdapDatabase::DbPpolicyWrite(index);
+    if ( size(ppolicy) > 0 )
+    {
         result = LdapServer::AddPasswordPolicy( index, ppolicy );
-        if ( ! result ) {
-            map<string, string> err = LdapServer::ReadError();
-            callback_error = err["msg"]:"" + "\n" + err["details"]:"";
-        }
-    } else {
-        map<string,any> ppolicy_map = LdapServer::ReadPpolicyOverlay(index);
-        if ( size(ppolicy_map) == 0 )
-        {
-            result = true;
-        }
-        else
+    }
+    else
+    {
+        map<string,any> ppolicy_old = LdapServer::ReadPpolicyOverlay(index);
+        if ( size(ppolicy_old) > 0 )
         {
             // delete ppolicy
             result = LdapServer::AddPasswordPolicy( index, $[] );
-            if ( ! result ) {
-                map<string, string> err = LdapServer::ReadError();
-                callback_error = err["msg"]:"" + "\n" + err["details"]:"";
-            }
         }
+    }
+    if ( ! result ) {
+        map<string, string> err = LdapServer::ReadError();
+        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
     }
     return result;
 }

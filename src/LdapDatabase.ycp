@@ -1,6 +1,7 @@
 {
     textdomain "ldap-server";
-
+    module "LdapDatabase";
+    include "widgets.ycp";
     import "Label";
     import "LdapServer";
     import "Popup";
@@ -8,9 +9,9 @@
     import "String";
     import "Wizard";
 
-    module "Database";
 
     map <string, any> baseDb = $[];
+    map <string, any> ppolicyNew = $[];
     string ldapconf_basedn = "";
     boolean createDbDir = false;
 
@@ -250,13 +251,132 @@
         }
         return ret;
     }
+
+    global boolean DbPpolicyRead( integer dbindex )
+    {
+        map<string,any> ppolicy_map = ppolicyNew;
+        if ( dbindex > 0 )
+        {
+            ppolicy_map = LdapServer::ReadPpolicyOverlay(dbindex);
+        }
+        if ( size(ppolicy_map) != 0 ){
+            UI::ChangeWidget( `cb_ppolicy_overlay, `Value, true );
+            boolean pp_hash_cleartext = (boolean)ppolicy_map["hashClearText"]:nil;
+            boolean pp_use_lockout = (boolean)ppolicy_map["useLockout"]:nil;
+            string pp_default = (string)ppolicy_map["defaultPolicy"]:nil;
+            boolean pp_append_checked = false;
+            map<string,any> olddb = LdapServer::ReadDatabase(dbindex);
+            string suffix =  olddb["suffix"]:"";
+            integer pos = search( pp_default, suffix );
+            if( pos > -1 )
+            {
+
+                string chkSuffix = substring( pp_default, pos );
+                if ( chkSuffix == suffix )
+                {
+                    pp_default = substring( pp_default, 0, pos-1 );
+                    pp_append_checked = true;
+                }
+            }
+            if ( pp_hash_cleartext ){
+                UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, true );
+            } else {
+                UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Value, false );
+            }
+            if ( pp_use_lockout ){
+                UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, true );
+            } else {
+                UI::ChangeWidget( `cb_ppolicy_uselockout, `Value, false );
+            }
+            if ( pp_default != "" ){
+                UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, pp_default );
+                UI::ChangeWidget( `cb_pp_append_basedn, `Value, pp_append_checked );
+            } else {
+                UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Value, "" );
+                UI::ChangeWidget( `cb_pp_append_basedn, `Value, true );
+            }
+        } else {
+            UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
+            UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+            UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+            UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+        }
+        return true;
+    }
+
+    global map<string,any> DbPpolicyWrite(integer dbindex)
+    {
+        if( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ){
+            boolean hashcleartext = (boolean)UI::QueryWidget( `cb_ppolicy_hashcleartext, `Value );
+            boolean uselockout = (boolean)UI::QueryWidget( `cb_ppolicy_uselockout, `Value );
+            string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+            map<string,any> ppolicy = $[];
+            if (hashcleartext )
+            {
+                ppolicy = add( ppolicy, "hashClearText", true);
+            }
+            else
+            {
+                ppolicy = add( ppolicy, "hashClearText", false);
+            }
+            if (uselockout)
+            {
+                ppolicy = add( ppolicy, "useLockout", true);
+            }
+            else
+            {
+                ppolicy = add( ppolicy, "useLockout", false);
+            }
+            if (pp_default != "" ) {
+                if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+                {
+                    map<string,any> db = baseDb;
+                    if ( dbindex > 0 )
+                    {
+                        db = LdapServer::ReadDatabase(dbindex);
+                    }
+                    string suffix =  db["suffix"]:"";
+                    pp_default = pp_default+","+suffix;
+                }
+                ppolicy = add( ppolicy, "defaultPolicy", pp_default);
+            }
+            else
+            {
+                ppolicy = add( ppolicy, "defaultPolicy", "");
+            }
+            y2milestone("Policy: %1", ppolicy);
+            return ppolicy;
+        } else {
+            return $[];
+        }
+    }
+
+    global boolean DbPpolicyInput( symbol handler_cmd )
+    {
+        if ( handler_cmd == `cb_ppolicy_overlay ) {
+            if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
+                UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
+                UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
+                UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
+                UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, true );
+            } else {
+                UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
+                UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+                UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
+                UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, false );
+            }
+        }
+        return true;
+    }
+
     define symbol DbPpolicy()
     {
         string caption = _("ppolicy settings");
-        term contents = `Label("leer");
+        term contents = editPolicy;
         Wizard::SetContentsButtons(caption, contents, "",
                 Label::BackButton(), Label::FinishButton());
         symbol ret = `next;
+        DbPpolicyRead(-1);
         while(true) {
             ret = (symbol)UI::UserInput();
             if (ret == `abort || ret == `cancel )
@@ -270,8 +390,15 @@
                     continue;
                 }
             }
-            if (ret == `next )
+            else if (ret == `next )
+            {
+                ppolicyNew = DbPpolicyWrite(-1);
                 break;
+            }
+            else
+            {
+                DbPpolicyInput(ret);
+            }
         }
         return ret;
     }
@@ -287,7 +414,7 @@
         map sequence = $[
             "ws_start" : "basics",
             "basics" : $[
-                `next  : `next,
+                `next  : "ppolicy",
                 `abort : `abort
             ],
             "syncprov" : $[
@@ -310,6 +437,10 @@
     global define map<string,any> GetDatabase()
     {
         return baseDb;
+    }
+    global define map<string,any> GetPpolicy()
+    {
+        return ppolicyNew;
     }
     global define boolean GetCreateDir()
     {
