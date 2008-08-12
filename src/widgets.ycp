@@ -1,6 +1,9 @@
 
 {
     textdomain "ldap-server";
+    import "CWMFirewallInterfaces";
+    import "Label";
+    import "Popup";
 
     map<string, any> firewall_settings = $[
             "services": [ "ldap" , "ldaps" ],
