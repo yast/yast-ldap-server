@@ -1048,7 +1048,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             if ( j == overlays.end() )
                             {
                                 y2milestone("New Overlay added");
-                                boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getDn()));
+                                boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getUpdatedDn()));
                                 ppolicyOlc = tmp;
                                 (*i)->addOverlay(ppolicyOlc);
                             }
