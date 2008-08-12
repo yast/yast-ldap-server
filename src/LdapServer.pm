@@ -44,6 +44,9 @@ my $registerSlp = 0;
 my $useLdapiForConfig = 0;
 my %dbDefaults = ();
 
+my $ldapconf_base = "";
+my $write_ldapconf = 0;
+
 my $globals_initialized = 0;
 my $use_ldapi_listener = 0;
 my $use_ldaps_listener = 0;
@@ -228,8 +231,37 @@ sub Read {
 
         y2milestone("ConfigModified: " . $slapdConfChanged);
     }
+
+    # Read base-dn from /etc/openldap/ldap.conf
+    my $base_list = SCR->Read(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base" );
+    $ldapconf_base = $base_list->[0];
         
     Progress->Finish();
+    return 1;
+}
+
+##
+ # @return the base DN that is currently set in /etc/openldap/ldap.conf
+ #
+BEGIN { $TYPEINFO{ReadLdapconfBase} = ["function", "string"]; }
+sub ReadLdapconfBase()
+{
+    return $ldapconf_base;
+}
+
+##
+ # @return Set base DN that shoudl we written to /etc/openldap/ldap.conf
+ #
+BEGIN { $TYPEINFO{WriteLdapConfBase} = ["function", "boolean", "string"]; }
+sub WriteLdapConfBase()
+{
+    my ($self, $basedn) = @_;
+    y2debug("WriteLdapConfBase: $basedn");
+    if ( $basedn ne "" )
+    {
+        $ldapconf_base = $basedn;
+        $write_ldapconf = 1;
+    }
     return 1;
 }
 
@@ -491,6 +523,14 @@ sub Write {
             Progress->Finish();
             return 0;
         }
+        if ( $write_ldapconf )
+        {
+            y2milestone("Updating /etc/openldap/ldap.conf");
+            SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".host",
+		["localhost"]);
+	    SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base",
+		[$ldapconf_base]);
+        }
         Progress->Finish();
         SuSEFirewall->Write();
     } else {
@@ -544,6 +584,14 @@ sub Write {
             y2error($err->{'summary'}." ".$err->{'description'});
             $self->SetError( $err->{'summary'}, $err->{'description'} );
             return 0;
+        }
+        if ( $write_ldapconf )
+        {
+            SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".host",
+		["localhost"]);
+	    SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base",
+		[$ldapconf_base]);
+            y2milestone("Updated /etc/openldap/ldap.conf");
         }
     }
     sleep(1);

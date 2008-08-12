@@ -532,6 +532,7 @@ define boolean cb_input_databases()
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
+            LdapServer::WriteLdapConfBase( LdapDatabase::GetLdapConfBase() );
         }
         else
         {
