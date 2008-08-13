@@ -477,6 +477,7 @@
             else if (ret == `next )
             {
                 ppolicyNew = DbPpolicyWrite(-1);
+                break;
             }
             else if (ret == `back )
             {
@@ -513,6 +514,9 @@
                 `abort : `abort
             ]
         ];
+
+        baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
+
         Wizard::CreateDialog();
 
         any ret = Sequencer::Run(aliases, sequence);
