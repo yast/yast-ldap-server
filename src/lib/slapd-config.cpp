@@ -78,7 +78,7 @@ OlcDatabase::OlcDatabase( const std::string& type ) : m_type(type)
     m_dbEntryChanged.addAttribute(LDAPAttribute("olcDatabase", m_type));
 }
 
-void OlcDatabase::updateEntryDn()
+void OlcDatabase::updateEntryDn(bool origEntry )
 {
     log_it(SLAPD_LOG_INFO, "updateEntryDN()");
     std::ostringstream dn, name;
@@ -86,6 +86,11 @@ void OlcDatabase::updateEntryDn()
     dn << "olcDatabase=" << name.str() << ",cn=config" ;
     m_dbEntryChanged.setDN(dn.str());
     m_dbEntryChanged.replaceAttribute(LDAPAttribute("olcDatabase", name.str()));
+    if ( origEntry && (! m_dbEntry.getDN().empty()) )
+    {
+        m_dbEntry.setDN(dn.str());
+        m_dbEntry.replaceAttribute(LDAPAttribute("olcDatabase", name.str()));
+    }
 }
 
 OlcBdbDatabase::OlcBdbDatabase( const std::string& type ) : OlcDatabase(type) 
@@ -604,10 +609,10 @@ OlcConfigEntry* OlcConfigEntry::createFromLdapEntry( const LDAPEntry& e )
 //    return resMap;
 //}
 
-void OlcConfigEntry::setIndex( int index )
+void OlcConfigEntry::setIndex( int index, bool origEntry )
 {
     this->entryIndex = index;
-    this->updateEntryDn();
+    this->updateEntryDn( origEntry );
 }
 
 int OlcConfigEntry::getEntryIndex() const
@@ -615,7 +620,7 @@ int OlcConfigEntry::getEntryIndex() const
     return this->entryIndex;
 }
 
-void OlcConfigEntry::updateEntryDn()
+void OlcConfigEntry::updateEntryDn( bool origEntry )
 {
 }
 
@@ -644,7 +649,7 @@ OlcOverlay::OlcOverlay( const LDAPEntry& e) : OlcConfigEntry(e)
 }
 
 OlcOverlay::OlcOverlay( const std::string &type, const std::string &parent )
-        : m_type(type)
+        : m_type(type), m_parent(parent)
 {
     std::ostringstream dnstr;
     dnstr << "olcOverlay=" << m_type << "," << parent;
@@ -658,10 +663,38 @@ const std::string OlcOverlay::getType() const
     return m_type;
 }
 
+void OlcOverlay::newParentDn( const std::string& parent )
+{
+    std::ostringstream dnstr;
+    m_parent = parent;
+    dnstr << "olcOverlay={" << entryIndex << "}" << m_type << "," << parent;
+    log_it(SLAPD_LOG_INFO, "Changing Overlay DN from: " + m_dbEntryChanged.getDN()
+                           + " to: " + dnstr.str() );
+    if (! m_dbEntry.getDN().empty() )
+    {
+        m_dbEntry.setDN(dnstr.str());
+    }
+    m_dbEntryChanged.setDN(dnstr.str());
+}
+
 void OlcOverlay::resetMemberAttrs()
 {
     std::string type(this->getStringValue("olcoverlay"));
     entryIndex = splitIndexFromString( type, m_type );
+}
+void OlcOverlay::updateEntryDn(bool origEntry )
+{
+    log_it(SLAPD_LOG_INFO, "updateEntryDN()");
+    std::ostringstream dn, name;
+    name << "{" << entryIndex << "}" << m_type;
+    dn << "olcOverlay=" << name.str() << "," << m_parent;
+    m_dbEntryChanged.setDN(dn.str());
+    m_dbEntryChanged.replaceAttribute(LDAPAttribute("olcOverlay", name.str()));
+    if ( origEntry && (! m_dbEntry.getDN().empty()) )
+    {
+        m_dbEntry.setDN(dn.str());
+        m_dbEntry.replaceAttribute(LDAPAttribute("olcOverlay", name.str()));
+    }
 }
 
 void OlcDatabase::setSuffix( const std::string &suffix)

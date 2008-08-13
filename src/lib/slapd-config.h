@@ -75,7 +75,7 @@ class OlcConfigEntry
         int getIntValue( const std::string &type ) const;
         void setIntValue( const std::string &type, int value );
 
-        void setIndex( int index );
+        void setIndex( int index, bool origEntry = false );
 
         int getEntryIndex() const;
 
@@ -83,7 +83,7 @@ class OlcConfigEntry
 
     protected:
         virtual void resetMemberAttrs() {};
-        virtual void updateEntryDn();
+        virtual void updateEntryDn( bool origEntry = false);
 
         int entryIndex;
         LDAPEntry m_dbEntry;
@@ -113,9 +113,13 @@ class OlcOverlay : public OlcConfigEntry
         OlcOverlay( const std::string &type, const std::string &parent );
         const std::string getType() const;
 
+        void newParentDn( const std::string &parent );
+
     protected:
         virtual void resetMemberAttrs();
+        virtual void updateEntryDn( bool origEntry = false );
         std::string m_type;
+        std::string m_parent;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
@@ -143,7 +147,7 @@ class OlcDatabase : public OlcConfigEntry
 
     protected:
         virtual void resetMemberAttrs();
-        virtual void updateEntryDn();
+        virtual void updateEntryDn( bool origEntry = false );
         std::string m_type;
         OlcOverlayList m_overlays;
 };
