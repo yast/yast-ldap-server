@@ -50,7 +50,15 @@ bool caseIgnoreCompare( char c1, char c2)
 static void y2LogCallback( int level, const std::string &msg,
             const char* file=0, const int line=0, const char* function=0)
 {
-    y2_logger(LOG_MILESTONE, "libslapdconfig", file, line, function, "%s", msg.c_str());
+    loglevel_t y2level = LOG_DEBUG;
+
+    if ( level == SLAPD_LOG_INFO )
+        y2level = LOG_MILESTONE;
+    if ( level == SLAPD_LOG_DEBUG )
+        y2level = LOG_DEBUG;
+    if ( level == SLAPD_LOG_ERR )
+        y2level = LOG_ERROR;
+    y2_logger(y2level, "libslapdconfig", file, line, function, "%s", msg.c_str());
 }
 
 SlapdConfigAgent::SlapdConfigAgent()
