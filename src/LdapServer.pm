@@ -1265,11 +1265,58 @@ sub RemoveFromSchemaList
 }
 
 
+BEGIN { $TYPEINFO {CheckDatabase} = ["function", "boolean", [ "map" , "string", "any"] ]; }
+sub CheckDatabase
+{
+    my ($self, $db) = @_;
+    y2milestone("CheckDatabase: ".Data::Dumper->Dump([$db]) );
+    my $suffix_object = X500::DN->ParseRFC2253($db->{'suffix'});
+    if(! defined $suffix_object) {
+        $self->SetError(_("Base DN \"". $db->{'suffix'} ."\" is not a valid LDAP DN."), "");
+        return 0;
+    }
+    elsif ( $suffix_object->hasMultivaluedRDNs() )
+    {
+        $self->SetError(_("Base DN \"". $db->{'suffix'} ."\" has multivalued RDNs. This is not supported in this YaST Module."), "");
+        return 0;
+    }
+
+
+    if ( $db->{'rootdn'} ne "" )
+    {
+        my $object = X500::DN->ParseRFC2253($db->{'rootdn'});
+        if(! defined $object) {
+            $self->SetError(_("Root DN \"". $db->{'rootdn'} ."\" is not a valid LDAP DN."), "");
+            return 0;
+        }
+        elsif ( $object->hasMultivaluedRDNs() )
+        {
+            $self->SetError(_("Root DN \"". $db->{'rootdn'} ."\" has multivalued RDNs. This is not supported in this YaST Module."), "");
+            return 0;
+        }
+        my @suffix_rdns = $suffix_object->getRDNs();
+        my @admin_rdns =  $object->getRDNs();
+        for( my $i=0; $i < scalar(@suffix_rdns) ; $i++ )
+        {
+            y2milestone("Suffix RDN: ".$suffix_rdns[$i]->getRFC2253String()." Root RDN: ".$admin_rdns[$i]->getRFC2253String() );
+            if ( $suffix_rdns[$i]->getRFC2253String() ne $admin_rdns[$i]->getRFC2253String() )
+            {
+                $self->SetError(_("The Root DN must be a child object of the Base DN."), "");
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"], "boolean" ]; }
 sub AddDatabase
 {
     my ($self, $index, $db, $createDir) = @_;
-    y2milestone("AddDatabase: ".Data::Dumper->Dump([$db]) );
+    if ( ! $self->CheckDatabase($db) )
+    {
+        return 0;
+    }
     if ( $createDir )
     {
         my $ret = SCR->Execute(".target.bash", "mkdir -m 0700 -p ".$db->{directory});
