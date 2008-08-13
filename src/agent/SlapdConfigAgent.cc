@@ -285,6 +285,8 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     else if (std::string("checkpoint") == j.key()->asString()->value_cstr() )
                     {
                         YCPList cpList = j.value()->asList();
+                        y2milestone("cp 0: %s", cpList->value(0)->valuetype_str() );
+                        y2milestone("cp 1: %s", cpList->value(1)->valuetype_str() );
                         bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
                                 cpList->value(1)->asInteger()->value() );
                     }

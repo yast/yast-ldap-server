@@ -963,8 +963,6 @@ sub SetInitialDefaults
     my $defaults = shift;
     $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
     $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
-    $defaults->{'checkpoint'} = [ YaST::YCP::Integer($defaults->{'checkpoint'}->[0]),
-                                  YaST::YCP::Integer($defaults->{'checkpoint'}->[1]) ];
     y2milestone("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
     %dbDefaults = %$defaults;
     return 1;
@@ -994,15 +992,13 @@ sub InitDbDefaults
     y2milestone("suffix: $basedn");
     $dbDefaults{'suffix'} = $basedn;
     $dbDefaults{'directory'} = "/var/lib/ldap";
-    $dbDefaults{'rootdn'} = "cn=admin,".$basedn;
+    $dbDefaults{'rootdn'} = "cn=Administrator,".$basedn;
     $dbDefaults{'rootpw'} = "";
     $dbDefaults{'rootpw_clear'} = "";
     $dbDefaults{'pwenctype'} = "SSHA";
     $dbDefaults{'entrycache'} = 10000;
     $dbDefaults{'idlcache'} = 30000;
-    $dbDefaults{'checkpoint'} = [ YaST::YCP::Integer(1024),
-            YaST::YCP::Integer(5) ];
-    
+    $dbDefaults{'checkpoint'} = [ 1024, 5 ];
     $dbDefaults{'defaultIndex'} = YaST::YCP::Boolean(1);
     $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
     $dbDefaults{'slpRegister'} = YaST::YCP::Boolean(0);
@@ -1043,7 +1039,10 @@ sub ReadFromDefaults
                      'directory' => '/var/lib/ldap',
                      'entrycache' => YaST::YCP::Integer($dbDefaults{'entrycache'}),
                      'idlcache' => YaST::YCP::Integer($dbDefaults{'idlcache'}),
-                     'checkpoint' => $dbDefaults{'checkpoint'} };
+                     'checkpoint' => [ YaST::YCP::Integer($dbDefaults{'checkpoint'}->[0]),
+                                       YaST::YCP::Integer($dbDefaults{'checkpoint'}->[1]) ]
+                    };
+
     my $cfgdatabase = { 'type' => 'config',
                         'rootdn' => 'cn=config' };
     my $frontenddb = { 'type' => 'frontend',
@@ -1080,6 +1079,13 @@ sub ReadFromDefaults
         return $rc;
     }
     $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/rfc2307bis.schema" );
+    if ( ! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return $rc;
+    }
+    $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/yast.schema" );
     if ( ! $rc ) {
         my $err = SCR->Error(".ldapserver");
         y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
