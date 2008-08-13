@@ -455,7 +455,7 @@
 
     define symbol DbPpolicy()
     {
-        string caption = _("ppolicy settings");
+        string caption = _("Password Policy settings");
         term contents = editPolicy;
         Wizard::SetContentsButtons(caption, contents, "",
                 Label::BackButton(), Label::FinishButton());
