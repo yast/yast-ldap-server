@@ -1,4 +1,17 @@
 -------------------------------------------------------------------
+Wed Aug 13 19:57:31 CEST 2008 - rhafer@suse.de
+
+- Create default indexes after adding a new database
+- Add support to edit indexing, caching and checkpoiniting settings
+  on BDB/HDB Databases. (Fate#120068)
+- Allow to update /etc/openldap/ldap.conf settings when creating a new
+  database. (Fate#303399)
+- Insert new databases before databases that serve a superior base-DN
+- database settings can be change after the database was created.
+  (Fate#120067)
+- Version 2.17.2
+
+-------------------------------------------------------------------
 Mon Aug 11 10:06:42 CEST 2008 - rhafer@suse.de
 
 - Build libslapdconfig as a convenience library for now.
