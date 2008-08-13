@@ -9,7 +9,7 @@
     import "Wizard";
 
 
-    map <string, any> baseDb = $[];
+    map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
     map <string, any> ppolicyNew = $[];
     string ldapconf_basedn = "";
     boolean createDbDir = false;
@@ -127,27 +127,34 @@
             );
         Wizard::SetContentsButtons(caption, addDbWidget, "",
                 Label::BackButton(), Label::NextButton());
+        boolean append_checked = true;
         if ( createDefaults )
         {
             db = LdapServer::CreateInitialDefaults();
-            boolean append_checked = true;
-
-            if( db["rootdn"]:"" != "" )
-            {
-                integer pos = search( db["rootdn"]:"", db["suffix"]:"" );
-                if( pos > -1 )
-                {
-                    db["rootdn"] = substring( db["rootdn"]:"", 0, pos-1 );
-                } else
-                {
-                    append_checked = false;
-                }
-            }
-            UI::ChangeWidget(`id( `te_basedn), `Value, db["suffix"]:"" );
-            UI::ChangeWidget(`id( `te_rootdn), `Value, db["rootdn"]:"" );
-            UI::ChangeWidget(`id( `cb_append_basedn), `Value, append_checked );
-            UI::ChangeWidget(`id( `te_directory), `Value, db["directory"]:"" );
         }
+        else
+        {
+            db=baseDb;
+        }
+
+        if( db["rootdn"]:"" != "" )
+        {
+            integer pos = search( db["rootdn"]:"", db["suffix"]:"" );
+            if( pos > -1 )
+            {
+                db["rootdn"] = substring( db["rootdn"]:"", 0, pos-1 );
+            } else
+            {
+                append_checked = false;
+            }
+        }
+        UI::ChangeWidget(`id( `te_basedn), `Value, db["suffix"]:"" );
+        UI::ChangeWidget(`id( `te_rootdn), `Value, db["rootdn"]:"" );
+        UI::ChangeWidget(`id( `te_rootpw), `Value, db["rootpw_clear"]:"" );
+        UI::ChangeWidget(`id( `te_valid_rootpw), `Value, db["rootpw_clear"]:"" );
+        UI::ChangeWidget(`id( `cb_append_basedn), `Value, append_checked );
+        UI::ChangeWidget(`id( `te_directory), `Value, db["directory"]:"" );
+
         if ( numDbs == 0 )
         {
             UI::ChangeWidget(`id( `cb_ldapconf), `Value, true );
@@ -470,6 +477,9 @@
             else if (ret == `next )
             {
                 ppolicyNew = DbPpolicyWrite(-1);
+            }
+            else if (ret == `back )
+            {
                 break;
             }
             else
