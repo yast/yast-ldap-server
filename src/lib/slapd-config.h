@@ -22,6 +22,10 @@
 #include <LDAPAttrType.h>
 #include <boost/shared_ptr.hpp>
 
+#define SLAPD_LOG_DEBUG 3
+#define SLAPD_LOG_INFO  2
+#define SLAPD_LOG_ERR   1
+
 typedef void (SlapdConfigLogCallback) (int level, const std::string &msg, 
             const char* file=0, const int line=0, const char* function=0 );
 
