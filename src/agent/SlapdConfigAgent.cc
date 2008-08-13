@@ -949,7 +949,39 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 }
             }
         }
-        databases.push_back(db);
+        // find insert position
+        OlcDatabaseList::iterator i,k;
+        bool inserted = false;
+        for ( i = databases.begin(); i != databases.end() ; i++ )
+        {
+            if ( (*i)->getEntryIndex() == dbIndex )
+            {
+                k = databases.insert(i, db ); 
+                inserted=true;
+            }
+        }
+        if ( inserted )
+        {
+            k++;
+            // renumber remaining databases
+            for( ; k != databases.end(); k++ )
+            {
+                y2milestone("%s needs to be renumbered", (*k)->getSuffix().c_str() );
+                (*k)->setIndex( (*k)->getEntryIndex() + 1, true );
+
+                // update the overlays' DNs accordingly
+                OlcOverlayList overlays = (*k)->getOverlays();
+                OlcOverlayList::const_iterator l = overlays.begin();
+                for (; l != overlays.end(); l++ )
+                {
+                    (*l)->newParentDn( (*k)->getUpdatedDn() );
+                }
+            }
+        }
+        else
+        {
+            databases.push_back(db);
+        }
         ret = true;
     }
     else
@@ -1058,6 +1090,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 y2milestone("New Overlay added");
                                 boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getUpdatedDn()));
                                 ppolicyOlc = tmp;
+                                ppolicyOlc->setIndex( overlays.size() );
                                 (*i)->addOverlay(ppolicyOlc);
                             }
                             else
