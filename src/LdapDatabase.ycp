@@ -220,22 +220,60 @@
                         continue;
                     }
                 }
-                if( rootpw != "" && rootdn == "" )
+                db["suffix"] = suffix;
+                db["directory"] = directory;
+                db["type"] =  "hdb";
+
+                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
+                {
+                    rootdn = rootdn+","+suffix;
+                }
+                if( rootdn != "" )
+                {
+                    db["rootdn"] = rootdn;
+                }
+                else
+                {
+                    if ( haskey(db, "rootdn") )
+                        db = remove(db, "rootdn");
+                }
+
+                if( rootpw != "" )
+                {
+                    db["rootpw_clear"] = rootpw;
+                    db["pwenctype"] = "SSHA";
+                }
+                else
+                {
+                    if ( haskey(db, "rootpw_clear") )
+                        db = remove(db, "rootpw_clear");
+
+                    if ( haskey(db, "pwenctype") )
+                        db = remove(db, "pwenctype");
+                }
+
+                if( db["rootpw_clear"]:"" != "" && db["rootdn"]:"" == "" )
                 {
                     Popup::Error( _("Root DN must be set if a password is given.") );
                     continue;
                 }
-                if( rootpw != "" && rootpw != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
+                if( db["rootpw_clear"]:"" != "" && db["rootpw_clear"]:"" != (string)UI::QueryWidget( `te_valid_rootpw, `Value ) )
                 {
                     Popup::Error( _("Password validation failed.") );
                     continue;
                 }
-                if( directory == "" )
+                if ( ! LdapServer::CheckDatabase( db ) )
+                {
+                    map<string, string> err = LdapServer::ReadError();
+                    Popup::Error( err["msg"]:"" + "\n" + err["details"]:"" );
+                    continue;
+                }
+                if( db["directory"]:"" == "" )
                 {
                     Popup::Error( _("A directory must be specified.") );
                     continue;
                 }
-                if ( SCR::Read(.target.dir, directory) == nil ) {
+                if ( SCR::Read(.target.dir, db["directory"]:"" ) == nil ) {
                     boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
                                         _("The directory does not exist. Create it?"),
                                         Label::YesButton(), Label::NoButton(), `focus);
@@ -247,20 +285,8 @@
                     }
                 }
 
-                db = add( db, "suffix", suffix );
-                db = add( db, "directory", directory );
-                db = add( db, "type", "hdb" );
 
-                if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
-                {
-                    rootdn = rootdn+","+suffix;
-                }
-                if( rootdn != "" ) db = add( db, "rootdn", rootdn );
-                if( rootpw != "" )
-                {
-                    db = add( db, "rootpw_clear", rootpw );
-                    db = add( db, "pwenctype", "SSHA" );
-                }
+
                 if( (boolean)UI::QueryWidget( `cb_ldapconf, `Value ) )
                 {
                     ldapconf_basedn = suffix;
@@ -271,6 +297,7 @@
         }
         return ret;
     }
+
     define symbol DbSyncProv()
     {
         string caption = _("Syncprov settings");
