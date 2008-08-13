@@ -1339,6 +1339,33 @@ sub AddDatabase
         # calculate new database index
         $index =  (scalar(@{$self->ReadDatabaseList()} )) - 1;
     }
+
+    # Set defaults for caching and checkpoint
+    if (! defined $db->{'entrycache'} )
+    {
+        $db->{'entrycache'} = YaST::YCP::Integer(10000);
+    }
+    else
+    {
+        $db->{'entrycache'} = YaST::YCP::Integer($db->{'entrycache'});
+    }
+    if (! defined $db->{'idlcache'} )
+    {
+        $db->{'idlcache'} = YaST::YCP::Integer(30000);
+    }
+    else
+    {
+        $db->{'idlcache'} = YaST::YCP::Integer($db->{'idlcache'});
+    }
+    if (! defined $db->{'checkpoint'} )
+    {
+        $db->{'checkpoint'} = [ YaST::YCP::Integer(1024), YaST::YCP::Integer(5) ];
+    }
+    else
+    {
+        $db->{'checkpoint'} = [ YaST::YCP::Integer($db->{'checkpoint'}->[0]), YaST::YCP::Integer($db->{'checkpoint'}->[1]) ];
+    }
+
     $rc = SCR->Write(".ldapserver.database.new.{$index}", $db);
     if(! $rc ) {
         my $err = SCR->Error(".ldapserver");
