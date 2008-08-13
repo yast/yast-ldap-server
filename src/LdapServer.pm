@@ -1264,6 +1264,41 @@ sub RemoveFromSchemaList
     return $rc;
 }
 
+sub IsSubordinate
+{
+    my ($self, $base, $child) = @_;
+    my $baseDN = X500::DN->ParseRFC2253($base);
+    if(! defined $baseDN) {
+        $self->SetError(_("\"". $base ."\" is not a valid LDAP DN."), "");
+        return undef;
+    }
+    if ( $baseDN->hasMultivaluedRDNs() )
+    {
+        $self->SetError(_("\"". $base ."\" has mulitvalued RDNs."), "");
+        return undef;
+    }
+    my $childDN = X500::DN->ParseRFC2253($child);
+    if(! defined $childDN) {
+        $self->SetError(_("\"". $child ."\" is not a valid LDAP DN."), "");
+        return undef;
+    }
+    if ( $childDN->hasMultivaluedRDNs() )
+    {
+        $self->SetError(_("\"". $child ."\" has mulitvalued RDNs."), "");
+        return undef;
+    }
+    my @base_rdns = $baseDN->getRDNs();
+    my @child_rdns =  $childDN->getRDNs();
+    for( my $i=0; $i < scalar(@base_rdns) ; $i++ )
+    {
+        y2milestone("Base RDN: ".$base_rdns[$i]->getRFC2253String()." child RDN: ".$child_rdns[$i]->getRFC2253String() );
+        if ( $base_rdns[$i]->getRFC2253String() ne $child_rdns[$i]->getRFC2253String() )
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 BEGIN { $TYPEINFO {CheckDatabase} = ["function", "boolean", [ "map" , "string", "any"] ]; }
 sub CheckDatabase
@@ -1294,20 +1329,17 @@ sub CheckDatabase
             $self->SetError(_("Root DN \"". $db->{'rootdn'} ."\" has multivalued RDNs. This is not supported in this YaST Module."), "");
             return 0;
         }
-        my @suffix_rdns = $suffix_object->getRDNs();
-        my @admin_rdns =  $object->getRDNs();
-        for( my $i=0; $i < scalar(@suffix_rdns) ; $i++ )
+
+        my $rc =  $self->IsSubordinate( $db->{'suffix'}, $db->{'rootdn'} );
+        if ( ! defined $rc || $rc == 0 )
         {
-            y2milestone("Suffix RDN: ".$suffix_rdns[$i]->getRFC2253String()." Root RDN: ".$admin_rdns[$i]->getRFC2253String() );
-            if ( $suffix_rdns[$i]->getRFC2253String() ne $admin_rdns[$i]->getRFC2253String() )
-            {
-                $self->SetError(_("The Root DN must be a child object of the Base DN."), "");
-                return 0;
-            }
+            $self->SetError(_("The Root DN must be a child object of the Base DN."), "");
+            return 0;
         }
     }
     return 1;
 }
+
 
 BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"], "boolean" ]; }
 sub AddDatabase
@@ -1337,7 +1369,26 @@ sub AddDatabase
     if ( $index == 0 )
     {
         # calculate new database index
-        $index =  (scalar(@{$self->ReadDatabaseList()} )) - 1;
+        my $dbList = $self->ReadDatabaseList();
+        $index =  scalar(@{$dbList}) - 1;
+        foreach my $listitem (@{$dbList} )
+        {
+            if ( $listitem->{'suffix'} ne "" )
+            {
+                $rc = $self->IsSubordinate( $listitem->{'suffix'}, $db->{'suffix'} );
+                if ( ! defined $rc )
+                {
+                    return 0;
+                }
+                elsif( $rc )
+                {
+                    y2milestone( $db->{'suffix'}. " is subordinate to " .  $listitem->{'suffix'} );
+                    y2milestone( "New index: ". $listitem->{'index'} );
+                    $index = $listitem->{'index'};
+                    last;
+                }
+            }
+        }
     }
 
     # Set defaults for caching and checkpoint
