@@ -887,9 +887,6 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "new_db"    : new_db,
         "dynamic"   : true,
         "help_page" : "database_detail",
-        "cb_read"   : ``( cb_read_db() ),
-        "cb_write"  : ``( cb_write_db() ),
-        "cb_input"  : ``( cb_input_db() )
     ];
     map<string,any> bdb_item_map = $[
         "name"      : label,
