@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Aug 15 16:39:34 CEST 2008 - rhafer@suse.de
+
+- Don't deleting config statements from overlays which were
+  manually added (bnc#410595)
+
+-------------------------------------------------------------------
 Thu Feb 28 08:55:10 CET 2008 - rhafer@suse.de
 
 - Check for existing "shadowAccount" Objects when enabling password

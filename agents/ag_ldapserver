@@ -484,6 +484,9 @@ sub readUnparsedSection
             {
                 y2debug( "overlay pos: ".qd($pos) );
                 my $type = $pos->[0];
+
+                next if ( $type ne "ppolicy");
+
                 my $sub_options = $pos->[1];
                 my $subret = $class->readUnparsedSection({ option => $type, command => 'overlay' }, $sub_options);
                 y2milestone( "result: ".qd($subret));
@@ -1312,13 +1315,27 @@ sub updateSingleOption
             } else {
                 if (! defined $insert_pos){
                     y2debug("looking for new insert_pos");
-                    # seems the current subjection does already exist in the file
+                    # seems the current subsection does already exist in the file
                     # find  the data position of the current option
                     y2debug('$section->{$opt_name}->[0]->[1]' .qd($section->{$opt_name}->[0]->[1]));
-                    $insert_pos = $section->{$opt_name}->[0]->[1]->{$opt_name}->[0]->{'datapos'};
+                    for( my $i=0; $i < scalar(@{$section->{$opt_name}}); $i++ )
+                    {
+                        if ($section->{$opt_name}->[$i]->[0] eq $subsection_name )
+                        {
+                            $insert_pos = $section->{$opt_name}->[$i]->[1]->{$opt_name}->[0]->{'datapos'};
+                            last;
+                        }
+                    }
+                    if (! defined $insert_pos){
+                        $insert_pos = $section->{$opt_name}->[0]->[1]->{$opt_name}->[0]->{'datapos'};
+                        my @pos_comp = split /\./, $insert_pos;
+                        $pos_comp[scalar(@pos_comp)-1]--;
+                        $insert_pos = join ".", @pos_comp;
+                        $insert_pos = "$insert_pos.99999";
+                    }
                 }
-                y2debug("insert_pos: $insert_pos");
                 my $sub_insertpos = "$insert_pos.$insert_pos_add";
+                y2debug("insert_pos: $insert_pos sub_insertpos: $sub_insertpos");
                 if (! defined $subsection_hash) {
                     y2debug("this is a new subsection");
                     $data->{"$sub_insertpos"} = {
