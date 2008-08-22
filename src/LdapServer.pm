@@ -403,6 +403,15 @@ sub WriteServiceSettings {
         Progress->Finish();
         return 0;
     }
+    elsif ( ! $serviceRunning && $serviceEnabled )
+    {
+        my $progressItems = [_("Starting LDAP Server") ];
+        Progress->New(_("Restarting OpenLDAP Server"), "", 1, $progressItems, $progressItems, "");
+        Progress->NextStage();
+        Service->Start("ldap");
+        Progress->Finish();
+        return 0;
+    }
     return 1;
 }
 
