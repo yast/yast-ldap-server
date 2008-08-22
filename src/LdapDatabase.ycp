@@ -521,153 +521,6 @@
         `dn_base    : [ _("The Entry with the DN"), "dn.base" ]
     ];
 
-    global symbol AddAclTarget(string suffix)
-    {
-        list itemlist = [];
-        foreach( symbol i, [ `dn_all, `dn_subtree, `dn_base ],
-            {
-                itemlist = add(itemlist, `item( `id( i ), whatId2String[i,0]:"" ) );
-            }
-        );
-        term addAclWidget =
-            `VBox(
-                `VSpacing(1),
-                `HSquash(
-                    `VSquash(
-                        `VBox(
-                            `HBox(
-                                `Left(
-                                    `ComboBox( `id(`cb_what), `opt(`notify) , _("Who should this rule apply to"), itemlist)
-                                ),
-                                `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
-                                `Bottom(
-                                    `PushButton( `id( `pb_dn ), _("Select" ) )
-                                )
-                            ),
-                            `VSpacing(0.5),
-                            `Left(
-                                `VBox(
-                                    `Left(
-                                        `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
-                                    ),
-                                    `Left(
-                                        `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
-                                    )
-                                )
-                            ),
-                            `VSpacing(0.5),
-                            `RadioButtonGroup(
-                                `id( `rbg_attrs ),
-                                `HBox(
-                                    `Left(
-                                        `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
-                                    ),
-                                    `Left(
-                                        `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
-                                    )
-                                )
-                            ),
-                            `HBox(
-                                `Left(
-                                    `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
-                                ),
-                                `Bottom(
-                                    `PushButton( `id( `pb_attrs ), _("Edit" ) )
-                                )
-                            )
-                        )
-                    )
-                )
-            );
-        Wizard::SetContentsButtons(_("Define the target objects for this ACL Rule"), addAclWidget, "",
-                Label::BackButton(), Label::NextButton());
-        UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
-        UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-        UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
-        UI::ChangeWidget( `id( `cb_filter ), `Value, false );
-        UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
-        UI::ChangeWidget( `id( `attrs_all ), `Value, true );
-        UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
-        UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
-        symbol ret = `next;
-        map result = $[];
-        while(true) {
-            ret = (symbol)UI::UserInput();
-            y2milestone("Input event: %1", ret);
-            if ( ret == `next )
-            {
-                result["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
-                result["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
-                result["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
-                result["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
-                y2milestone("New What clause: %1", result);
-                break;
-            }
-            else if ( ret == `abort || ret == `cancel )
-            {
-                break;
-            }
-            else if ( ret == `cb_what )
-            {
-                symbol cb_val = (symbol)UI::QueryWidget( `id(`cb_what), `Value );
-                if ( cb_val == `dn_all )
-                {
-                    UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
-                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-                }
-                else if ( cb_val == `dn_base || cb_val == `dn_subtree )
-                {
-                    UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
-                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
-                    if ( ret == `dn_subtree )
-                    {
-                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
-                    }
-                    else
-                    {
-                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Entry DN") );
-                    }
-                }
-            }
-            else if ( ret == `pb_dn )
-            {
-                string dn = LdapPopup::InitAndBrowseTree(suffix, $["hostname":"localhost", "port":"389"] );
-                UI::ChangeWidget( `id( `te_dn ), `Value, dn );
-            }
-            else if ( ret == `cb_filter )
-            {
-                if ( (boolean) UI::QueryWidget( `id(`cb_filter), `Value ) )
-                {
-                    UI::ChangeWidget( `id( `te_filter ), `Enabled, true );
-                }
-                else
-                {
-                    UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
-                }
-            }
-            else if ( ret == `attrs_all )
-            {
-                UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
-                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
-            }
-            else if ( ret == `attrs_list )
-            {
-                UI::ChangeWidget( `id( `te_attrs ), `Enabled, true );
-                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, true );
-            }
-            else if (ret == `pb_attrs )
-            {
-                string attr_string = (string)UI::QueryWidget( `id( `te_attrs ), `Value );
-                list<string> attrs = splitstring( attr_string, "," );
-                attrs = SelectAttributes(attrs);
-                attr_string = mergestring(attrs, "," );
-                UI::ChangeWidget( `id( `te_attrs ), `Value, attr_string );
-            }
-        }
-        return ret;
-    }
-
-
     map<symbol, list<string> > whoId2String = $[
         `who_all        : [ _("Everybody"), "*" ],
         `who_users      : [ _("Authenticated Clients") , "users" ],
@@ -807,42 +660,172 @@
         UI::CloseDialog();
         return res;
     }
-
-    global symbol AclAccessTable (string suffix)
+    global symbol AddAclTarget(string suffix)
     {
-        term widget =
+        list itemlist = [];
+        foreach( symbol i, [ `dn_all, `dn_subtree, `dn_base ],
+            {
+                itemlist = add(itemlist, `item( `id( i ), whatId2String[i,0]:"" ) );
+            }
+        );
+        term addAclWidget =
             `VBox(
-                `VSpacing(1),
+                `Heading( _("Edit Access Control Rule") ),
                 `HSquash(
                     `VSquash(
                         `VBox(
-                            `MinSize( 60, 10,
-                                `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                            `Frame( _("Target Objects"),
+                                `VBox(
+                                    `HBox(
+                                        `Left(
+                                            `ComboBox( `id(`cb_what), `opt(`notify) , _("Who should this rule apply to"), itemlist)
+                                        ),
+                                        `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
+                                        `Bottom(
+                                            `PushButton( `id( `pb_dn ), _("Select" ) )
+                                        )
+                                    ),
+                                    `VSpacing(0.5),
+                                    `Left(
+                                        `VBox(
+                                            `Left(
+                                                `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
+                                            ),
+                                            `Left(
+                                                `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
+                                            )
+                                        )
+                                    ),
+                                    `VSpacing(0.5),
+                                    `RadioButtonGroup(
+                                        `id( `rbg_attrs ),
+                                        `HBox(
+                                            `Left(
+                                                `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
+                                            ),
+                                            `Left(
+                                                `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
+                                            )
+                                        )
+                                    ),
+                                    `HBox(
+                                        `Left(
+                                            `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
+                                        ),
+                                        `Bottom(
+                                            `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                        )
+                                    )
+                                )
                             ),
+                            `VSpacing(0.5),
+                            `Frame( _("Access Level"),
+                                `VBox(
+                                    `MinSize( 60, 7,
+                                        `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                                    ),
+                                    `HBox(
+                                        `PushButton( `id (`pb_add ), _("Add") ),
+                                        `PushButton( `id (`pb_del ), _("Delete") ),
+                                        `PushButton( `id (`pb_edit ), _("Edit") )
+                                    )
+                                )
+                            ),
+                            `VSpacing(1),
                             `HBox(
-                                `PushButton( `id (`pb_add ), _("Add") ),
-                                `PushButton( `id (`pb_del ), _("Delete") ),
-                                `PushButton( `id (`pb_edit ), _("Edit") )
+                                `PushButton( `id( `pb_ok), Label::OKButton() ),
+                                `PushButton( `id( `cancel), Label::CancelButton() )
                             )
                         )
                     )
                 )
             );
-        Wizard::SetContentsButtons(_("Define the target objects for this ACL Rule"), widget, "",
-                Label::BackButton(), Label::NextButton());
 
-        list<map> accesslist = [];
+        UI::OpenDialog(`opt( `decorated ), addAclWidget );
+
+        UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
+        UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
+        UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
+        UI::ChangeWidget( `id( `cb_filter ), `Value, false );
+        UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
+        UI::ChangeWidget( `id( `attrs_all ), `Value, true );
+        UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
+        UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
         symbol ret = `next;
+        map result = $[];
+        list<map> accesslist = [];
         while(true) {
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
-            if ( ret == `next )
+            if ( ret == `pb_ok )
+            {
+                result["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
+                result["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
+                result["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
+                result["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
+                y2milestone("New What clause: %1", result);
+                y2milestone("AccessList: %1", accesslist);
+                break;
+            }
+            else if ( ret == `cancel )
             {
                 break;
             }
-            else if ( ret == `abort )
+            else if ( ret == `cb_what )
             {
-                break;
+                symbol cb_val = (symbol)UI::QueryWidget( `id(`cb_what), `Value );
+                if ( cb_val == `dn_all )
+                {
+                    UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
+                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
+                }
+                else if ( cb_val == `dn_base || cb_val == `dn_subtree )
+                {
+                    UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
+                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
+                    if ( ret == `dn_subtree )
+                    {
+                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
+                    }
+                    else
+                    {
+                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Entry DN") );
+                    }
+                }
+            }
+            else if ( ret == `pb_dn )
+            {
+                string dn = LdapPopup::InitAndBrowseTree(suffix, $["hostname":"localhost", "port":"389"] );
+                UI::ChangeWidget( `id( `te_dn ), `Value, dn );
+            }
+            else if ( ret == `cb_filter )
+            {
+                if ( (boolean) UI::QueryWidget( `id(`cb_filter), `Value ) )
+                {
+                    UI::ChangeWidget( `id( `te_filter ), `Enabled, true );
+                }
+                else
+                {
+                    UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
+                }
+            }
+            else if ( ret == `attrs_all )
+            {
+                UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
+                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
+            }
+            else if ( ret == `attrs_list )
+            {
+                UI::ChangeWidget( `id( `te_attrs ), `Enabled, true );
+                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, true );
+            }
+            else if (ret == `pb_attrs )
+            {
+                string attr_string = (string)UI::QueryWidget( `id( `te_attrs ), `Value );
+                list<string> attrs = splitstring( attr_string, "," );
+                attrs = SelectAttributes(attrs);
+                attr_string = mergestring(attrs, "," );
+                UI::ChangeWidget( `id( `te_attrs ), `Value, attr_string );
             }
             else if ( ret == `pb_add )
             {
@@ -894,33 +877,8 @@
                     UI::ChangeWidget( `tab_access, `Items, itemlist) ;
                 }
             }
+
         }
-    }
-
-
-    global define any AddAclWizard(string suffix)
-    {
-        map aliases = $[
-            "target" : ``( AddAclTarget(suffix) ),
-            "access" : ``( AclAccessTable(suffix) )
-        ];
-
-        map sequence = $[
-            "ws_start" : "target",
-            "target" : $[
-                `next  : "access",
-                `abort : `abort
-            ],
-            "access" : $[
-                `next  : `next,
-                `abort : `abort
-            ]
-        ];
-
-        Wizard::CreateDialog();
-
-        any ret = Sequencer::Run(aliases, sequence);
-
         UI::CloseDialog();
         return ret;
     }
@@ -928,9 +886,15 @@
     global term GetAclWidget()
     {
         term aclList =
-            `Top(
+            `VBox(
+                `VSpacing(1),
                 `VBox(
-                    `PushButton( `id( `pb_add_acl ), _("Add Rule") )
+                    `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Target"), _("DN") ) ),
+                    `HBox(
+                        `PushButton( `id (`pb_add ), _("Add") ),
+                        `PushButton( `id (`pb_del ), _("Delete") ),
+                        `PushButton( `id (`pb_edit ), _("Edit") )
+                    )
                 )
             );
         return aclList;
@@ -944,9 +908,9 @@
             db = LdapServer::ReadDatabase(dbindex);
         }
         string suffix =  db["suffix"]:"";
-        if ( handler_cmd == `pb_add_acl )
+        if ( handler_cmd == `pb_add )
         {
-            AddAclWizard(suffix);
+            AddAclTarget(suffix);
         }
         return true;
     }
