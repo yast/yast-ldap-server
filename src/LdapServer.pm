@@ -1167,6 +1167,15 @@ sub ChangeDatabaseIndex
     return $rc;
 }
 
+BEGIN { $TYPEINFO {ChangeDatabaseAcl} = ["function", "boolean" , "integer", ["list", [ "map", "string", "any" ] ] ]; }
+sub ChangeDatabaseAcl
+{
+    my ($self, $dbIndex, $acllist ) = @_;
+    y2milestone("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
+    my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
+    return $rc;
+}
+
 BEGIN { $TYPEINFO {ReadOverlayList} = ["function", [ "list", [ "map" , "string", "string"] ], "integer" ]; }
 sub ReadOverlayList
 {
