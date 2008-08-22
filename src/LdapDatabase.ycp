@@ -662,13 +662,23 @@
 
 
     map<symbol, list<string> > whoId2String = $[
-        `who_all : [ _("Everybody"), "*" ],
-        `who_users : [ _("Authenticated Clients") , "users" ],
-        `who_anon : [ _("Anonymous Clients"), "anonymous" ],
-        `who_self : [ _("The accessed Entry (self)"), "self" ],
-        `who_dn : [ _("The user with the DN"), "dn" ],
+        `who_all        : [ _("Everybody"), "*" ],
+        `who_users      : [ _("Authenticated Clients") , "users" ],
+        `who_anon       : [ _("Anonymous Clients"), "anonymous" ],
+        `who_self       : [ _("The accessed Entry (self)"), "self" ],
+        `who_dn         : [ _("The user with the DN"), "dn" ],
         `who_dn_subtree : [ _("All entries in the subtree") , "dn.subtree" ],
-        `who_group : [ _("All members of the group"), "group" ]
+        `who_group      : [ _("All members of the group"), "group" ]
+    ];
+
+    map<symbol, list<string> > accessId2String = $[
+        `access_none     : [ _("No Access"), "none"],
+        `access_disclose : [ _("No Access (but disclose information on error)"), "disclose" ],
+        `access_auth     : [ _("Authenticate"), "auth" ],
+        `access_compare  : [ _("Compare"),  "compare" ],
+        `access_read     : [ _("Read"), "read" ],
+        `access_write    : [ _("Write") "write" ],
+        `access_manage   : [ _("Manage (full access)"), "manage" ]
     ];
 
     global map AddAclAccess(string suffix, map access)
@@ -679,6 +689,14 @@
                 itemlist = add(itemlist, `item( `id( i ), whoId2String[i,0]:"" ) );
             }
         );
+
+        list access_itemlist = [];
+        foreach( symbol i, [`access_none, `access_disclose, `access_auth, `access_compare, `access_read, `access_write, `access_manage ] ,
+            {
+                access_itemlist = add(access_itemlist, `item( `id( i ), accessId2String[i,0]:"" ) );
+            }
+        );
+
         term widget =
             `VBox(
                 `VSpacing(1),
@@ -697,17 +715,7 @@
                                 )
                             ),
                             `Left(
-                                `ComboBox( `id(`cb_access), _("Define the Access Level"),
-                                    [
-                                        `item( `id(`access_none), _("No Access") ),
-                                        `item( `id(`access_disclose), _("No Access (but disclose information on error)") ),
-                                        `item( `id(`access_auth), _("Authenticate") ),
-                                        `item( `id(`access_compare), _("Compare") ),
-                                        `item( `id(`access_read), _("Read") ),
-                                        `item( `id(`access_write), _("Write") ),
-                                        `item( `id(`access_manage), _("Manage (full access)") )
-                                    ]
-                                )
+                                `ComboBox( `id(`cb_access), _("Define the Access Level"), access_itemlist)
                             ),
                             `HBox(
                                 `PushButton( `id( `pb_ok), Label::OKButton() ),
@@ -722,6 +730,18 @@
         UI::ChangeWidget( `id( `te_who_dn ), `Enabled, false );
         UI::ChangeWidget( `id( `pb_who ), `Enabled, false );
 
+        if ( access != nil )
+        {
+            UI::ChangeWidget( `id( `cb_who), `Value, access["type"]:`nil );
+            if ( access["type"]:`nil == `who_dn ||
+                 access["type"]:`nil == `who_dn ||
+                 access["type"]:`nil == `who_dn )
+
+            {
+                UI::ChangeWidget( `id( `te_who_dn ), `Enabled, true );
+                UI::ChangeWidget( `id( `te_who_dn ), `Value, access["dn"]:"" );
+            }
+        }
         symbol ret = `next;
         map res = $[];
         while(true) {
@@ -736,35 +756,8 @@
                 {
                     res["dn"] = UI::QueryWidget( `id( `te_who_dn), `Value );
                 }
-                symbol level = (symbol)UI::QueryWidget( `id( `cb_access ), `Value );
-                if ( level == `access_none )
-                {
-                    res["level"] = "none";
-                }
-                else if ( level == `access_disclose )
-                {
-                    res["level"] = "disclose";
-                }
-                else if ( level == `access_auth )
-                {
-                    res["level"] = "auth";
-                }
-                else if ( level == `access_compare )
-                {
-                    res["level"] = "compare";
-                }
-                else if ( level == `access_read )
-                {
-                    res["level"] = "read";
-                }
-                else if ( level == `access_write )
-                {
-                    res["level"] = "write";
-                }
-                else if ( level == `access_manage )
-                {
-                    res["level"] = "manage";
-                }
+
+                res["level"] = UI::QueryWidget( `id( `cb_access ), `Value );
                 break;
             }
             else if ( ret == `cancel )
@@ -841,7 +834,7 @@
                 list itemlist = maplist (map v, accesslist,
                     {
                         pos=pos+1;
-                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", v["level"]:"");
+                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
                     }
                 );
                 UI::ChangeWidget( `tab_access, `Items, itemlist) ;
