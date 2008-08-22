@@ -519,8 +519,8 @@
 
     map<symbol, list<string> > whatId2String = $[
         `dn_all     : [ _("All Entries"), "*" ],
-        `dn_subtree : [ _("All Entries in the subtree"), "dn.subtree" ],
-        `dn_base    : [ _("The Entry with the DN"), "dn.base" ]
+        `dn_subtree : [ _("All Entries in the subtree"), "subtree" ],
+        `dn_base    : [ _("The Entry with the DN"), "base" ]
     ];
 
     map<symbol, list<string> > whoId2String = $[
@@ -946,6 +946,46 @@
     {
         acllist = [];
         return true;
+    }
+
+    global list<map> DbAclWrite( integer dbindex )
+    {
+        list<map> outlist = [];
+        foreach( map acl, acllist,
+            {
+                y2milestone( "------------------------------" );
+                y2milestone( "ACL Target: %1", acl["target","what"]:`nil );
+                map targetmap = $[];
+                if ( acl["target","what"]:`dn_all != `dn_all )
+                {
+                    map dn = $[
+                        "style"    : whatId2String[ acl["target","what"]:`dn_base,1 ]:"",
+                        "value" : acl["target","dn"]:""
+                    ];
+                    targetmap["dn"] = dn;
+                }
+                if ( acl["target","filter"]:"" != "" )
+                {
+                    targetmap["filter"] = acl["target","filter"]:"";
+                }
+                if ( acl["target","attrs"]:"" != "" )
+                {
+                    targetmap["attrs"] = acl["target","attrs"]:"";
+                }
+                y2milestone( "ACL Target: %1", targetmap );
+                list<map> outlist_access = [];
+                foreach( map access, acl["access"]:[],
+                    {
+                        access["level"] = accessId2String[access["level"]:`nil,1]:"none";
+                        access["type"] = whoId2String[access["type"]:`nil,1]:"";
+                        y2milestone( "ACL Access: %1", access );
+                        outlist_access = add(outlist_access, access );
+                    }
+                );
+                outlist = add(outlist, $[ "target" : targetmap, "access" : outlist_access ] );
+            }
+        );
+        return outlist;
     }
 
     global boolean DbAclInput( symbol handler_cmd, integer dbindex )
