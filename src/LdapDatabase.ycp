@@ -677,7 +677,7 @@
         `access_auth     : [ _("Authenticate"), "auth" ],
         `access_compare  : [ _("Compare"),  "compare" ],
         `access_read     : [ _("Read"), "read" ],
-        `access_write    : [ _("Write") "write" ],
+        `access_write    : [ _("Write"), "write" ],
         `access_manage   : [ _("Manage (full access)"), "manage" ]
     ];
 
@@ -733,6 +733,7 @@
         if ( access != nil )
         {
             UI::ChangeWidget( `id( `cb_who), `Value, access["type"]:`nil );
+            UI::ChangeWidget( `id( `cb_access), `Value, access["level"]:`nil );
             if ( access["type"]:`nil == `who_dn ||
                  access["type"]:`nil == `who_dn ||
                  access["type"]:`nil == `who_dn )
@@ -800,12 +801,18 @@
         term widget =
             `VBox(
                 `VSpacing(1),
-                `VBox(
-                    `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) ),
-                    `HBox(
-                        `PushButton( `id (`pb_add ), _("Add") ),
-                        `PushButton( `id (`pb_del ), _("Delete") ),
-                        `PushButton( `id (`pb_edit ), _("Edit") )
+                `HSquash(
+                    `VSquash(
+                        `VBox(
+                            `MinSize( 60, 10,
+                                `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                            ),
+                            `HBox(
+                                `PushButton( `id (`pb_add ), _("Add") ),
+                                `PushButton( `id (`pb_del ), _("Delete") ),
+                                `PushButton( `id (`pb_edit ), _("Edit") )
+                            )
+                        )
                     )
                 )
             );
@@ -847,6 +854,15 @@
                 {
                     map access = accesslist[(integer)selected]:nil;
                     access = AddAclAccess(suffix, access);
+                    accesslist[(integer)selected] = access;
+                    integer pos = -1;
+                    list itemlist = maplist (map v, accesslist,
+                        {
+                            pos=pos+1;
+                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
+                        }
+                    );
+                    UI::ChangeWidget( `tab_access, `Items, itemlist) ;
                 }
             }
             else if ( ret == `pb_del )
@@ -860,7 +876,7 @@
                     list itemlist = maplist (map v, accesslist,
                         {
                             pos=pos+1;
-                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", v["level"]:"");
+                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
                         }
                     );
                     UI::ChangeWidget( `tab_access, `Items, itemlist) ;
