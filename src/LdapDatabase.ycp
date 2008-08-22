@@ -522,63 +522,63 @@
                 `VSpacing(1),
                 `HSquash(
                     `VSquash(
-                            `VBox(
-                                `RadioButtonGroup(
-                                    `id( `rbg_dn ),
-                                    `HBox(
-                                        `Left(
-                                            `RadioButton( `id(`dn_all), `opt(`notify), _("All Entries") )
-                                        ),
-                                        `HSpacing(1),
-                                        `Left(
-                                            `RadioButton( `id(`dn_subtree), `opt(`notify),_("All Entries in the subtree") )
-                                        ),
-                                        `HSpacing(1),
-                                        `Left(
-                                            `RadioButton( `id(`dn_base), `opt(`notify), _("The Entry with the DN") )
-                                        )
-                                    )
-                                ),
-                                `Left(
-                                    `HBox(
-                                        `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
-                                        `Bottom(
-                                            `PushButton( `id( `pb_dn ), _("Select" ) )
-                                        )
-                                    )
-                                ),
-                                `VSpacing(0.5),
-                                `Left(
-                                    `VBox(
-                                        `Left(
-                                            `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
-                                        ),
-                                        `Left(
-                                            `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
-                                        )
-                                    )
-                                ),
-                                `VSpacing(0.5),
-                                `RadioButtonGroup(
-                                    `id( `rbg_attrs ),
-                                    `HBox(
-                                        `Left(
-                                            `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
-                                        ),
-                                        `Left(
-                                            `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
-                                        )
-                                    )
-                                ),
+                        `VBox(
+                            `RadioButtonGroup(
+                                `id( `rbg_dn ),
                                 `HBox(
                                     `Left(
-                                        `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
+                                        `RadioButton( `id(`dn_all), `opt(`notify), _("All Entries") )
                                     ),
-                                    `Bottom(
-                                        `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                    `HSpacing(1),
+                                    `Left(
+                                        `RadioButton( `id(`dn_subtree), `opt(`notify),_("All Entries in the subtree") )
+                                    ),
+                                    `HSpacing(1),
+                                    `Left(
+                                        `RadioButton( `id(`dn_base), `opt(`notify), _("The Entry with the DN") )
                                     )
                                 )
+                            ),
+                            `Left(
+                                `HBox(
+                                    `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
+                                    `Bottom(
+                                        `PushButton( `id( `pb_dn ), _("Select" ) )
+                                    )
+                                )
+                            ),
+                            `VSpacing(0.5),
+                            `Left(
+                                `VBox(
+                                    `Left(
+                                        `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
+                                    ),
+                                    `Left(
+                                        `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
+                                    )
+                                )
+                            ),
+                            `VSpacing(0.5),
+                            `RadioButtonGroup(
+                                `id( `rbg_attrs ),
+                                `HBox(
+                                    `Left(
+                                        `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
+                                    ),
+                                    `Left(
+                                        `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
+                                    )
+                                )
+                            ),
+                            `HBox(
+                                `Left(
+                                    `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
+                                ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                )
                             )
+                        )
                     )
                 )
             );
@@ -660,15 +660,246 @@
         return ret;
     }
 
+    global map AddAclAccess(string suffix, map access)
+    {
+        term widget =
+            `VBox(
+                `VSpacing(1),
+                `HSquash(
+                    `VSquash(
+                        `VBox(
+                            `Left(
+                                `ComboBox( `id(`cb_who), `opt(`notify) , _("Who should this rule apply to"),
+                                    [
+                                        `item( `id(`who_all), _("Everybody") ),
+                                        `item( `id(`who_users), _("Authenticated Clients") ),
+                                        `item( `id(`who_anon), _("Anonymous Clients") ),
+                                        `item( `id(`who_self), _("The accesses Entry (self)") ),
+                                        `item( `id(`who_dn), _("The Entry selected below") ),
+                                        `item( `id(`who_dn_subtree), _("All Entries in the subtree selected below") ),
+                                        `item( `id(`who_group), _("All members of the group selected below") )
+                                    ]
+                                )
+                            ),
+                            `Left(
+                                `HBox(
+                                    `InputField( `id( `te_who_dn ), `opt( `hstretch ), _("Entry DN") ),
+                                    `Bottom(
+                                        `PushButton( `id( `pb_who ), _("Select" ) )
+                                    )
+                                )
+                            ),
+                            `Left(
+                                `ComboBox( `id(`cb_access), _("Define the Access Level"),
+                                    [
+                                        `item( `id(`access_none), _("No Access") ),
+                                        `item( `id(`access_disclose), _("No Access (but disclose information on error)") ),
+                                        `item( `id(`access_auth), _("Authenticate") ),
+                                        `item( `id(`access_compare), _("Compare") ),
+                                        `item( `id(`access_read), _("Read") ),
+                                        `item( `id(`access_write), _("Write") ),
+                                        `item( `id(`access_manage), _("Manage (full access)") )
+                                    ]
+                                )
+                            ),
+                            `HBox(
+                                `PushButton( `id( `pb_ok), Label::OKButton() ),
+                                `PushButton( `id( `cancel), Label::CancelButton() )
+                            )
+                        )
+                    )
+                )
+            );
+        UI::OpenDialog( `opt(`decorated), widget);
+
+        UI::ChangeWidget( `id( `te_who_dn ), `Enabled, false );
+        UI::ChangeWidget( `id( `pb_who ), `Enabled, false );
+
+        symbol ret = `next;
+        map res = $[];
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            y2milestone("Input event: %1", ret);
+            if ( ret == `pb_ok )
+            {
+                symbol type = (symbol)UI::QueryWidget( `id( `cb_who ), `Value );
+                if ( type == `who_all )
+                {
+                    res["type"] = "*";
+                }
+                else if ( type == `who_anon )
+                {
+                    res["type"] = "anonymous";
+                }
+                else if ( type == `who_users )
+                {
+                    res["type"] = "users";
+                }
+                else if ( type == `who_self )
+                {
+                    res["type"] = "self";
+                }
+                else if ( type == `who_dn || type == `who_dn_subtree || type == `who_group )
+                {
+                    res["dn"] = UI::QueryWidget( `id( `te_who_dn), `Value );
+                    if ( type == `who_dn )
+                    {
+                        res["type"] = "dn";
+                    }
+                    else if ( type == `who_dn_subtree )
+                    {
+                        res["type"] = "dn.subtree ";
+                    }
+                    else if ( type == `who_group )
+                    {
+                        res["type"] = "group";
+                    }
+                }
+                symbol level = (symbol)UI::QueryWidget( `id( `cb_access ), `Value );
+                if ( level == `access_none )
+                {
+                    res["level"] = "none";
+                }
+                else if ( level == `access_disclose )
+                {
+                    res["level"] = "disclose";
+                }
+                else if ( level == `access_auth )
+                {
+                    res["level"] = "auth";
+                }
+                else if ( level == `access_compare )
+                {
+                    res["level"] = "compare";
+                }
+                else if ( level == `access_read )
+                {
+                    res["level"] = "read";
+                }
+                else if ( level == `access_write )
+                {
+                    res["level"] = "write";
+                }
+                else if ( level == `access_manage )
+                {
+                    res["level"] = "manage";
+                }
+                break;
+            }
+            else if ( ret == `cancel )
+            {
+                break;
+            }
+            else if ( ret == `cb_who )
+            {
+                symbol cb_val = (symbol)UI::QueryWidget( `id(`cb_who), `Value );
+                if ( cb_val == `who_all || cb_val == `who_users || cb_val == `who_anon || cb_val == `who_self )
+                {
+                    UI::ChangeWidget( `id( `te_who_dn ), `Enabled, false );
+                    UI::ChangeWidget( `id( `pb_who ), `Enabled, false );
+                }
+                else if ( cb_val == `who_dn || cb_val == `who_dn_subtree || cb_val == `who_group )
+                {
+                    UI::ChangeWidget( `id( `te_who_dn ), `Enabled, true );
+                    UI::ChangeWidget( `id( `pb_who ), `Enabled, true );
+                    if ( cb_val == `who_dn )
+                    {
+                        UI::ChangeWidget( `id( `te_who_dn ), `Label, _("Entry DN") );
+                    }
+                    else if ( cb_val == `who_dn_subtree )
+                    {
+                        UI::ChangeWidget( `id( `te_who_dn ), `Label, _("Subtree DN") );
+                    }
+                    else if ( cb_val == `who_group )
+                    {
+                        UI::ChangeWidget( `id( `te_who_dn ), `Label, _("Group DN") );
+                    }
+                }
+            }
+        }
+        UI::CloseDialog();
+        return res;
+    }
+
+    global symbol AclAccessTable (string suffix)
+    {
+        term widget =
+            `VBox(
+                `VSpacing(1),
+                `VBox(
+                    `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) ),
+                    `HBox(
+                        `PushButton( `id (`pb_add ), _("Add") ),
+                        `PushButton( `id (`pb_del ), _("Delete") ),
+                        `PushButton( `id (`pb_edit ), _("Edit") )
+                    )
+                )
+            );
+        Wizard::SetContentsButtons(_("Define the target objects for this ACL Rule"), widget, "",
+                Label::BackButton(), Label::NextButton());
+
+        list<map> accesslist = [];
+        symbol ret = `next;
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            y2milestone("Input event: %1", ret);
+            if ( ret == `next )
+            {
+                break;
+            }
+            else if ( ret == `abort )
+            {
+                break;
+            }
+            else if ( ret == `pb_add )
+            {
+                map access = AddAclAccess(suffix, nil );
+                accesslist = add(accesslist, access);
+
+                integer pos = -1;
+                list itemlist = maplist (map v, accesslist, { pos=pos+1; return `item( `id(pos), v["type"]:"", v["dn"]:"", v["level"]:""); });
+                UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                y2milestone("New access: %1", access );
+            }
+            else if ( ret == `pb_edit )
+            {
+                any selected = UI::QueryWidget( `id( `tab_access ), `CurrentItem );
+                if ( selected != nil )
+                {
+                    map access = accesslist[(integer)selected]:nil;
+                    access = AddAclAccess(suffix, access);
+                }
+            }
+            else if ( ret == `pb_del )
+            {
+                any selected = UI::QueryWidget( `id( `tab_access ), `CurrentItem );
+                if ( selected != nil )
+                {
+                    accesslist = remove(accesslist, (integer)selected);
+
+                    integer pos = -1;
+                    list itemlist = maplist (map v, accesslist, { pos=pos+1; return `item( `id(pos), v["type"]:"", v["dn"]:"", v["level"]:""); });
+                    UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                }
+            }
+        }
+    }
+
+
     global define any AddAclWizard(string suffix)
     {
         map aliases = $[
-            "target" : ``( AddAclTarget(suffix) )
+            "target" : ``( AddAclTarget(suffix) ),
+            "access" : ``( AclAccessTable(suffix) )
         ];
 
         map sequence = $[
             "ws_start" : "target",
             "target" : $[
+                `next  : "access",
+                `abort : `abort
+            ],
+            "access" : $[
                 `next  : `next,
                 `abort : `abort
             ]
