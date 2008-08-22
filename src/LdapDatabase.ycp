@@ -515,36 +515,33 @@
         return selected;
     }
 
+    map<symbol, list<string> > whatId2String = $[
+        `dn_all     : [ _("All Entries"), "*" ],
+        `dn_subtree : [ _("All Entries in the subtree"), "dn.subtree" ],
+        `dn_base    : [ _("The Entry with the DN"), "dn.base" ]
+    ];
+
     global symbol AddAclTarget(string suffix)
     {
+        list itemlist = [];
+        foreach( symbol i, [ `dn_all, `dn_subtree, `dn_base ],
+            {
+                itemlist = add(itemlist, `item( `id( i ), whatId2String[i,0]:"" ) );
+            }
+        );
         term addAclWidget =
             `VBox(
                 `VSpacing(1),
                 `HSquash(
                     `VSquash(
                         `VBox(
-                            `RadioButtonGroup(
-                                `id( `rbg_dn ),
-                                `HBox(
-                                    `Left(
-                                        `RadioButton( `id(`dn_all), `opt(`notify), _("All Entries") )
-                                    ),
-                                    `HSpacing(1),
-                                    `Left(
-                                        `RadioButton( `id(`dn_subtree), `opt(`notify),_("All Entries in the subtree") )
-                                    ),
-                                    `HSpacing(1),
-                                    `Left(
-                                        `RadioButton( `id(`dn_base), `opt(`notify), _("The Entry with the DN") )
-                                    )
-                                )
-                            ),
-                            `Left(
-                                `HBox(
-                                    `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
-                                    `Bottom(
-                                        `PushButton( `id( `pb_dn ), _("Select" ) )
-                                    )
+                            `HBox(
+                                `Left(
+                                    `ComboBox( `id(`cb_what), `opt(`notify) , _("Who should this rule apply to"), itemlist)
+                                ),
+                                `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
+                                `Bottom(
+                                    `PushButton( `id( `pb_dn ), _("Select" ) )
                                 )
                             ),
                             `VSpacing(0.5),
@@ -586,40 +583,50 @@
                 Label::BackButton(), Label::NextButton());
         UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
         UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-        UI::ChangeWidget( `id( `dn_all ), `Value, true );
+        UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
         UI::ChangeWidget( `id( `cb_filter ), `Value, false );
         UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
         UI::ChangeWidget( `id( `attrs_all ), `Value, true );
         UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
         UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
         symbol ret = `next;
+        map result = $[];
         while(true) {
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
             if ( ret == `next )
             {
+                result["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
+                result["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
+                result["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
+                result["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
+                y2milestone("New What clause: %1", result);
                 break;
             }
             else if ( ret == `abort || ret == `cancel )
             {
                 break;
             }
-            else if ( ret == `dn_all )
+            else if ( ret == `cb_what )
             {
-                UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
-                UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-            }
-            else if ( ret == `dn_base || ret == `dn_subtree )
-            {
-                UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
-                UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
-                if ( ret == `dn_subtree )
+                symbol cb_val = (symbol)UI::QueryWidget( `id(`cb_what), `Value );
+                if ( cb_val == `dn_all )
                 {
-                    UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
+                    UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
+                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
                 }
-                else
+                else if ( cb_val == `dn_base || cb_val == `dn_subtree )
                 {
-                    UI::ChangeWidget( `id( `te_dn ), `Label, _("Entry DN") );
+                    UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
+                    UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
+                    if ( ret == `dn_subtree )
+                    {
+                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
+                    }
+                    else
+                    {
+                        UI::ChangeWidget( `id( `te_dn ), `Label, _("Entry DN") );
+                    }
                 }
             }
             else if ( ret == `pb_dn )
@@ -790,6 +797,11 @@
                         UI::ChangeWidget( `id( `te_who_dn ), `Label, _("Group DN") );
                     }
                 }
+            }
+            else if ( ret == `pb_who)
+            {
+                string dn = LdapPopup::InitAndBrowseTree(suffix, $["hostname":"localhost", "port":"389"] );
+                UI::ChangeWidget( `id( `te_who_dn ), `Value, dn );
             }
         }
         UI::CloseDialog();
