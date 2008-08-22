@@ -660,8 +660,25 @@
         return ret;
     }
 
+
+    map<symbol, list<string> > whoId2String = $[
+        `who_all : [ _("Everybody"), "*" ],
+        `who_users : [ _("Authenticated Clients") , "users" ],
+        `who_anon : [ _("Anonymous Clients"), "anonymous" ],
+        `who_self : [ _("The accessed Entry (self)"), "self" ],
+        `who_dn : [ _("The user with the DN"), "dn" ],
+        `who_dn_subtree : [ _("All entries in the subtree") , "dn.subtree" ],
+        `who_group : [ _("All members of the group"), "group" ]
+    ];
+
     global map AddAclAccess(string suffix, map access)
     {
+        list itemlist = [];
+        foreach( symbol i, [ `who_all, `who_users, `who_anon, `who_self, `who_dn, `who_dn_subtree, `who_group ],
+            {
+                itemlist = add(itemlist, `item( `id( i ), whoId2String[i,0]:"" ) );
+            }
+        );
         term widget =
             `VBox(
                 `VSpacing(1),
@@ -669,17 +686,7 @@
                     `VSquash(
                         `VBox(
                             `Left(
-                                `ComboBox( `id(`cb_who), `opt(`notify) , _("Who should this rule apply to"),
-                                    [
-                                        `item( `id(`who_all), _("Everybody") ),
-                                        `item( `id(`who_users), _("Authenticated Clients") ),
-                                        `item( `id(`who_anon), _("Anonymous Clients") ),
-                                        `item( `id(`who_self), _("The accesses Entry (self)") ),
-                                        `item( `id(`who_dn), _("The Entry selected below") ),
-                                        `item( `id(`who_dn_subtree), _("All Entries in the subtree selected below") ),
-                                        `item( `id(`who_group), _("All members of the group selected below") )
-                                    ]
-                                )
+                                `ComboBox( `id(`cb_who), `opt(`notify) , _("Who should this rule apply to"), itemlist)
                             ),
                             `Left(
                                 `HBox(
@@ -723,37 +730,11 @@
             if ( ret == `pb_ok )
             {
                 symbol type = (symbol)UI::QueryWidget( `id( `cb_who ), `Value );
-                if ( type == `who_all )
-                {
-                    res["type"] = "*";
-                }
-                else if ( type == `who_anon )
-                {
-                    res["type"] = "anonymous";
-                }
-                else if ( type == `who_users )
-                {
-                    res["type"] = "users";
-                }
-                else if ( type == `who_self )
-                {
-                    res["type"] = "self";
-                }
-                else if ( type == `who_dn || type == `who_dn_subtree || type == `who_group )
+                res["type"] = type;
+
+                if ( type == `who_dn || type == `who_dn_subtree || type == `who_group )
                 {
                     res["dn"] = UI::QueryWidget( `id( `te_who_dn), `Value );
-                    if ( type == `who_dn )
-                    {
-                        res["type"] = "dn";
-                    }
-                    else if ( type == `who_dn_subtree )
-                    {
-                        res["type"] = "dn.subtree ";
-                    }
-                    else if ( type == `who_group )
-                    {
-                        res["type"] = "group";
-                    }
                 }
                 symbol level = (symbol)UI::QueryWidget( `id( `cb_access ), `Value );
                 if ( level == `access_none )
@@ -857,7 +838,12 @@
                 accesslist = add(accesslist, access);
 
                 integer pos = -1;
-                list itemlist = maplist (map v, accesslist, { pos=pos+1; return `item( `id(pos), v["type"]:"", v["dn"]:"", v["level"]:""); });
+                list itemlist = maplist (map v, accesslist,
+                    {
+                        pos=pos+1;
+                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", v["level"]:"");
+                    }
+                );
                 UI::ChangeWidget( `tab_access, `Items, itemlist) ;
                 y2milestone("New access: %1", access );
             }
@@ -878,7 +864,12 @@
                     accesslist = remove(accesslist, (integer)selected);
 
                     integer pos = -1;
-                    list itemlist = maplist (map v, accesslist, { pos=pos+1; return `item( `id(pos), v["type"]:"", v["dn"]:"", v["level"]:""); });
+                    list itemlist = maplist (map v, accesslist,
+                        {
+                            pos=pos+1;
+                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", v["level"]:"");
+                        }
+                    );
                     UI::ChangeWidget( `tab_access, `Items, itemlist) ;
                 }
             }
