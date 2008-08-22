@@ -515,7 +515,7 @@
         return selected;
     }
 
-    global symbol AddAclWidget(string suffix)
+    global symbol AddAclTarget(string suffix)
     {
         term addAclWidget =
             `VBox(
@@ -663,7 +663,7 @@
     global define any AddAclWizard(string suffix)
     {
         map aliases = $[
-            "target" : ``( AddAclWidget(suffix) )
+            "target" : ``( AddAclTarget(suffix) )
         ];
 
         map sequence = $[
