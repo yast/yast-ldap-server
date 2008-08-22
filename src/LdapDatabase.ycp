@@ -12,6 +12,8 @@
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
     map <string, any> ppolicyNew = $[];
+    list <map> acllist = [];
+
     string ldapconf_basedn = "";
     boolean createDbDir = false;
 
@@ -623,6 +625,7 @@
             }
             else if ( ret == `cancel )
             {
+                res = nil;
                 break;
             }
             else if ( ret == `cb_who )
@@ -660,7 +663,8 @@
         UI::CloseDialog();
         return res;
     }
-    global symbol AddAclTarget(string suffix)
+
+    global map AddAclTarget(string suffix, map acl)
     {
         list itemlist = [];
         foreach( symbol i, [ `dn_all, `dn_subtree, `dn_base ],
@@ -697,16 +701,8 @@
                                         )
                                     ),
                                     `VSpacing(0.5),
-                                    `RadioButtonGroup(
-                                        `id( `rbg_attrs ),
-                                        `HBox(
-                                            `Left(
-                                                `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
-                                            ),
-                                            `Left(
-                                                `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
-                                            )
-                                        )
+                                    `Left(
+                                        `CheckBox( `id( `cb_attrs ), `opt( `notify ), _("Apply this rule only to the listed Attribute") )
                                     ),
                                     `HBox(
                                         `Left(
@@ -743,32 +739,93 @@
 
         UI::OpenDialog(`opt( `decorated ), addAclWidget );
 
-        UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
-        UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-        UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
-        UI::ChangeWidget( `id( `cb_filter ), `Value, false );
-        UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
-        UI::ChangeWidget( `id( `attrs_all ), `Value, true );
-        UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
-        UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
+        if ( acl != nil )
+        {
+            UI::ChangeWidget( `id( `cb_what ), `Value, acl["target","what"]:`dn_all );
+            if ( acl["target","what"]:`nil == `dn_base )
+            {
+                UI::ChangeWidget( `id (`te_dn ), `Enabled, true );
+                UI::ChangeWidget( `id (`pb_dn ), `Enabled, true );
+                UI::ChangeWidget( `id (`te_dn ), `Value, acl["target","dn"]:"" );
+            }
+            else if ( acl["target","what"]:`nil == `dn_subtree )
+            {
+                UI::ChangeWidget( `id (`te_dn ), `Enabled, true );
+                UI::ChangeWidget( `id (`te_dn ), `Value, acl["target","dn"]:"" );
+                UI::ChangeWidget( `id (`te_dn ), `Label, _("Subtree DN") );
+            }
+            if ( acl["target","filter"]:"" != "" )
+            {
+                UI::ChangeWidget( `id( `cb_filter ), `Value, true );
+                UI::ChangeWidget( `id( `te_filter ), `Enabled, true );
+                UI::ChangeWidget( `id( `te_filter ), `Value, acl["target","filter"]:"" );
+            }
+            else
+            {
+                UI::ChangeWidget( `id( `cb_filter ), `Value, false );
+                UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
+            }
+            if ( acl["target","attrs"]:"" != "" )
+            {
+                UI::ChangeWidget( `id( `cb_attrs ), `Value, true );
+                UI::ChangeWidget( `id( `te_attrs ), `Enabled, true );
+                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, true );
+                UI::ChangeWidget( `id( `te_attrs ), `Value, acl["target","attrs"]:"" );
+            }
+            else
+            {
+                UI::ChangeWidget( `id( `cb_attrs ), `Value, false );
+                UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
+            }
+        }
+        else
+        {
+            UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
+            UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
+            UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
+            UI::ChangeWidget( `id( `cb_filter ), `Value, false );
+            UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
+            UI::ChangeWidget( `id( `cb_attrs ), `Value, false );
+            UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
+            UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
+        }
+
         symbol ret = `next;
         map result = $[];
-        list<map> accesslist = [];
+        list<map> accesslist = acl["access"]:[];
+        boolean updateTable = true;
         while(true) {
+            if ( updateTable )
+            {
+                integer pos = -1;
+                list itemlist = maplist (map v, accesslist,
+                    {
+                        pos=pos+1;
+                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
+                    }
+                );
+                UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                updateTable = false;
+            }
+
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
             if ( ret == `pb_ok )
             {
-                result["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
-                result["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
-                result["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
-                result["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
-                y2milestone("New What clause: %1", result);
-                y2milestone("AccessList: %1", accesslist);
+                map what = $[];
+                what["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
+                what["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
+                what["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
+                what["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
+
+                result["target"] = what;
+                result["access"] = accesslist;
+                y2milestone("New ACL: %1", result);
                 break;
             }
             else if ( ret == `cancel )
             {
+                result = nil;
                 break;
             }
             else if ( ret == `cb_what )
@@ -783,7 +840,7 @@
                 {
                     UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
                     UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
-                    if ( ret == `dn_subtree )
+                    if ( cb_val == `dn_subtree )
                     {
                         UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
                     }
@@ -809,15 +866,18 @@
                     UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
                 }
             }
-            else if ( ret == `attrs_all )
+            else if ( ret == `cb_attrs )
             {
-                UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
-                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
-            }
-            else if ( ret == `attrs_list )
-            {
-                UI::ChangeWidget( `id( `te_attrs ), `Enabled, true );
-                UI::ChangeWidget( `id( `pb_attrs ), `Enabled, true );
+                if ( (boolean) UI::QueryWidget( `id(`cb_attrs ), `Value ) )
+                {
+                    UI::ChangeWidget( `id( `te_attrs ), `Enabled, true );
+                    UI::ChangeWidget( `id( `pb_attrs ), `Enabled, true );
+                }
+                else
+                {
+                    UI::ChangeWidget( `id( `te_attrs ), `Enabled, false );
+                    UI::ChangeWidget( `id( `pb_attrs ), `Enabled, false );
+                }
             }
             else if (ret == `pb_attrs )
             {
@@ -830,17 +890,11 @@
             else if ( ret == `pb_add )
             {
                 map access = AddAclAccess(suffix, nil );
-                accesslist = add(accesslist, access);
-
-                integer pos = -1;
-                list itemlist = maplist (map v, accesslist,
-                    {
-                        pos=pos+1;
-                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
-                    }
-                );
-                UI::ChangeWidget( `tab_access, `Items, itemlist) ;
-                y2milestone("New access: %1", access );
+                if ( access != nil )
+                {
+                    accesslist = add(accesslist, access);
+                    updateTable = true;
+                }
             }
             else if ( ret == `pb_edit )
             {
@@ -849,15 +903,11 @@
                 {
                     map access = accesslist[(integer)selected]:nil;
                     access = AddAclAccess(suffix, access);
-                    accesslist[(integer)selected] = access;
-                    integer pos = -1;
-                    list itemlist = maplist (map v, accesslist,
-                        {
-                            pos=pos+1;
-                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
-                        }
-                    );
-                    UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                    if ( access != nil )
+                    {
+                        accesslist[(integer)selected] = access;
+                        updateTable = true;
+                    }
                 }
             }
             else if ( ret == `pb_del )
@@ -866,21 +916,12 @@
                 if ( selected != nil )
                 {
                     accesslist = remove(accesslist, (integer)selected);
-
-                    integer pos = -1;
-                    list itemlist = maplist (map v, accesslist,
-                        {
-                            pos=pos+1;
-                            return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
-                        }
-                    );
-                    UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                    updateTable = true;
                 }
             }
-
         }
         UI::CloseDialog();
-        return ret;
+        return result;
     }
 
     global term GetAclWidget()
@@ -889,7 +930,7 @@
             `VBox(
                 `VSpacing(1),
                 `VBox(
-                    `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Target"), _("DN") ) ),
+                    `Table( `id( `tab_acl ),`opt(`keepSorting), `header(_("Target"), _("DN"), _("Filter"), _("Attributes") ) ),
                     `HBox(
                         `PushButton( `id (`pb_add ), _("Add") ),
                         `PushButton( `id (`pb_del ), _("Delete") ),
@@ -900,6 +941,13 @@
         return aclList;
     }
 
+
+    global boolean DbAclRead( integer dbindex )
+    {
+        acllist = [];
+        return true;
+    }
+
     global boolean DbAclInput( symbol handler_cmd, integer dbindex )
     {
         map db = $[];
@@ -908,9 +956,56 @@
             db = LdapServer::ReadDatabase(dbindex);
         }
         string suffix =  db["suffix"]:"";
+        boolean updateTable = false;
+
         if ( handler_cmd == `pb_add )
         {
-            AddAclTarget(suffix);
+            map aclmap = AddAclTarget(suffix, nil);
+            if (aclmap != nil )
+            {
+                acllist = add(acllist, aclmap);
+                updateTable = true;
+            }
+        }
+        else if ( handler_cmd == `pb_del )
+        {
+            any selected = UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
+            if ( selected != nil )
+            {
+                acllist = remove(acllist, (integer)selected);
+                updateTable = true;
+            }
+        }
+        else if ( handler_cmd == `pb_edit )
+        {
+            any selected = UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
+            if ( selected != nil )
+            {
+                map aclmap = acllist[(integer)selected]:nil;
+                aclmap = AddAclTarget(suffix, aclmap );
+                if (aclmap != nil )
+                {
+                    acllist[(integer)selected] = aclmap;
+                    updateTable = true;
+                }
+            }
+        }
+
+        if ( updateTable )
+        {
+            integer pos = -1;
+            list itemlist = maplist (map v, acllist,
+                {
+                    pos=pos+1;
+                    return `item( `id(pos),
+                                  whatId2String[v["target","what"]:`none,0]:"",
+                                  v["target","dn"]:"",
+                                  v["target","filter"]:"",
+                                  v["target","attrs"]:"All Attributes"
+                                );
+                }
+            );
+            UI::ChangeWidget( `tab_acl, `Items, itemlist) ;
         }
         return true;
     }

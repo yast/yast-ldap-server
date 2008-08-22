@@ -748,6 +748,14 @@ define boolean cb_input_bdb_index()
     return true;
 }
 
+define boolean cb_read_acl()
+{
+    y2milestone("cb_read_acl()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    return LdapDatabase::DbAclRead( index );
+}
+
 define boolean cb_input_acl()
 {
     y2milestone("cb_input_acl()");
@@ -893,6 +901,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "name"      : _("Access Control Configuration"),
         "widget"    : LdapDatabase::GetAclWidget(),
         "index"     : index,
+        "cb_read"   : ``(cb_read_acl() ),
         "cb_input"  : ``(cb_input_acl() )
     ];
     map<string,any> item_map = $[
