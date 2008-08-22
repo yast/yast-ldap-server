@@ -732,6 +732,21 @@ void OlcDatabase::addAccessControl(const std::string& acl, int index )
     this->addIndexedStringValue( "olcAccess", acl, index );
 }
 
+void OlcDatabase::replaceAccessControl(const StringList acllist )
+{
+    // delete old Values first
+    this->setStringValue( "olcAccess", "" );
+
+    StringList::const_iterator i;
+    int j = 0;
+
+    for ( i = acllist.begin(); i != acllist.end(); i++ )
+    {
+        this->addAccessControl( *i, j );
+        j++;
+    }
+}
+
 void OlcDatabase::addOverlay(boost::shared_ptr<OlcOverlay> overlay)
 {
     m_overlays.push_back(overlay);
