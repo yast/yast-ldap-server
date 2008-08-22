@@ -748,6 +748,15 @@ define boolean cb_input_bdb_index()
     return true;
 }
 
+define boolean cb_input_acl()
+{
+    y2milestone("cb_input_acl()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    y2milestone( "calling acl input handler for item '%1'", treeItem );
+    return LdapDatabase::DbAclInput( handler_cmd, index );
+}
+
 define boolean cb_input_ppolicy()
 {
     y2milestone("cb_input_ppolicy()");
@@ -880,6 +889,12 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_input"  : ``(cb_input_ppolicy() ),
         "cb_write"  : ``(cb_write_ppolicy() )
     ];
+    map<string, any> dbAcl = $[
+        "name"      : _("Access Control Configuration"),
+        "widget"    : LdapDatabase::GetAclWidget(),
+        "index"     : index,
+        "cb_input"  : ``(cb_input_acl() )
+    ];
     map<string,any> item_map = $[
         "name"      : label,
         "index"     : index,
@@ -890,7 +905,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> bdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_index", item_name + "_ppolicy" ],
+        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl"],
         "index"     : index,
         "widget"    : editBdbDatabase,
         "new_db"    : new_db,
@@ -907,6 +922,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         widget_map[item_name] = bdb_item_map;
         widget_map[item_name + "_index"] = dbIndex;
         widget_map[item_name + "_ppolicy"] = dbPpolicy;
+        widget_map[item_name + "_acl"] = dbAcl;
     }
     else
     {
