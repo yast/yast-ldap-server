@@ -518,73 +518,72 @@
     global symbol AddAclWidget(string suffix)
     {
         term addAclWidget =
-            `Top(
-                `VBox(
-                    `Heading(_("Define the target objects for this ACL Rule")),
-                    `VSpacing(1),
-                    `Left(
-                        `VBox(
-                            `RadioButtonGroup(
-                                `id( `rbg_dn ),
-                                `HBox(
-                                    `Left(
-                                        `RadioButton( `id(`dn_all), `opt(`notify), _("All Entries") )
-                                    ),
-                                    `HSpacing(1),
-                                    `Left(
-                                        `RadioButton( `id(`dn_subtree), `opt(`notify),_("All Entries in the subtree") )
-                                    ),
-                                    `HSpacing(1),
-                                    `Left(
-                                        `RadioButton( `id(`dn_base), `opt(`notify), _("The Entry with the DN") )
+            `VBox(
+                `VSpacing(1),
+                `HSquash(
+                    `VSquash(
+                            `VBox(
+                                `RadioButtonGroup(
+                                    `id( `rbg_dn ),
+                                    `HBox(
+                                        `Left(
+                                            `RadioButton( `id(`dn_all), `opt(`notify), _("All Entries") )
+                                        ),
+                                        `HSpacing(1),
+                                        `Left(
+                                            `RadioButton( `id(`dn_subtree), `opt(`notify),_("All Entries in the subtree") )
+                                        ),
+                                        `HSpacing(1),
+                                        `Left(
+                                            `RadioButton( `id(`dn_base), `opt(`notify), _("The Entry with the DN") )
+                                        )
                                     )
-                                )
-                            ),
-                            `Left(
-                                `HBox(
-                                    `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
-                                    `Bottom(
-                                        `PushButton( `id( `pb_dn ), _("Select" ) )
-                                    )
-                                )
-                            ),
-                            `VSpacing(0.5),
-                            `Left(
-                                `VBox(
-                                    `Left(
-                                        `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
-                                    ),
-                                    `Left(
-                                        `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
-                                    )
-                                )
-                            ),
-                            `VSpacing(0.5),
-                            `RadioButtonGroup(
-                                `id( `rbg_attrs ),
-                                `HBox(
-                                    `Left(
-                                        `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
-                                    ),
-                                    `Left(
-                                        `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
-                                    )
-                                )
-                            ),
-                            `HBox(
-                                `Left(
-                                    `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
                                 ),
-                                `Bottom(
-                                    `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                `Left(
+                                    `HBox(
+                                        `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
+                                        `Bottom(
+                                            `PushButton( `id( `pb_dn ), _("Select" ) )
+                                        )
+                                    )
+                                ),
+                                `VSpacing(0.5),
+                                `Left(
+                                    `VBox(
+                                        `Left(
+                                            `CheckBox( `id( `cb_filter ), `opt(`notify), _("Matching the filter:") )
+                                        ),
+                                        `Left(
+                                            `InputField( `id( `te_filter ), `opt(`hstretch), _("LDAP Filter") )
+                                        )
+                                    )
+                                ),
+                                `VSpacing(0.5),
+                                `RadioButtonGroup(
+                                    `id( `rbg_attrs ),
+                                    `HBox(
+                                        `Left(
+                                            `RadioButton( `id(`attrs_all), `opt(`notify), _("All Attributes") )
+                                        ),
+                                        `Left(
+                                            `RadioButton( `id(`attrs_list), `opt(`notify), _("The listed Attributes") )
+                                        )
+                                    )
+                                ),
+                                `HBox(
+                                    `Left(
+                                        `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
+                                    ),
+                                    `Bottom(
+                                        `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                    )
                                 )
                             )
-                        )
-                    ),
-                    `PushButton (`id (`ok), Label::OKButton())
+                    )
                 )
             );
-        UI::OpenDialog( `opt( `decorated ), addAclWidget );
+        Wizard::SetContentsButtons(_("Define the target objects for this ACL Rule"), addAclWidget, "",
+                Label::BackButton(), Label::NextButton());
         UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
         UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
         UI::ChangeWidget( `id( `dn_all ), `Value, true );
@@ -597,7 +596,11 @@
         while(true) {
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
-            if ( ret == `ok )
+            if ( ret == `next )
+            {
+                break;
+            }
+            else if ( ret == `abort || ret == `cancel )
             {
                 break;
             }
@@ -654,10 +657,30 @@
                 UI::ChangeWidget( `id( `te_attrs ), `Value, attr_string );
             }
         }
-        UI::CloseDialog();
         return ret;
     }
 
+    global define any AddAclWizard(string suffix)
+    {
+        map aliases = $[
+            "target" : ``( AddAclWidget(suffix) )
+        ];
+
+        map sequence = $[
+            "ws_start" : "target",
+            "target" : $[
+                `next  : `next,
+                `abort : `abort
+            ]
+        ];
+
+        Wizard::CreateDialog();
+
+        any ret = Sequencer::Run(aliases, sequence);
+
+        UI::CloseDialog();
+        return ret;
+    }
 
     global term GetAclWidget()
     {
@@ -680,7 +703,7 @@
         string suffix =  db["suffix"]:"";
         if ( handler_cmd == `pb_add_acl )
         {
-            AddAclWidget(suffix);
+            AddAclWizard(suffix);
         }
         return true;
     }
