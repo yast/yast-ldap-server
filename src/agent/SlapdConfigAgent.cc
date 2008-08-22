@@ -1130,6 +1130,67 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         (*i)->addAccessControl(arg->asString()->value_cstr());
                         ret = true;
                     }
+                    else if ( dbComponent == "acl" )
+                    {
+                        YCPList argList = arg->asList();
+                        StringList aclStrings;
+                        for ( int j = 0; j < argList->size(); j++ )
+                        {
+                            std::ostringstream aclString;
+                            aclString << "to";
+                            // create the "to dn.<scope>=<dn> ...." part of the ACL
+                            YCPMap target = argList->value(j)->asMap()->value(YCPString("target"))->asMap();
+                            if (target.size() == 0 )
+                            {
+                                aclString << " *";
+                            }
+                            else
+                            {
+                                if (! target->value( YCPString("dn") ).isNull() )
+                                {
+                                    aclString << " dn." 
+                                              << target->value( YCPString("dn") )->asMap()->value( YCPString("style") )->asString()->value_cstr() 
+                                              << "=";
+
+                                    aclString << "\"" 
+                                              << target->value( YCPString("dn") )->asMap()->value( YCPString("value") )->asString()->value_cstr() 
+                                              << "\"";
+                                }
+                                if (! target->value( YCPString("filter") ).isNull() )
+                                {
+                                    aclString << " filter=\"" 
+                                              << target->value( YCPString("filter") )->asString()->value_cstr()
+                                              << "\"";
+
+                                }
+                                if (! target->value( YCPString("attrs") ).isNull() )
+                                {
+                                    aclString << " attrs=" 
+                                              << target->value( YCPString("attrs") )->asString()->value_cstr();
+                                }
+                            }
+
+                            // now the " by <xyz> <read|write>" part
+                            YCPList accessList = argList->value(j)->asMap()->value( YCPString("access") )->asList();
+                            for ( int k = 0; k < accessList->size(); k++ )
+                            {
+                                aclString << " by";
+                                std::string type( accessList->value(k)->asMap()->value( YCPString("type") )->asString()->value_cstr() );
+                                aclString << " " << type;
+                                if ( type == "dn.subtree" || type == "dn" || type == "group" )
+                                {
+                                    aclString << "=\"" 
+                                              << accessList->value(k)->asMap()->value( YCPString("dn") )->asString()->value_cstr()
+                                              << "\"";
+                                }
+                                aclString << " " << accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr();
+                            }
+                            y2milestone("Access String: %s", aclString.str().c_str() );
+                            aclStrings.add( aclString.str() );
+                        }
+                        (*i)->replaceAccessControl(aclStrings);
+                        ret = true;
+                    }
                     else if ( dbComponent == "dbconfig" )
                     {
                         YCPList argList = arg->asList();
