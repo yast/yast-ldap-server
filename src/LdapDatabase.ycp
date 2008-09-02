@@ -964,66 +964,85 @@
     global boolean DbAclRead( integer dbindex, list<map> readAcls )
     {
         acllist = [];
-        foreach( map acl, readAcls,
-            {
-                map targetMap = acl["target"]:$[];
-                map resMap =$[];
-                resMap["target"] = $[];
-                resMap["access"] = [];
-                if ( size(targetMap) == 0 )
+        if ( readAcls == nil )
+        {
+            y2milestone("Unparseable ACLs");
+            acllist = nil;
+            UI::ChangeWidget( `id(`tab_acl), `Enabled, false) ;
+            UI::ChangeWidget( `id(`pb_add), `Enabled, false) ;
+            UI::ChangeWidget( `id(`pb_del), `Enabled, false) ;
+            UI::ChangeWidget( `id(`pb_edit), `Enabled, false) ;
+            Popup::Error(_("The selected Database contains Access Control Rules that are currently
+not supported by this YaST Module. The Access Control Dialog will be disabled." ) );
+        }
+        else
+        {
+            foreach( map acl, readAcls,
                 {
-                    resMap["target", "what"] = `dn_all;
-                }
-                else
-                {
-                     map dnMap = targetMap["dn"]:$[];
-                     if (size(dnMap) > 0)
-                     {
-                        if (dnMap["style"]:"" == "subtree" )
-                        {
-                            resMap["target", "what"] = `dn_subtree;
-                        }
-                        else if (dnMap["style"]:"" == "base" )
-                        {
-                            resMap["target", "what"] = `dn_base;
-                        }
-                        resMap["target", "dn"] = dnMap["value"]:"";
-                     }
-                     resMap["target", "filter"] = targetMap["filter"]:"";
-                     resMap["target", "attrs"] = targetMap["attrs"]:"";
-                }
-                list<map> accessList = [];
-                foreach( map access, acl["access"]:[],
+                    map targetMap = acl["target"]:$[];
+                    map resMap =$[];
+                    resMap["target"] = $[];
+                    resMap["access"] = [];
+                    if ( size(targetMap) == 0 )
                     {
-                        map<string,any> accessMap = $[];
-                        accessMap["level"] = accessString2Id[access["level"]:""]:`access_none;
-                        accessMap["type"] = whoString2Id[access["type"]:""]:`nil;
-                        accessMap["dn"] = access["value"]:"";
-                        accessList = add( accessList, accessMap );
+                        resMap["target", "what"] = `dn_all;
                     }
-                );
-                resMap["access"] = accessList;
-                acllist = add( acllist, resMap );
-            }
-        );
-        integer pos = -1;
-        list itemlist = maplist (map v, acllist,
-            {
-                pos=pos+1;
-                return `item( `id(pos),
-                              whatId2String[v["target","what"]:`none,0]:"",
-                              v["target","dn"]:"",
-                              v["target","filter"]:"",
-                              v["target","attrs"]:"All Attributes"
-                            );
-            }
-        );
-        UI::ChangeWidget( `tab_acl, `Items, itemlist) ;
+                    else
+                    {
+                         map dnMap = targetMap["dn"]:$[];
+                         if (size(dnMap) > 0)
+                         {
+                            if (dnMap["style"]:"" == "subtree" )
+                            {
+                                resMap["target", "what"] = `dn_subtree;
+                            }
+                            else if (dnMap["style"]:"" == "base" )
+                            {
+                                resMap["target", "what"] = `dn_base;
+                            }
+                            resMap["target", "dn"] = dnMap["value"]:"";
+                         }
+                         resMap["target", "filter"] = targetMap["filter"]:"";
+                         resMap["target", "attrs"] = targetMap["attrs"]:"";
+                    }
+                    list<map> accessList = [];
+                    foreach( map access, acl["access"]:[],
+                        {
+                            map<string,any> accessMap = $[];
+                            accessMap["level"] = accessString2Id[access["level"]:""]:`access_none;
+                            accessMap["type"] = whoString2Id[access["type"]:""]:`nil;
+                            accessMap["dn"] = access["value"]:"";
+                            accessList = add( accessList, accessMap );
+                        }
+                    );
+                    resMap["access"] = accessList;
+                    acllist = add( acllist, resMap );
+                }
+            );
+            integer pos = -1;
+            list itemlist = maplist (map v, acllist,
+                {
+                    pos=pos+1;
+                    return `item( `id(pos),
+                                  whatId2String[v["target","what"]:`none,0]:"",
+                                  v["target","dn"]:"",
+                                  v["target","filter"]:"",
+                                  v["target","attrs"]:"All Attributes"
+                                );
+                }
+            );
+            UI::ChangeWidget( `tab_acl, `Items, itemlist) ;
+        }
         return true;
     }
 
     global list<map> DbAclWrite( integer dbindex )
     {
+        if ( acllist == nil )
+        {
+            return nil;
+        }
+
         list<map> outlist = [];
         foreach( map acl, acllist,
             {
