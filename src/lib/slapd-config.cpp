@@ -535,6 +535,10 @@ OlcAccess::OlcAccess( const std::string& aclString )
     {
         if ( aclString.substr(spos, tmppos-spos) != "by" )
         {
+            if (tmppos != std::string::npos )
+            {
+                throw std::runtime_error( "Error while parsing ACL by clause" );
+            }
             break;
         }
         else
@@ -561,7 +565,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
             if ( tmppos == std::string::npos )
             {
                 log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
-                break;
+                throw std::runtime_error( "Error while parsing ACL" );
             }
             else
             {
@@ -569,17 +573,35 @@ OlcAccess::OlcAccess( const std::string& aclString )
                     type = aclString.substr(spos, tmppos-spos);
 
                 log_it(SLAPD_LOG_INFO, "bytype: " +  type );
-                if ( aclString[tmppos] == '=' )
+                if ( type == "group" || type == "dn.base" || type == "dn.subtree" )
                 {
-                    spos = tmppos+1;
-                    tmppos = extractAlcToken( aclString, spos, true );
-                    value = aclString.substr(spos, tmppos-spos);
-                    log_it(SLAPD_LOG_INFO, "byvalue: " +  value );
+                    if ( aclString[tmppos] == '=' )
+                    {
+                        spos = tmppos+1;
+                        tmppos = extractAlcToken( aclString, spos, true );
+                        value = aclString.substr(spos, tmppos-spos);
+                        log_it(SLAPD_LOG_INFO, "byvalue: " +  value );
+                    }
+                    else
+                    {
+                        throw std::runtime_error( "Error while parsing ACL, expected \"=\"" );
+                    }
+                }
+                else if ( type != "users" && type != "anonymous" && type != "self" && type != "*" )
+                {
+                    throw std::runtime_error( "Unsupported \"by\" clause" );
                 }
                 spos = tmppos+1;
                 tmppos = extractAlcToken( aclString, spos, false );
                 level = aclString.substr(spos, tmppos-spos);
+                if ( level != "none" && level != "disclose" && level != "auth" &&
+                     level != "compare" && level != "read" &&
+                     level != "write" && level != "manage" )
+                {
+                    throw std::runtime_error( "Unsupported access level" );
+                }
                 log_it(SLAPD_LOG_INFO, "access: " +  level );
+
                 spos = aclString.find_first_not_of("\t ", tmppos+1 );
                 tmppos = aclString.find_first_of("\t ", spos );
             }
@@ -713,10 +735,11 @@ const std::string OlcDatabase::getType() const
     return this->m_type;
 }
 
-OlcAccessList OlcDatabase::getAcl() const
+bool OlcDatabase::getAcl(OlcAccessList &aclList) const
 {
     const LDAPAttribute* aclAttr = m_dbEntryChanged.getAttributeByName("olcAccess");
-    OlcAccessList aclList;
+    aclList.clear();
+    bool ret = true;
     if ( aclAttr )
     {
         StringList values = aclAttr->getValues();
@@ -731,10 +754,16 @@ OlcAccessList OlcDatabase::getAcl() const
                 aclList.push_back(acl);
             }
             catch ( std::runtime_error e )
-            {}
+            {
+                log_it(SLAPD_LOG_INFO, "Can't parse ACL");
+                log_it(SLAPD_LOG_INFO, e.what() );
+                aclList.clear();
+                ret = false;
+                break;
+            }
         }
     }
-    return aclList;
+    return ret;
 }
 
 void OlcDatabase::addAccessControl(const std::string& acl, int index )
