@@ -626,7 +626,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     {
                         YCPMap aclMap;
                         YCPMap targetMap;
-                        YCPMap accessMap;
+                        YCPList accessList;
                         if ( (*j)->matchesAll() )
                         {
                         }
@@ -659,8 +659,18 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                                 targetMap.add( YCPString("dn"), dnMap );
                             }
                         }
-                        aclMap.add( YCPString("target"), targetMap ); 
-                        aclMap.add( YCPString("access"), accessMap ); 
+                        aclMap.add( YCPString("target"), targetMap );
+                        OlcAclByList byList =(*j)->getAclByList() ;
+                        OlcAclByList::const_iterator k;
+                        for ( k = byList.begin() ; k != byList.end(); k++ )
+                        {
+                            YCPMap byMap;
+                            byMap.add(YCPString("level"), YCPString( (*k)->getLevel() ) );
+                            byMap.add(YCPString("type"), YCPString( (*k)->getType() ) );
+                            byMap.add(YCPString("value"), YCPString( (*k)->getValue() ) );
+                            accessList.add(byMap);
+                        }
+                        aclMap.add( YCPString("access"), accessList ); 
                         resList.add(aclMap);
                     }
                     return resList;
