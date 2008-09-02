@@ -942,9 +942,52 @@
     }
 
 
-    global boolean DbAclRead( integer dbindex )
+    global boolean DbAclRead( integer dbindex, list<map> readAcls )
     {
         acllist = [];
+        foreach( map acl, readAcls,
+            {
+                map targetMap = acl["target"]:$[];
+                map resMap =$[];
+                resMap["target"] = $[];
+                if ( size(targetMap) == 0 )
+                {
+                    resMap["target", "what"] = `dn_all;
+                }
+                else
+                {
+                     map dnMap = targetMap["dn"]:$[];
+                     if (size(dnMap) > 0)
+                     {
+                        if (dnMap["style"]:"" == "subtree" )
+                        {
+                            resMap["target", "what"] = `dn_subtree;
+                        }
+                        else if (dnMap["style"]:"" == "base" )
+                        {
+                            resMap["target", "what"] = `dn_base;
+                        }
+                        resMap["target", "dn"] = dnMap["value"]:"";
+                     }
+                     resMap["target", "filter"] = targetMap["filter"]:"";
+                     resMap["target", "attrs"] = targetMap["attrs"]:"";
+                }
+                acllist = add( acllist, resMap );
+            }
+        );
+        integer pos = -1;
+        list itemlist = maplist (map v, acllist,
+            {
+                pos=pos+1;
+                return `item( `id(pos),
+                              whatId2String[v["target","what"]:`none,0]:"",
+                              v["target","dn"]:"",
+                              v["target","filter"]:"",
+                              v["target","attrs"]:"All Attributes"
+                            );
+            }
+        );
+        UI::ChangeWidget( `tab_acl, `Items, itemlist) ;
         return true;
     }
 

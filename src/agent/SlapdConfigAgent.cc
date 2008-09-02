@@ -619,8 +619,51 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 }
                 else if ( dbComponent == "acl" )
                 {
-                    (*i)->getAcl();
-                    return resMap;
+                    YCPList resList;
+                    OlcAccessList aclList = (*i)->getAcl();
+                    OlcAccessList::const_iterator j;
+                    for ( j = aclList.begin(); j != aclList.end(); j++ )
+                    {
+                        YCPMap aclMap;
+                        YCPMap targetMap;
+                        YCPMap accessMap;
+                        if ( (*j)->matchesAll() )
+                        {
+                        }
+                        else
+                        {
+                            std::string filter = (*j)->getFilter();
+                            if (filter != "" )
+                            {
+                                targetMap.add( YCPString("filter"), YCPString(filter) );
+                            }
+                            std::string attrs = (*j)->getAttributes();
+                            if (attrs != "" )
+                            {
+                                targetMap.add( YCPString("attrs"), YCPString(attrs) );
+                            }
+                            std::string dn_value = (*j)->getDnValue();
+                            if ( dn_value != "" )
+                            {
+                                YCPMap dnMap;
+                                std::string dn_type = (*j)->getDnType();
+                                if (dn_type == "dn.subtree" )
+                                {
+                                    dnMap.add(YCPString("style"), YCPString("subtree") );
+                                }
+                                else
+                                {
+                                    dnMap.add(YCPString("style"), YCPString("base") );
+                                }
+                                dnMap.add(YCPString("value"), YCPString(dn_value) );
+                                targetMap.add( YCPString("dn"), dnMap );
+                            }
+                        }
+                        aclMap.add( YCPString("target"), targetMap ); 
+                        aclMap.add( YCPString("access"), accessMap ); 
+                        resList.add(aclMap);
+                    }
+                    return resList;
                 }
                 else
                 {
