@@ -1292,6 +1292,17 @@ sub RemoveFromSchemaList
     return $rc;
 }
 
+BEGIN { $TYPEINFO {ValidateDn} = ["function", "boolean", "string" ]; }
+sub ValidateDn
+{
+    my ($self, $dn ) = @_;
+    if ( ! defined X500::DN->ParseRFC2253($dn) )
+    {
+        return 0;
+    }
+    return 1;
+}
+
 sub IsSubordinate
 {
     my ($self, $base, $child) = @_;

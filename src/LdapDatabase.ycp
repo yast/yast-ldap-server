@@ -638,6 +638,19 @@
                 if ( type == `who_dn || type == `who_dn_subtree || type == `who_group )
                 {
                     res["dn"] = UI::QueryWidget( `id( `te_who_dn), `Value );
+                    if ( res["dn"]:"" == "" )
+                    {
+                        Popup::Error(_("Please enter a DN into the Textfield") );
+                        continue;
+                    }
+                    else
+                    {
+                        if ( ! LdapServer::ValidateDn( res["dn"]:"" ) )
+                        {
+                            Popup::Error( "\"" + res["dn"]:"" + "\"" + _("is not a valid LDAP DN") );
+                            continue;
+                        }
+                    }
                 }
 
                 res["level"] = UI::QueryWidget( `id( `cb_access ), `Value );
@@ -835,6 +848,20 @@
                 map what = $[];
                 what["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
                 what["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
+                if ( (what["what"]:`nil == `dn_base || what["what"]:`nil == `dn_subtree ) &&
+                     what["dn"]:"" == "" )
+                {
+                    Popup::Error(_("Please enter a DN into the Textfield") );
+                    continue;
+                }
+                else
+                {
+                    if ( ! LdapServer::ValidateDn( what["dn"]:"" ) )
+                    {
+                        Popup::Error( "\"" + what["dn"]:"" + "\"" + _("is not a valid LDAP DN") );
+                        continue;
+                    }
+                }
                 what["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
                 what["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
 
