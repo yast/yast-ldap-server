@@ -194,7 +194,7 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getSuffix() const;
         const std::string getType() const;
 
-        OlcAccessList getAcl() const;
+        bool getAcl( OlcAccessList& accessList ) const;
 
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const StringList acllist );
