@@ -476,6 +476,43 @@ const std::string OlcDatabase::getType() const
     return this->m_type;
 }
 
+static int extractAlcToken( const std::string& acl, std::string::size_type& startpos, bool quoted )
+{
+    std::string::size_type pos;
+
+    // skip leading whitespaces
+    startpos = acl.find_first_not_of("\t ", startpos );
+
+    if ( quoted && acl[startpos] == '"' )
+    {
+        // find matching (unescapted) quote 
+        startpos++;
+        pos = startpos;
+        bool found=false;
+        while( ! found )
+        {
+            pos = acl.find_first_of('"', pos+1 );
+            if ( pos == std::string::npos )
+            {
+                break;
+            }
+            if ( acl[pos-1] != '\\' )
+            {
+                found = true;
+            }
+        }
+        if ( !found )
+        {
+            log_it(SLAPD_LOG_ERR, "Not matching quote found" );
+        }
+    }
+    else
+    {
+        pos = acl.find_first_of("\t ", startpos );
+    }
+    return pos;
+}
+
 void OlcDatabase::getAcl() const
 {
     const LDAPAttribute* aclAttr = m_dbEntryChanged.getAttributeByName("olcAccess");
@@ -510,6 +547,8 @@ void OlcDatabase::getAcl() const
             if ( aclString[spos] == '*' )
             {
                 log_it(SLAPD_LOG_ERR, "acl matches all entries" );
+                spos = tmppos+1;
+                tmppos = extractAlcToken( aclString, spos, true );
             }
             else
             {
@@ -529,43 +568,61 @@ void OlcDatabase::getAcl() const
                             break;
                         }
                         spos = tmppos+1;
-                        tmppos = aclString.find_first_not_of("\t ", spos );
-                        // is this a quoted string ?
-                        if ( aclString[tmppos] == '"' )
-                        {
-                            // find matching (unescapted) quote 
-                            spos = tmppos+1;
-                            bool found=false;
-                            while( ! found )
-                            {
-                                tmppos = aclString.find_first_of('"', tmppos+1 );
-                                if ( tmppos == std::string::npos )
-                                {
-                                    break;
-                                }
-                                if ( aclString[tmppos-1] != '\\' )
-                                {
-                                    found = true;
-                                }
-                            }
-                            if ( !found )
-                            {
-                                log_it(SLAPD_LOG_ERR, "Not matching quote found" );
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            spos = tmppos;
-                            tmppos = aclString.find_first_of("\t ", spos );
-                        }
+
+                        tmppos = extractAlcToken( aclString, spos, true );
+                        
                         log_it(SLAPD_LOG_INFO, "Whatvalue: " +  aclString.substr(spos, tmppos-spos) );
                         spos = aclString.find_first_not_of("\t ", tmppos+1 );
                     }
                 }
-                // we should have reached the "by"-clauses now
             }
+            // we should have reached the "by"-clauses now
+            while ( true )
+            {
+                if ( aclString.substr(spos, tmppos-spos) != "by" )
+                {
+                    break;
+                }
+                else
+                {
+                    spos = tmppos+1;
+                    // skip whitespaces
+                    tmppos = aclString.find_first_not_of("\t ", spos );
+                    if ( tmppos != std::string::npos && tmppos > spos )
+                    {
+                        spos = tmppos;
+                    }
 
+                    // we should be at the start of the "by" part now, might `*` 
+                    // or a string followed by '='
+                    if ( aclString[spos] == '*' )
+                    {
+                        log_it(SLAPD_LOG_ERR, "by clause matches all entries" );
+                    }
+                    tmppos = aclString.find_first_of("=\t ", spos );
+                    if ( tmppos == std::string::npos )
+                    {
+                        log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
+                        break;
+                    }
+                    else
+                    {
+                        log_it(SLAPD_LOG_INFO, "bytype: " +  aclString.substr(spos, tmppos-spos) );
+                        if ( aclString[tmppos] == '=' )
+                        {
+                            spos = tmppos+1;
+                            tmppos = extractAlcToken( aclString, spos, true );
+                            // is this a quoted string ?
+                            log_it(SLAPD_LOG_INFO, "byvalue: " +  aclString.substr(spos, tmppos-spos) );
+                        }
+                        spos = tmppos+1;
+                        tmppos = extractAlcToken( aclString, spos, false );
+                        log_it(SLAPD_LOG_INFO, "access: " +  aclString.substr(spos, tmppos-spos) );
+                        spos = aclString.find_first_not_of("\t ", tmppos+1 );
+                        tmppos = aclString.find_first_of("\t ", spos );
+                    }
+                }
+            }
         }
     }
 }
