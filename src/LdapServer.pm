@@ -1167,6 +1167,16 @@ sub ChangeDatabaseIndex
     return $rc;
 }
 
+BEGIN { $TYPEINFO {ReadDatabaseAcl} = ["function", [ "list", [ "map", "string", "any" ] ], "integer" ]; }
+sub ReadDatabaseAcl
+{
+    my ($self, $index) = @_;
+    y2milestone("ReadDatabaseAcl ".$index);
+    my $rc = SCR->Read(".ldapserver.database.{".$index."}.acl" );
+    y2milestone( "ACL: ".Data::Dumper->Dump([$rc]) );
+    return $rc;
+}
+
 BEGIN { $TYPEINFO {ChangeDatabaseAcl} = ["function", "boolean" , "integer", ["list", [ "map", "string", "any" ] ] ]; }
 sub ChangeDatabaseAcl
 {
