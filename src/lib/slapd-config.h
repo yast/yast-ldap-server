@@ -122,6 +122,33 @@ class OlcOverlay : public OlcConfigEntry
         std::string m_parent;
 };
 
+class OlcAclBy
+{
+    public:
+        inline OlcAclBy( const std::string& level,
+                  const std::string& type,
+                  const std::string& value = "" ) : 
+                        m_level(level), m_type(type), m_value(value) {};
+
+        inline std::string getLevel() const {
+            return m_level;
+        }
+
+        inline std::string getType() const {
+            return m_type;
+        }
+
+        inline std::string getValue() const {
+            return m_value;
+        }
+
+    private:
+        std::string m_level;
+        std::string m_type;
+        std::string m_value;
+};
+
+typedef std::list<boost::shared_ptr<OlcAclBy> > OlcAclByList;
 class OlcAccess
 {
     public:
@@ -137,6 +164,7 @@ class OlcAccess
         std::string getDnType() const;
         std::string getDnValue() const;
         bool matchesAll() const;
+        OlcAclByList getAclByList() const;
 
     private:
         std::string m_filter;
@@ -144,6 +172,7 @@ class OlcAccess
         std::string m_dn_value;
         std::string m_dn_type;
         bool m_all;
+        OlcAclByList m_byList;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;

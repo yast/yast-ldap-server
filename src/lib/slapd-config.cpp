@@ -539,6 +539,9 @@ OlcAccess::OlcAccess( const std::string& aclString )
         }
         else
         {
+            std::string type = "";
+            std::string value = "";
+            std::string level = "";
             spos = tmppos+1;
             // skip whitespaces
             tmppos = aclString.find_first_not_of("\t ", spos );
@@ -552,6 +555,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
             if ( aclString[spos] == '*' )
             {
                 log_it(SLAPD_LOG_ERR, "by clause matches all entries" );
+                type = "*";
             }
             tmppos = aclString.find_first_of("=\t ", spos );
             if ( tmppos == std::string::npos )
@@ -561,20 +565,28 @@ OlcAccess::OlcAccess( const std::string& aclString )
             }
             else
             {
-                log_it(SLAPD_LOG_INFO, "bytype: " +  aclString.substr(spos, tmppos-spos) );
+                if ( type.empty() )
+                    type = aclString.substr(spos, tmppos-spos);
+
+                log_it(SLAPD_LOG_INFO, "bytype: " +  type );
                 if ( aclString[tmppos] == '=' )
                 {
                     spos = tmppos+1;
                     tmppos = extractAlcToken( aclString, spos, true );
-                    // is this a quoted string ?
-                    log_it(SLAPD_LOG_INFO, "byvalue: " +  aclString.substr(spos, tmppos-spos) );
+                    value = aclString.substr(spos, tmppos-spos);
+                    log_it(SLAPD_LOG_INFO, "byvalue: " +  value );
                 }
                 spos = tmppos+1;
                 tmppos = extractAlcToken( aclString, spos, false );
-                log_it(SLAPD_LOG_INFO, "access: " +  aclString.substr(spos, tmppos-spos) );
+                level = aclString.substr(spos, tmppos-spos);
+                log_it(SLAPD_LOG_INFO, "access: " +  level );
                 spos = aclString.find_first_not_of("\t ", tmppos+1 );
                 tmppos = aclString.find_first_of("\t ", spos );
             }
+            log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+">" );
+            boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value) );
+            log_it(SLAPD_LOG_INFO, " type <"+by->getType()+">" );
+            m_byList.push_back(by);
         }
     }
 }
@@ -638,6 +650,11 @@ std::string OlcAccess::getDnValue() const
 bool OlcAccess::matchesAll() const
 {
     return m_all;
+}
+
+OlcAclByList OlcAccess::getAclByList() const
+{
+    return m_byList;
 }
 
 
