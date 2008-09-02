@@ -616,10 +616,11 @@
             UI::ChangeWidget( `id( `cb_who), `Value, access["type"]:`nil );
             UI::ChangeWidget( `id( `cb_access), `Value, access["level"]:`nil );
             if ( access["type"]:`nil == `who_dn ||
-                 access["type"]:`nil == `who_dn ||
-                 access["type"]:`nil == `who_dn )
+                 access["type"]:`nil == `who_dn_subtree ||
+                 access["type"]:`nil == `who_group )
 
             {
+                UI::ChangeWidget( `id( `pb_who ), `Enabled, true );
                 UI::ChangeWidget( `id( `te_who_dn ), `Enabled, true );
                 UI::ChangeWidget( `id( `te_who_dn ), `Value, access["dn"]:"" );
             }
