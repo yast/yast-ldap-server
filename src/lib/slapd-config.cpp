@@ -601,9 +601,18 @@ OlcAccess::OlcAccess( const std::string& aclString )
                     throw std::runtime_error( "Unsupported access level" );
                 }
                 log_it(SLAPD_LOG_INFO, "access: " +  level );
-
-                spos = aclString.find_first_not_of("\t ", tmppos+1 );
-                tmppos = aclString.find_first_of("\t ", spos );
+                if (tmppos != std::string::npos )
+                {
+                    spos = aclString.find_first_not_of("\t ", tmppos+1 );
+                    if ( spos != std::string::npos )
+                    {
+                        tmppos = aclString.find_first_of("\t ", spos );
+                    }
+                    else
+                    {
+                        tmppos = spos;
+                    }
+                }
             }
             log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+">" );
             boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value) );
