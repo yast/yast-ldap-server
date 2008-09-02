@@ -525,104 +525,7 @@ void OlcDatabase::getAcl() const
             log_it(SLAPD_LOG_INFO, "acl VALUE: " + *i );
             std::string aclString;
             int index = splitIndexFromString( *i, aclString );
-            std::string::size_type spos = 0;
-            std::string::size_type tmppos = 0;
-            // every ACL starts with "to"
-            if ( aclString.compare(0, 2, "to") != 0 )
-            {
-                log_it(SLAPD_LOG_ERR, "acl does not start with \"to\"" );
-                break;
-            }
-            spos+=2;
-
-            // skip whitespaces
-            tmppos = aclString.find_first_not_of("\t ", spos );
-            if ( tmppos != std::string::npos && tmppos > spos )
-            {
-                spos = tmppos;
-            }
-
-            // we should be at the start of the "what" part now, might `*` 
-            // or a string followed by '='
-            if ( aclString[spos] == '*' )
-            {
-                log_it(SLAPD_LOG_ERR, "acl matches all entries" );
-                spos = tmppos+1;
-                tmppos = extractAlcToken( aclString, spos, true );
-            }
-            else
-            {
-                while ( true )
-                {
-                    tmppos = aclString.find_first_of("=\t ", spos );
-                    if ( tmppos == std::string::npos )
-                    {
-                        log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
-                        break;
-                    }
-                    else
-                    {
-                        log_it(SLAPD_LOG_INFO, "Whattype: " +  aclString.substr(spos, tmppos-spos) );
-                        if ( aclString.substr(spos, tmppos-spos) == "by" )
-                        {
-                            break;
-                        }
-                        spos = tmppos+1;
-
-                        tmppos = extractAlcToken( aclString, spos, true );
-                        
-                        log_it(SLAPD_LOG_INFO, "Whatvalue: " +  aclString.substr(spos, tmppos-spos) );
-                        spos = aclString.find_first_not_of("\t ", tmppos+1 );
-                    }
-                }
-            }
-            // we should have reached the "by"-clauses now
-            while ( true )
-            {
-                if ( aclString.substr(spos, tmppos-spos) != "by" )
-                {
-                    break;
-                }
-                else
-                {
-                    spos = tmppos+1;
-                    // skip whitespaces
-                    tmppos = aclString.find_first_not_of("\t ", spos );
-                    if ( tmppos != std::string::npos && tmppos > spos )
-                    {
-                        spos = tmppos;
-                    }
-
-                    // we should be at the start of the "by" part now, might `*` 
-                    // or a string followed by '='
-                    if ( aclString[spos] == '*' )
-                    {
-                        log_it(SLAPD_LOG_ERR, "by clause matches all entries" );
-                    }
-                    tmppos = aclString.find_first_of("=\t ", spos );
-                    if ( tmppos == std::string::npos )
-                    {
-                        log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
-                        break;
-                    }
-                    else
-                    {
-                        log_it(SLAPD_LOG_INFO, "bytype: " +  aclString.substr(spos, tmppos-spos) );
-                        if ( aclString[tmppos] == '=' )
-                        {
-                            spos = tmppos+1;
-                            tmppos = extractAlcToken( aclString, spos, true );
-                            // is this a quoted string ?
-                            log_it(SLAPD_LOG_INFO, "byvalue: " +  aclString.substr(spos, tmppos-spos) );
-                        }
-                        spos = tmppos+1;
-                        tmppos = extractAlcToken( aclString, spos, false );
-                        log_it(SLAPD_LOG_INFO, "access: " +  aclString.substr(spos, tmppos-spos) );
-                        spos = aclString.find_first_not_of("\t ", tmppos+1 );
-                        tmppos = aclString.find_first_of("\t ", spos );
-                    }
-                }
-            }
+            OlcAccess acl(aclString);
         }
     }
 }
@@ -1037,6 +940,189 @@ void OlcGlobalConfig::setDisallowFeatures(const std::list<std::string> &disallow
     attr.setValues(values);
     m_dbEntryChanged.replaceAttribute(attr);
 }
+
+OlcAccess::OlcAccess( const std::string& aclString )
+{
+    std::string::size_type spos = 0;
+    std::string::size_type tmppos = 0;
+    // every ACL starts with "to"
+    if ( aclString.compare(0, 2, "to") != 0 )
+    {
+        log_it(SLAPD_LOG_ERR, "acl does not start with \"to\"" );
+        throw std::runtime_error( "acl does not start with \"to\"" );
+    }
+    spos+=2;
+
+    // skip whitespaces
+    tmppos = aclString.find_first_not_of("\t ", spos );
+    if ( tmppos != std::string::npos && tmppos > spos )
+    {
+        spos = tmppos;
+    }
+
+    // we should be at the start of the "what" part now, might `*` 
+    // or a string followed by '='
+    if ( aclString[spos] == '*' )
+    {
+        log_it(SLAPD_LOG_ERR, "acl matches all entries" );
+        spos = tmppos+1;
+        tmppos = extractAlcToken( aclString, spos, true );
+        m_all = true;
+    }
+    else
+    {
+        while ( true )
+        {
+            tmppos = aclString.find_first_of("=\t ", spos );
+            if ( tmppos == std::string::npos )
+            {
+                log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
+                throw std::runtime_error( "Unexpected end of ACL" );
+            }
+            else
+            {
+                std::string whatType = aclString.substr(spos, tmppos-spos);
+                log_it(SLAPD_LOG_INFO, "Whattype: " +  whatType );
+                if ( aclString.substr(spos, tmppos-spos) == "by" )
+                {
+                    break;
+                }
+                spos = tmppos+1;
+
+                tmppos = extractAlcToken( aclString, spos, true );
+                
+                log_it(SLAPD_LOG_INFO, "Whatvalue: " +  aclString.substr(spos, tmppos-spos) );
+                if ( whatType == "filter" )
+                {
+                    m_filter = aclString.substr(spos, tmppos-spos);
+                }
+                else if (whatType == "attrs")
+                {
+                    m_attributes = aclString.substr(spos, tmppos-spos);
+                }
+                else if (whatType == "dn.base" || whatType == "dn.subtree" )
+                {
+                    m_dn_type = whatType;
+                    m_dn_value = aclString.substr(spos, tmppos-spos);
+                }
+                else
+                {
+                    throw std::runtime_error( "Can't parse ACL unsupported \"what\": \"" + whatType + "\"" );
+                }
+                spos = aclString.find_first_not_of("\t ", tmppos+1 );
+            }
+        }
+    }
+    // we should have reached the "by"-clauses now
+    while ( true )
+    {
+        if ( aclString.substr(spos, tmppos-spos) != "by" )
+        {
+            break;
+        }
+        else
+        {
+            spos = tmppos+1;
+            // skip whitespaces
+            tmppos = aclString.find_first_not_of("\t ", spos );
+            if ( tmppos != std::string::npos && tmppos > spos )
+            {
+                spos = tmppos;
+            }
+
+            // we should be at the start of the "by" part now, might `*` 
+            // or a string followed by '='
+            if ( aclString[spos] == '*' )
+            {
+                log_it(SLAPD_LOG_ERR, "by clause matches all entries" );
+            }
+            tmppos = aclString.find_first_of("=\t ", spos );
+            if ( tmppos == std::string::npos )
+            {
+                log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
+                break;
+            }
+            else
+            {
+                log_it(SLAPD_LOG_INFO, "bytype: " +  aclString.substr(spos, tmppos-spos) );
+                if ( aclString[tmppos] == '=' )
+                {
+                    spos = tmppos+1;
+                    tmppos = extractAlcToken( aclString, spos, true );
+                    // is this a quoted string ?
+                    log_it(SLAPD_LOG_INFO, "byvalue: " +  aclString.substr(spos, tmppos-spos) );
+                }
+                spos = tmppos+1;
+                tmppos = extractAlcToken( aclString, spos, false );
+                log_it(SLAPD_LOG_INFO, "access: " +  aclString.substr(spos, tmppos-spos) );
+                spos = aclString.find_first_not_of("\t ", tmppos+1 );
+                tmppos = aclString.find_first_of("\t ", spos );
+            }
+        }
+    }
+}
+
+void OlcAccess::setFilter( const std::string& filter )
+{
+    m_filter = filter;
+}
+
+
+void OlcAccess::setAttributes( const std::string& attrs )
+{
+    m_attributes = attrs;
+}
+
+void OlcAccess::setDnType( const std::string& dnType )
+{
+    if ( dnType == "dn.base" || dnType == "dn.subtree" )
+    {
+        m_dn_type = dnType;
+    }
+}
+
+void OlcAccess::setDn( const std::string& dn )
+{
+    m_dn_value = dn;
+}
+
+void OlcAccess::setMatchAll( bool matchAll )
+{
+    m_all = matchAll;
+    if ( matchAll )
+    {
+        m_attributes = "";
+        m_dn_type = "";
+        m_dn_value = "";
+        m_filter = "";
+    }
+}
+
+std::string OlcAccess::getFilter() const
+{
+    return m_filter;
+}
+
+std::string OlcAccess::getAttributes() const
+{
+    return m_attributes;
+}
+
+std::string OlcAccess::getDnType() const
+{
+    return m_dn_type;
+}
+
+std::string OlcAccess::getDnValue() const
+{
+    return m_dn_value;
+}
+
+bool OlcAccess::matchesAll() const
+{
+    return m_all;
+}
+
 
 OlcTlsSettings OlcGlobalConfig::getTlsSettings() const 
 {
