@@ -590,7 +590,6 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 {
                     OlcOverlayList overlays = (*i)->getOverlays();
                     OlcOverlayList::const_iterator j = overlays.begin();
-                    YCPList resList;
                     for (; j != overlays.end(); j++ )
                     {
                         if ( (*j)->getType() == "ppolicy" )
@@ -617,7 +616,11 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         }
                     }
                     return resMap;
-                } 
+                }
+                else if ( dbComponent == "acl" )
+                {
+                    return resMap;
+                }
                 else
                 {
                     lastError->add(YCPString("summary"), YCPString("Read Failed") );
