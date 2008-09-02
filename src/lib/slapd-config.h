@@ -213,6 +213,30 @@ class OlcSchemaConfig : public OlcConfigEntry
         std::string m_name;
 };
 
+class OlcAccess
+{
+    public:
+        OlcAccess( const std::string &aclString);
+        void setFilter( const std::string& filter );
+        void setAttributes( const std::string& attrs );
+        void setDnType( const std::string& dnType );
+        void setDn( const std::string& dn );
+        void setMatchAll( bool matchAll );
+
+        std::string getFilter() const;
+        std::string getAttributes() const;
+        std::string getDnType() const;
+        std::string getDnValue() const;
+        bool matchesAll() const;
+
+    private:
+        std::string m_filter;
+        std::string m_attributes;
+        std::string m_dn_value;
+        std::string m_dn_type;
+        bool m_all;
+};
+
 class OlcTlsSettings {
     public :
         OlcTlsSettings( const OlcGlobalConfig &ogc );
