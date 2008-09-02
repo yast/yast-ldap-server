@@ -619,6 +619,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 }
                 else if ( dbComponent == "acl" )
                 {
+                    (*i)->getAcl();
                     return resMap;
                 }
                 else

@@ -476,6 +476,100 @@ const std::string OlcDatabase::getType() const
     return this->m_type;
 }
 
+void OlcDatabase::getAcl() const
+{
+    const LDAPAttribute* aclAttr = m_dbEntryChanged.getAttributeByName("olcAccess");
+    if ( aclAttr )
+    {
+        StringList values = aclAttr->getValues();
+        StringList::const_iterator i;
+        for ( i =  values.begin(); i != values.end(); i++ )
+        {
+            log_it(SLAPD_LOG_INFO, "acl VALUE: " + *i );
+            std::string aclString;
+            int index = splitIndexFromString( *i, aclString );
+            std::string::size_type spos = 0;
+            std::string::size_type tmppos = 0;
+            // every ACL starts with "to"
+            if ( aclString.compare(0, 2, "to") != 0 )
+            {
+                log_it(SLAPD_LOG_ERR, "acl does not start with \"to\"" );
+                break;
+            }
+            spos+=2;
+
+            // skip whitespaces
+            tmppos = aclString.find_first_not_of("\t ", spos );
+            if ( tmppos != std::string::npos && tmppos > spos )
+            {
+                spos = tmppos;
+            }
+
+            // we should be at the start of the "what" part now, might `*` 
+            // or a string followed by '='
+            if ( aclString[spos] == '*' )
+            {
+                log_it(SLAPD_LOG_ERR, "acl matches all entries" );
+            }
+            else
+            {
+                while ( true )
+                {
+                    tmppos = aclString.find_first_of("=\t ", spos );
+                    if ( tmppos == std::string::npos )
+                    {
+                        log_it(SLAPD_LOG_ERR, "Unexpected end of ACL" );
+                        break;
+                    }
+                    else
+                    {
+                        log_it(SLAPD_LOG_INFO, "Whattype: " +  aclString.substr(spos, tmppos-spos) );
+                        if ( aclString.substr(spos, tmppos-spos) == "by" )
+                        {
+                            break;
+                        }
+                        spos = tmppos+1;
+                        tmppos = aclString.find_first_not_of("\t ", spos );
+                        // is this a quoted string ?
+                        if ( aclString[tmppos] == '"' )
+                        {
+                            // find matching (unescapted) quote 
+                            spos = tmppos+1;
+                            bool found=false;
+                            while( ! found )
+                            {
+                                tmppos = aclString.find_first_of('"', tmppos+1 );
+                                if ( tmppos == std::string::npos )
+                                {
+                                    break;
+                                }
+                                if ( aclString[tmppos-1] != '\\' )
+                                {
+                                    found = true;
+                                }
+                            }
+                            if ( !found )
+                            {
+                                log_it(SLAPD_LOG_ERR, "Not matching quote found" );
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            spos = tmppos;
+                            tmppos = aclString.find_first_of("\t ", spos );
+                        }
+                        log_it(SLAPD_LOG_INFO, "Whatvalue: " +  aclString.substr(spos, tmppos-spos) );
+                        spos = aclString.find_first_not_of("\t ", tmppos+1 );
+                    }
+                }
+                // we should have reached the "by"-clauses now
+            }
+
+        }
+    }
+}
+
 void OlcDatabase::addAccessControl(const std::string& acl, int index )
 {
     if ( index < 0 )
