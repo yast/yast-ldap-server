@@ -532,6 +532,15 @@
         `who_dn_subtree : [ _("All entries in the subtree") , "dn.subtree" ],
         `who_group      : [ _("All members of the group"), "group" ]
     ];
+    map<string, symbol> whoString2Id = $[
+        "*"             : `who_all,
+        "users"         : `who_users,
+        "anonymous"     : `who_anon,
+        "self"          : `who_self,
+        "dn.base"       : `who_dn,
+        "dn.subtree"    : `who_dn_subtree,
+        "group"         : `who_group
+    ];
 
     map<symbol, list<string> > accessId2String = $[
         `access_none     : [ _("No Access"), "none"],
@@ -541,6 +550,16 @@
         `access_read     : [ _("Read"), "read" ],
         `access_write    : [ _("Write"), "write" ],
         `access_manage   : [ _("Manage (full access)"), "manage" ]
+    ];
+
+    map<string, symbol> accessString2Id = $[
+        "none"      : `access_none,
+        "disclose"  : `access_disclose,
+        "auth"      : `access_auth,
+        "compare"   : `access_compare,
+        "read"      : `access_read,
+        "write"     : `access_write,
+        "manage"    : `access_manage
     ];
 
     global map AddAclAccess(string suffix, map access)
@@ -950,6 +969,7 @@
                 map targetMap = acl["target"]:$[];
                 map resMap =$[];
                 resMap["target"] = $[];
+                resMap["access"] = [];
                 if ( size(targetMap) == 0 )
                 {
                     resMap["target", "what"] = `dn_all;
@@ -972,6 +992,17 @@
                      resMap["target", "filter"] = targetMap["filter"]:"";
                      resMap["target", "attrs"] = targetMap["attrs"]:"";
                 }
+                list<map> accessList = [];
+                foreach( map access, acl["access"]:[],
+                    {
+                        map<string,any> accessMap = $[];
+                        accessMap["level"] = accessString2Id[access["level"]:""]:`access_none;
+                        accessMap["type"] = whoString2Id[access["type"]:""]:`nil;
+                        accessMap["dn"] = access["value"]:"";
+                        accessList = add( accessList, accessMap );
+                    }
+                );
+                resMap["access"] = accessList;
                 acllist = add( acllist, resMap );
             }
         );
