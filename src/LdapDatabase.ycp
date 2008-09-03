@@ -622,7 +622,7 @@
             {
                 UI::ChangeWidget( `id( `pb_who ), `Enabled, true );
                 UI::ChangeWidget( `id( `te_who_dn ), `Enabled, true );
-                UI::ChangeWidget( `id( `te_who_dn ), `Value, access["dn"]:"" );
+                UI::ChangeWidget( `id( `te_who_dn ), `Value, access["value"]:"" );
             }
         }
         symbol ret = `next;
@@ -637,17 +637,17 @@
 
                 if ( type == `who_dn || type == `who_dn_subtree || type == `who_group )
                 {
-                    res["dn"] = UI::QueryWidget( `id( `te_who_dn), `Value );
-                    if ( res["dn"]:"" == "" )
+                    res["value"] = UI::QueryWidget( `id( `te_who_dn), `Value );
+                    if ( res["value"]:"" == "" )
                     {
                         Popup::Error(_("Please enter a DN into the Textfield") );
                         continue;
                     }
                     else
                     {
-                        if ( ! LdapServer::ValidateDn( res["dn"]:"" ) )
+                        if ( ! LdapServer::ValidateDn( res["value"]:"" ) )
                         {
-                            Popup::Error( "\"" + res["dn"]:"" + "\"" + _("is not a valid LDAP DN") );
+                            Popup::Error( "\"" + res["value"]:"" + "\"" + _("is not a valid LDAP DN") );
                             continue;
                         }
                     }
