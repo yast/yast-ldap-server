@@ -1167,6 +1167,51 @@ sub ChangeDatabaseIndex
     return $rc;
 }
 
+##
+ # Update the ACLs of a Database, all exiting ACLs of that Database are overwritten.
+ #
+ # @param The index of the Database to be updated
+ # @param A list of maps defining the new ACLs. The maps must 
+ #        adhere to the following structure:
+ #          {
+ #              'target' => {
+ #                      # a Map defining the target objects of this ACL
+ #                      # can contain any or multiple keys of the following
+ #                      # types
+ #                      'attrs'  => [ <list of attributetypes> ],
+ #                      'filter' => <LDAP filter string>,
+ #                      'dn' => {
+ #                              'style' => <'base' or 'subtree'>
+ #                              'value' => <LDAP DN>
+ #                          }
+ #                  },
+ #              'access' => [
+ #                      # a list of maps defining the access level of different
+ #                      # indentities, each map looks like this:
+ #                      'level' => <'none'|'disclose'|'auth'|'compare'|'read'|'write'|'manage'>,
+ #                      'type'  => <'self'|'users'|'anoymous'|'*'|'group'|'dn.base'|'dn.subtree'>
+ #                      # if type is 'group', 'dn.base', 'dn.subtree':
+ #                      'dn'    => <a valid LDAP DN>
+ #                  ]
+ #
+ #          }
+ # @return boolean True on success
+ #
+BEGIN { $TYPEINFO {ChangeDatabaseAcl} = ["function", "boolean" , "integer", ["list", [ "map", "string", "any" ] ] ]; }
+sub ChangeDatabaseAcl
+{
+    my ($self, $dbIndex, $acllist ) = @_;
+    y2milestone("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
+    my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
+    return $rc;
+}
+
+##
+ # Read the ACLs of a Database
+ # @param The index of the Database to be read
+ #
+ # @return A list of maps as described for the ChangeDatabaseAcl() function
+ #
 BEGIN { $TYPEINFO {ReadDatabaseAcl} = ["function", [ "list", [ "map", "string", "any" ] ], "integer" ]; }
 sub ReadDatabaseAcl
 {
@@ -1174,15 +1219,6 @@ sub ReadDatabaseAcl
     y2milestone("ReadDatabaseAcl ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}.acl" );
     y2milestone( "ACL: ".Data::Dumper->Dump([$rc]) );
-    return $rc;
-}
-
-BEGIN { $TYPEINFO {ChangeDatabaseAcl} = ["function", "boolean" , "integer", ["list", [ "map", "string", "any" ] ] ]; }
-sub ChangeDatabaseAcl
-{
-    my ($self, $dbIndex, $acllist ) = @_;
-    y2milestone("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
-    my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
     return $rc;
 }
 
