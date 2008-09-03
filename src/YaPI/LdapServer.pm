@@ -39,6 +39,14 @@ $bool = EditIndex($suffix,\%indexMap)
 
  Add a new index statement %indexMap to the database section
 
+\@aclList = ReadAcl($suffix)
+
+ Returns a List of Maps with the ACL for this database
+
+$bool = WriteAcl($suffix,\@aclList)
+
+ Replace the existing ACLs of a database
+
 \@list = ReadSchemaList()
 
  Returns a list of all included schema items
@@ -203,14 +211,6 @@ BEGIN { $TYPEINFO{ReadDatabaseList} = ["function", ["list", [ "map", "string", "
 sub ReadDatabaseList {
     my $self = shift;
     
-    my $rc = SCR->Execute('.ldapserver.init' );
-    if ( ! $rc )
-    {
-        my $err = SCR->Error(".ldapserver");
-        $err->{'code'} = "SCR_EXECUTE_FAILED";
-        return $self->SetError(%{$err});
-    }
-
     my $dbList = SCR->Read('.ldapserver.databases');
     if(! defined $dbList) {
         my $err = SCR->Error(".ldapserver");
@@ -931,6 +931,7 @@ BEGIN { $TYPEINFO{ReadIndex} = ["function", ["list", ["map", "string", "string"]
 sub ReadIndex {
     my $self = shift;
     my $suffix = shift;
+    y2milestone("YaPI::LdapServer->ReadIndex()");
 
     if(! defined $suffix || $suffix eq "") {
                                           # error message at parameter check
@@ -1000,6 +1001,7 @@ sub EditIndex {
     my $orig_idxArray = undef;
     my @new_idx = ();
 
+    y2milestone("YaPI::LdapServer->EditIndex()");
     if(!defined $suffix || $suffix eq "") {
         return $self->SetError(summary => "Missing parameter 'suffix'",
                                code => "PARAM_CHECK_FAILED");
@@ -1039,6 +1041,122 @@ sub EditIndex {
         $err->{'code'} = "SCR_EXECUTE_FAILED";
         return $self->SetError(%{$err});
     }
+    return 1;
+}
+
+=item *
+C<\@aclList = ReadAcl($suffix)>
+
+ Read ACLs of a Database
+
+ The return value is a list of maps defining the ACLs. The maps  
+ has the following structure:
+
+  {
+      'target' => {
+              # a Map defining the target objects of this ACL
+              # can contain any or multiple keys of the following
+              # types
+              'attrs'  => [ <list of attributetypes> ],
+              'filter' => <LDAP filter string>,
+              'dn' => {
+                      'style' => <'base' or 'subtree'>
+                      'value' => <LDAP DN>
+                  }
+          },
+      'access' => [
+              # a list of maps defining the access level of different
+              # indentities, each map looks like this:
+              'level' => <'none'|'disclose'|'auth'|'compare'|'read'|'write'|'manage'>,
+              'type'  => <'self'|'users'|'anoymous'|'*'|'group'|'dn.base'|'dn.subtree'>
+              # if type is 'group', 'dn.base', 'dn.subtree':
+              'value'    => <a valid LDAP DN>
+          ]
+
+  }
+
+=cut
+BEGIN { $TYPEINFO{ReadAcl} = ["function", ["list", ["map", "string", "any"] ], "string"]; }
+sub ReadAcl {
+    my $self = shift;
+    my $suffix = shift;
+
+    if(! defined $suffix || $suffix eq "") {
+                                          # error message at parameter check
+        return $self->SetError(summary => __("Missing parameter 'suffix'."),
+                               code => "PARAM_CHECK_FAILED");
+    }
+    my $dblist = $self->ReadDatabaseList();
+    my $index = -2;
+
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
+        }
+    }
+    
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
+    }
+
+    my $aclList = SCR->Read( ".ldapserver.database.{$index}.acl" );
+    y2milestone("YAPI acllist: ".Data::Dumper->Dump([$aclList]));
+
+    return $aclList;
+}
+
+=item *
+C<$bool = WriteAcl($suffix,\@aclList)>
+
+ Update the ACLs of a Database, all exiting ACLs of that Database are overwritten.
+
+ The aclList parameter must have the same structure as documented for the
+ ReadAcl function above.
+
+=cut
+BEGIN { $TYPEINFO{WriteAcl} = ["function", "boolean", "string", ["list", ["map", "string", "any"] ]]; }
+sub WriteAcl {
+    my $self = shift;
+    my $suffix = shift;
+    my $aclList = shift;
+
+    if(! defined $suffix || $suffix eq "") {
+                                          # error message at parameter check
+        return $self->SetError(summary => __("Missing parameter 'suffix'."),
+                               code => "PARAM_CHECK_FAILED");
+    }
+    my $dblist = $self->ReadDatabaseList();
+    my $index = -2;
+
+    foreach my $db (@{$dblist})
+    {
+        if ( $db->{'suffix'} eq $suffix)
+        {
+            $index = $db->{'index'};
+        }
+    }
+    
+    if ( $index <= 0 )
+    {
+        return $self->SetError(summary => "Database does not exist",
+                               code => "DATABASE_NOT_FOUND");
+    }
+
+    if(! SCR->Write( ".ldapserver.database.{$index}.acl", $aclList ) ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_WRITE_FAILED";
+        return $self->SetError(%{$err});
+    }
+    if(! SCR->Execute(".ldapserver.commitChanges") ) {
+        my $err = SCR->Error(".ldapserver");
+        $err->{'code'} = "SCR_EXECUTE_FAILED";
+        return $self->SetError(%{$err});
+    }
+
     return 1;
 }
 
