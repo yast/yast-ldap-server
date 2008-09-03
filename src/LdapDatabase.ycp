@@ -528,7 +528,7 @@
         `who_users      : [ _("Authenticated Clients") , "users" ],
         `who_anon       : [ _("Anonymous Clients"), "anonymous" ],
         `who_self       : [ _("The accessed Entry (self)"), "self" ],
-        `who_dn         : [ _("The user with the DN"), "dn" ],
+        `who_dn         : [ _("The user with the DN"), "dn.base" ],
         `who_dn_subtree : [ _("All entries in the subtree") , "dn.subtree" ],
         `who_group      : [ _("All members of the group"), "group" ]
     ];
@@ -834,7 +834,7 @@
                 list itemlist = maplist (map v, accesslist,
                     {
                         pos=pos+1;
-                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["dn"]:"", accessId2String[v["level"]:`none,0]:"");
+                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["value"]:"", accessId2String[v["level"]:`none,0]:"");
                     }
                 );
                 UI::ChangeWidget( `tab_access, `Items, itemlist) ;
@@ -1039,7 +1039,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
                             map<string,any> accessMap = $[];
                             accessMap["level"] = accessString2Id[access["level"]:""]:`access_none;
                             accessMap["type"] = whoString2Id[access["type"]:""]:`nil;
-                            accessMap["dn"] = access["value"]:"";
+                            accessMap["value"] = access["value"]:"";
                             accessList = add( accessList, accessMap );
                         }
                     );
