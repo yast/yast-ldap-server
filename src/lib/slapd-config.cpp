@@ -299,7 +299,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 StringList::const_iterator k = i->getValues().begin();
                 for( ; k != i->getValues().end(); k++ ) {
                     if ( *k == *j ) {
-                        log_it(SLAPD_LOG_INFO,"Value unchanged: " + *k );
+                        log_it(SLAPD_LOG_DEBUG,"Value unchanged: " + *k );
                         added = false;
                         break;
                     }
@@ -343,7 +343,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
     i = m_dbEntryChanged.getAttributes()->begin();
     for(; i != m_dbEntryChanged.getAttributes()->end(); i++ )
     {
-        log_it(SLAPD_LOG_INFO,i->getName() );
+        log_it(SLAPD_LOG_DEBUG,i->getName() );
         const LDAPAttribute *old =  m_dbEntry.getAttributeByName(i->getName());
         if (! old ) {
             log_it(SLAPD_LOG_INFO,"Attribute added: " + i->getName());
@@ -1262,6 +1262,21 @@ void OlcSchemaConfig::resetMemberAttrs()
     entryIndex = splitIndexFromString( name, m_name );
 }
 
+void OlcSchemaConfig::updateEntryDn(bool origEntry )
+{
+    log_it(SLAPD_LOG_INFO, "updateEntryDN()");
+    std::ostringstream dn, name;
+    name << "{" << entryIndex << "}" << m_name;
+    dn << "cn=" << name.str() << "," << "cn=schema,cn=config";
+    m_dbEntryChanged.setDN(dn.str());
+    m_dbEntryChanged.replaceAttribute(LDAPAttribute("cn", name.str()));
+    if ( origEntry && (! m_dbEntry.getDN().empty()) )
+    {
+        m_dbEntry.setDN(dn.str());
+        m_dbEntry.replaceAttribute(LDAPAttribute("cn", name.str()));
+    }
+}
+
 OlcTlsSettings::OlcTlsSettings( const OlcGlobalConfig &ogc )
     : m_crlCheck(0), m_verifyCient(0)
 {
@@ -1427,6 +1442,8 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 {
     try {
         bool reread = true;
+        log_it(SLAPD_LOG_INFO, "updateEntry() Old DN: "+oce.getDn()+" ChangedDN: "+ oce.getChangedEntry().getDN() );
+//        log_it(SLAPD_LOG_INFO, " LDIF "+oce.toLdif() );
         if ( oce.isNewEntry () ) 
         {
             m_lc->add(&oce.getChangedEntry());
@@ -1438,14 +1455,14 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
             if ( ! ml.empty() ) {
                 m_lc->modify( oce.getDn(), &ml );
             } else {
-                log_it(SLAPD_LOG_INFO,oce.getDn() + ": no changes" );
+                log_it(SLAPD_LOG_INFO, oce.getDn() + ": no changes" );
                 reread = false;
             }
         }
         // re-read Entry from Server
         if ( reread )
         {
-            LDAPSearchResults *sr = m_lc->search( oce.getDn(), LDAPConnection::SEARCH_BASE);
+            LDAPSearchResults *sr = m_lc->search( oce.getUpdatedDn(), LDAPConnection::SEARCH_BASE);
             LDAPEntry *e = sr->getNext();
             if ( e ) {
                 log_it(SLAPD_LOG_INFO,"Re-read Entry " + e->getDN() );

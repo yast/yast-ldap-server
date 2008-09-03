@@ -262,6 +262,9 @@ class OlcSchemaConfig : public OlcConfigEntry
         const std::string& getName() const;
         const std::vector<LDAPAttrType> getAttributeTypes() const;
 
+    protected:
+        virtual void updateEntryDn( bool origEntry = false);
+
     private:
         virtual void resetMemberAttrs();
         std::string m_name;
