@@ -1242,10 +1242,10 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 aclString << " by";
                                 std::string type( accessList->value(k)->asMap()->value( YCPString("type") )->asString()->value_cstr() );
                                 aclString << " " << type;
-                                if ( type == "dn.subtree" || type == "dn" || type == "group" )
+                                if ( type == "dn.subtree" || type == "dn.base" || type == "group" )
                                 {
                                     aclString << "=\"" 
-                                              << accessList->value(k)->asMap()->value( YCPString("dn") )->asString()->value_cstr()
+                                              << accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr()
                                               << "\"";
                                 }
                                 aclString << " " << accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr();
