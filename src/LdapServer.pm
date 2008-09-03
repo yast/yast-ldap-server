@@ -1191,7 +1191,7 @@ sub ChangeDatabaseIndex
  #                      'level' => <'none'|'disclose'|'auth'|'compare'|'read'|'write'|'manage'>,
  #                      'type'  => <'self'|'users'|'anoymous'|'*'|'group'|'dn.base'|'dn.subtree'>
  #                      # if type is 'group', 'dn.base', 'dn.subtree':
- #                      'dn'    => <a valid LDAP DN>
+ #                      'value'    => <a valid LDAP DN>
  #                  ]
  #
  #          }
