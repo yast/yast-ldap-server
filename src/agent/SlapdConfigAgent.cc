@@ -1325,7 +1325,9 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 LDAPEntry entry, oldEntry;
                 entry = ldif.getEntryRecord();
                 y2milestone("adding <%s> to SchemaList", entry.getDN().c_str() );
-                schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
+                boost::shared_ptr<OlcSchemaConfig> schemaCfg(new OlcSchemaConfig(oldEntry, entry));
+                schemaCfg->setIndex( schema.size()-1, true );
+                schema.push_back( schemaCfg );
             }
             return YCPBoolean(true);
         } catch ( std::runtime_error e ) {
@@ -1411,7 +1413,9 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 return YCPBoolean(false);
             }
         }
-        schema.push_back( boost::shared_ptr<OlcSchemaConfig>(new OlcSchemaConfig(oldEntry, entry)) );
+        boost::shared_ptr<OlcSchemaConfig> schemaCfg(new OlcSchemaConfig(oldEntry, entry));
+        schemaCfg->setIndex( schema.size()-1, true );
+        schema.push_back( schemaCfg );
 
         //lastError->add( YCPString("summary"),
         //        YCPString("Error while parsing Schema file") );
