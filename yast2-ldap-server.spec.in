@@ -2,7 +2,7 @@
 
 @HEADER@
 BuildRequires:	boost-devel gcc-c++ libldapcpp-devel perl-Digest-SHA1 perl-gettext perl-X500-DN pkg-config update-desktop-files yast2 yast2-core-devel yast2-devtools yast2-ldap-client
-Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 yast2-ca-management yast2-ldap-client yast2-network yast2-perl-bindings yast2-users
+Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 yast2-ldap-client yast2-perl-bindings yast2-users
 
 Summary:	Configuration of the OpenLDAP server
 
