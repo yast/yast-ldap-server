@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Sep  4 10:28:21 CEST 2008 - locilka@suse.cz
+
+- CaMgmt and DNS modules not needed anymore.
+- Adjusted RPM dependencies.
+
+-------------------------------------------------------------------
 Wed Sep  3 14:35:17 CEST 2008 - rhafer@suse.de
 
 - Added support of managing ACLs (Fate#120060)

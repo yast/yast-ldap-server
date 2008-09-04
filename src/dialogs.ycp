@@ -16,8 +16,6 @@ import "Label";
 import "Wizard";
 import "LdapServer";
 import "HTML";
-import "DNS";
-import "CaMgm";
 import "Report";
 
 include "ldap-server/helps.ycp";
