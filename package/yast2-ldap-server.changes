@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Sep  5 10:44:33 CEST 2008 - rhafer@suse.de
+
+- yast2-ca-management is still required, as it can be launched from
+  the TLS/SSL dialog
+
+-------------------------------------------------------------------
 Thu Sep  4 10:28:21 CEST 2008 - locilka@suse.cz
 
 - CaMgmt and DNS modules not needed anymore.
