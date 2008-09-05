@@ -706,7 +706,7 @@ std::string OlcAccess::toAclString() const
     {
         if ( ! m_dn_value.empty() )
         {
-            aclString << " dn." << m_dn_type << "=\"" << m_dn_value << "\"";
+            aclString << " " << m_dn_type << "=\"" << m_dn_value << "\"";
         }
         if ( ! m_filter.empty() )
         {
@@ -716,18 +716,18 @@ std::string OlcAccess::toAclString() const
         {
             aclString << " attrs=" << m_attributes;
         }
-        OlcAclByList::const_iterator i;
-        for ( i = m_byList.begin(); i != m_byList.end(); i++ )
+    }
+    OlcAclByList::const_iterator i;
+    for ( i = m_byList.begin(); i != m_byList.end(); i++ )
+    {
+        aclString << " by " << (*i)->getType();
+        if ( (*i)->getType() == "dn.base" ||
+             (*i)->getType() == "dn.subtree" ||
+             (*i)->getType() == "group" )
         {
-            aclString << " by " << (*i)->getType();
-            if ( (*i)->getType() == "dn.base" ||
-                 (*i)->getType() == "dn.subtree" ||
-                 (*i)->getType() == "group" )
-            {
-                aclString << "=\"" << (*i)->getValue() << "\"";
-            }
-            aclString << " " << (*i)->getLevel();
+            aclString << "=\"" << (*i)->getValue() << "\"";
         }
+        aclString << " " << (*i)->getLevel();
     }
     return aclString.str();
 }

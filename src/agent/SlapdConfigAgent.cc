@@ -1218,7 +1218,8 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 acl->setMatchAll(false);
                                 if (! target->value( YCPString("dn") ).isNull() )
                                 {
-                                    acl->setDnType( target->value(YCPString("dn"))->asMap()->value(YCPString("style"))->asString()->value_cstr() );
+                                    acl->setDnType(std::string("dn.") +
+                                                  target->value(YCPString("dn"))->asMap()->value(YCPString("style"))->asString()->value_cstr() );
                                     acl->setDn( target->value( YCPString("dn") )->asMap()->value( YCPString("value") )->asString()->value_cstr() );
                                 }
                                 if (! target->value( YCPString("filter") ).isNull() )
@@ -1243,6 +1244,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                     value = accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr();
                                 }
                                 std::string level( accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr() );
+                                y2milestone("level %s, type %s, value %s", level.c_str(), type.c_str(), value.c_str() );
                                 boost::shared_ptr<OlcAclBy> by( new OlcAclBy( level, type, value ) );
                                 byList.push_back( by );
                             }
