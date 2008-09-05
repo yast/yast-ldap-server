@@ -1198,62 +1198,58 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     else if ( dbComponent == "acl" )
                     {
                         YCPList argList = arg->asList();
-                        StringList aclStrings;
+                        OlcAccessList aclList;
                         for ( int j = 0; j < argList->size(); j++ )
                         {
-                            std::ostringstream aclString;
-                            aclString << "to";
+                            boost::shared_ptr<OlcAccess> acl( new OlcAccess() );
+
                             // create the "to dn.<scope>=<dn> ...." part of the ACL
                             YCPMap target = argList->value(j)->asMap()->value(YCPString("target"))->asMap();
                             if (target.size() == 0 )
                             {
-                                aclString << " *";
+                                acl->setFilter("");
+                                acl->setAttributes("");
+                                acl->setDnType("");
+                                acl->setDn("");
+                                acl->setMatchAll(true);
                             }
                             else
                             {
+                                acl->setMatchAll(false);
                                 if (! target->value( YCPString("dn") ).isNull() )
                                 {
-                                    aclString << " dn." 
-                                              << target->value( YCPString("dn") )->asMap()->value( YCPString("style") )->asString()->value_cstr() 
-                                              << "=";
-
-                                    aclString << "\"" 
-                                              << target->value( YCPString("dn") )->asMap()->value( YCPString("value") )->asString()->value_cstr() 
-                                              << "\"";
+                                    acl->setDnType( target->value(YCPString("dn"))->asMap()->value(YCPString("style"))->asString()->value_cstr() );
+                                    acl->setDn( target->value( YCPString("dn") )->asMap()->value( YCPString("value") )->asString()->value_cstr() );
                                 }
                                 if (! target->value( YCPString("filter") ).isNull() )
                                 {
-                                    aclString << " filter=\"" 
-                                              << target->value( YCPString("filter") )->asString()->value_cstr()
-                                              << "\"";
-
+                                    acl->setFilter( target->value( YCPString("filter") )->asString()->value_cstr() );
                                 }
                                 if (! target->value( YCPString("attrs") ).isNull() )
                                 {
-                                    aclString << " attrs=" 
-                                              << target->value( YCPString("attrs") )->asString()->value_cstr();
+                                    acl->setAttributes( target->value( YCPString("attrs") )->asString()->value_cstr() );
                                 }
                             }
 
                             // now the " by <xyz> <read|write>" part
                             YCPList accessList = argList->value(j)->asMap()->value( YCPString("access") )->asList();
+                            OlcAclByList byList;
                             for ( int k = 0; k < accessList->size(); k++ )
                             {
-                                aclString << " by";
                                 std::string type( accessList->value(k)->asMap()->value( YCPString("type") )->asString()->value_cstr() );
-                                aclString << " " << type;
+                                std::string value;
                                 if ( type == "dn.subtree" || type == "dn.base" || type == "group" )
                                 {
-                                    aclString << "=\"" 
-                                              << accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr()
-                                              << "\"";
+                                    value = accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr();
                                 }
-                                aclString << " " << accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr();
+                                std::string level( accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr() );
+                                boost::shared_ptr<OlcAclBy> by( new OlcAclBy( level, type, value ) );
+                                byList.push_back( by );
                             }
-                            y2milestone("Access String: %s", aclString.str().c_str() );
-                            aclStrings.add( aclString.str() );
+                            acl->setByList(byList);
+                            aclList.push_back(acl);
                         }
-                        (*i)->replaceAccessControl(aclStrings);
+                        (*i)->replaceAccessControl(aclList);
                         ret = true;
                     }
                     else if ( dbComponent == "dbconfig" )
