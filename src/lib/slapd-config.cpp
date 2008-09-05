@@ -704,7 +704,7 @@ std::string OlcAccess::toAclString() const
     }
     else
     {
-        if ( ! m_dn_value.empty() )
+        if ( ! m_dn_type.empty() )
         {
             aclString << " " << m_dn_type << "=\"" << m_dn_value << "\"";
         }

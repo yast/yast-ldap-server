@@ -265,15 +265,6 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     db->setRootPw( j.value()->asString()->value_cstr() );
                     continue;
                 }
-                else if (std::string("access") == j.key()->asString()->value_cstr() )
-                {
-                    YCPList aclList = j.value()->asList();
-                    for ( int k=0 ; k < aclList.size(); k++ )
-                    {
-                        db->addStringValue( "olcAccess", aclList.value(k)->asString()->value_cstr() );
-                    }
-                    continue;
-                }
                 if ( dbtype == "bdb" || dbtype == "hdb" )
                 {
                     boost::shared_ptr<OlcBdbDatabase> bdb = 
@@ -981,15 +972,6 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 db->setRootPw( j.value()->asString()->value_cstr() );
                 continue;
             }
-            else if (std::string("access") == j.key()->asString()->value_cstr() )
-            {
-                YCPList aclList = j.value()->asList();
-                for ( int k=0 ; k < aclList.size(); k++ )
-                {
-                    db->addStringValue( "olcAccess", aclList.value(k)->asString()->value_cstr() );
-                }
-                continue;
-            }
             if ( dbtype == "bdb" || dbtype == "hdb" )
             {
                 boost::shared_ptr<OlcBdbDatabase> bdb = 
@@ -1187,12 +1169,6 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 }
                             }
                         }
-                        ret = true;
-                    }
-                    else if ( dbComponent == "access" )
-                    {
-                        y2milestone("adding ACL rule: %s", arg->asString()->value_cstr() );
-                        (*i)->addAccessControl(arg->asString()->value_cstr());
                         ret = true;
                     }
                     else if ( dbComponent == "acl" )

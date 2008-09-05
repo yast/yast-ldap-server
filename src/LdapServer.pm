@@ -54,7 +54,86 @@ my $use_ldap_listener = 0;
 my $ldapi_interfaces = "";
 my $ldaps_interfaces = "";
 my $ldap_interfaces = "";
+my $defaultDbAcls = [
+        {
+            'target' => {
+                        'attrs'  => "userPassword"
+                    },
+            'access' => [
+                    {
+                        'level' => 'write',
+                        'type'  => 'self'
+                    },{
+                        'type'  => '*',
+                        'level' => 'auth'
+                    }
+                ]
+        },{
+            'target' => {
+                        'attrs' => "shadowLastChange"
+                    },
+            'access' => [
+                    {
+                        'type'  => 'self',
+                        'level' => 'write'
+                    },{
+                        'type'  => '*',
+                        'level' => 'read'
+                    }
+                ]
+        },{
+            'target' => {
+                        'attrs' => "userPKCS12"
+                    },
+            'access' => [
+                    {
+                        'type'  => 'self',
+                        'level' => 'read'
+                    },{
+                        'type'  => '*',
+                        'level' => 'none'
+                    }
+                ]
+        },{
+            'target' => {},
+            'access' => [
+                    {
+                        'type'  => '*',
+                        'level' => 'read'
+                    }
+                ]
+        }
+    ];
 
+my $defaultGlobalAcls = [
+        {
+            'target' => {
+                        'dn' => {
+                            'style' => 'base',
+                            'value' => ''
+                        }
+                    },
+            'access' => [
+                    {
+                        'type'  => '*',
+                        'level' => 'read'
+                    }
+                ]
+        },{
+            'target' => {
+                        'dn' => {
+                            'style' => 'base',
+                            'value' => 'cn=Subschema'
+                        }
+                    },
+            'access' => [
+                    {
+                        'type'  => '*',
+                        'level' => 'read'
+                    }
+                ]
+        }
+    ];
 my @defaultIndexes = (
         { "name" => "objectclass",
           "eq" => YaST::YCP::Boolean(1) 
@@ -101,44 +180,6 @@ my @defaultIndexes = (
     );
 
 my @schema = ();
-
-my @globalAcl = (
-    { 'what' => 
-        { 'filter' => undef,
-          'attr' => undef,
-          'dn' => 
-            { 
-              'style' => "base",
-              'dn'    => ""
-            }
-        },
-      'who' => 
-      [
-        { 'whotype' => "all",
-          'whovalue' => undef,
-          'level' => "read",
-          'priv' => undef
-        }
-      ]
-    },
-    { 'what' => 
-        { 'filter' => undef,
-          'attr' => undef,
-          'dn' => 
-            { 'style' => "base",
-              'dn'    => "cn=Subschema"
-            }
-        },
-      'who' => 
-      [
-        { 'whotype' => "all",
-          'whovalue' => undef,
-          'level' => "read",
-          'priv' => undef
-        }
-      ]
-    }
-);
 
 my @added_databases = ();
 
@@ -1054,15 +1095,7 @@ sub ReadFromDefaults
 
     my $cfgdatabase = { 'type' => 'config',
                         'rootdn' => 'cn=config' };
-    my $frontenddb = { 'type' => 'frontend',
-                       'access' => [
-                            'to dn.base="" by * read',
-                            'to dn.base="cn=Subschema" by * read', 
-                            'to attrs=userPassword,userPKCS12 by self write by * auth', 
-                            # 'to attrs=shadowLastChange by self write by * read', 
-                            'to * by * read'
-                        ]
-                      };
+    my $frontenddb = { 'type' => 'frontend' };
 
     $self->InitGlobals();
     SCR->Execute('.ldapserver.initSchema' );
@@ -1110,6 +1143,9 @@ sub ReadFromDefaults
             $self->ChangeDatabaseIndex(1, $idx );
         }
     }
+    # add default ACLs
+    $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
+    $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
     push @added_databases, { suffix => $dbDefaults{'suffix'}, 
                              rootdn => $dbDefaults{'rootdn'},
                              rootpw => $dbDefaults{'rootpw_clear'} };
@@ -1505,19 +1541,13 @@ sub AddDatabase
         $self->ChangeDatabaseIndex($index, $idx );
     }
 
-    # add some default ACLs
-    my @acls = ('to dn.subtree="'. $db->{'suffix'} .'" attrs=userPassword by self write by * auth', 
-                # 'to attrs=shadowLastChange by self write by * read', 
-                'to dn.subtree="'. $db->{'suffix'} .'" by * read');
-    foreach my $acl (@acls )
-    {
-        $rc = SCR->Write(".ldapserver.database.{$index}.access", $acl );
-        if(! $rc ) {
-            my $err = SCR->Error(".ldapserver");
-            y2error("Adding default ACLs failed: ".$err->{'summary'}." ".$err->{'description'});
-            $self->SetError( $err->{'summary'}, $err->{'description'} );
-            return 0;
-        }
+    # add default ACLs
+    $rc = SCR->Write(".ldapserver.database.{$index}.acl", $defaultDbAcls );
+    if(! $rc ) {
+        my $err = SCR->Error(".ldapserver");
+        y2error("Adding default ACLs failed: ".$err->{'summary'}." ".$err->{'description'});
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return 0;
     }
 
     # add some defaults to DB_CONFIG
