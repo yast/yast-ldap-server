@@ -1324,7 +1324,12 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 entry = ldif.getEntryRecord();
                 y2milestone("adding <%s> to SchemaList", entry.getDN().c_str() );
                 boost::shared_ptr<OlcSchemaConfig> schemaCfg(new OlcSchemaConfig(oldEntry, entry));
-                schemaCfg->setIndex( schema.size()-1, true );
+                int index = schema.size();
+                if ( ! schema.empty() && (*schema.begin())->getName() == "schema" )
+                {
+                    index--;
+                }
+                schemaCfg->setIndex( index , true );
                 schema.push_back( schemaCfg );
             }
             return YCPBoolean(true);
