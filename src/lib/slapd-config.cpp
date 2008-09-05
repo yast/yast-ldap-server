@@ -658,6 +658,11 @@ void OlcAccess::setMatchAll( bool matchAll )
     }
 }
 
+void OlcAccess::setByList( const OlcAclByList& byList )
+{
+    m_byList = byList;
+}
+
 std::string OlcAccess::getFilter() const
 {
     return m_filter;
@@ -686,6 +691,45 @@ bool OlcAccess::matchesAll() const
 OlcAclByList OlcAccess::getAclByList() const
 {
     return m_byList;
+}
+
+std::string OlcAccess::toAclString() const
+{
+    std::ostringstream aclString;
+
+    aclString << "to";
+    if ( m_all )
+    {
+        aclString << " *";
+    }
+    else
+    {
+        if ( ! m_dn_value.empty() )
+        {
+            aclString << " dn." << m_dn_type << "=\"" << m_dn_value << "\"";
+        }
+        if ( ! m_filter.empty() )
+        {
+            aclString << " filter=" << m_filter;
+        }
+        if ( ! m_attributes.empty() )
+        {
+            aclString << " attrs=" << m_attributes;
+        }
+        OlcAclByList::const_iterator i;
+        for ( i = m_byList.begin(); i != m_byList.end(); i++ )
+        {
+            aclString << " by " << (*i)->getType();
+            if ( (*i)->getType() == "dn.base" ||
+                 (*i)->getType() == "dn.subtree" ||
+                 (*i)->getType() == "group" )
+            {
+                aclString << "=\"" << (*i)->getValue() << "\"";
+            }
+            aclString << " " << (*i)->getLevel();
+        }
+    }
+    return aclString.str();
 }
 
 
@@ -757,7 +801,7 @@ bool OlcDatabase::getAcl(OlcAccessList &aclList) const
         {
             log_it(SLAPD_LOG_INFO, "acl VALUE: " + *i );
             std::string aclString;
-            int index = splitIndexFromString( *i, aclString );
+            splitIndexFromString( *i, aclString );
             try {
                 boost::shared_ptr<OlcAccess> acl( new OlcAccess(aclString) );
                 aclList.push_back(acl);
@@ -785,17 +829,17 @@ void OlcDatabase::addAccessControl(const std::string& acl, int index )
     this->addIndexedStringValue( "olcAccess", acl, index );
 }
 
-void OlcDatabase::replaceAccessControl(const StringList acllist )
+void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
 {
     // delete old Values first
     this->setStringValue( "olcAccess", "" );
 
-    StringList::const_iterator i;
+    OlcAccessList::const_iterator i;
     int j = 0;
 
     for ( i = acllist.begin(); i != acllist.end(); i++ )
     {
-        this->addAccessControl( *i, j );
+        this->addAccessControl( (*i)->toAclString(), j );
         j++;
     }
 }

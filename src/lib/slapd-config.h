@@ -130,16 +130,32 @@ class OlcAclBy
                   const std::string& value = "" ) : 
                         m_level(level), m_type(type), m_value(value) {};
 
-        inline std::string getLevel() const {
+        inline std::string getLevel() const
+        {
             return m_level;
         }
 
-        inline std::string getType() const {
+        inline std::string getType() const
+        {
             return m_type;
         }
 
-        inline std::string getValue() const {
+        inline std::string getValue() const
+        {
             return m_value;
+        }
+
+        inline void setLevel( const std::string &level )
+        {
+            m_level = level;
+        }
+        inline void setType( const std::string &type )
+        {
+            m_type = type;
+        }
+        inline void setValue( const std::string &value )
+        {
+            m_value = value;
         }
 
     private:
@@ -152,12 +168,15 @@ typedef std::list<boost::shared_ptr<OlcAclBy> > OlcAclByList;
 class OlcAccess
 {
     public:
+        inline OlcAccess() {}
+
         OlcAccess( const std::string &aclString);
         void setFilter( const std::string& filter );
         void setAttributes( const std::string& attrs );
         void setDnType( const std::string& dnType );
         void setDn( const std::string& dn );
         void setMatchAll( bool matchAll );
+        void setByList( const OlcAclByList &bylist);
 
         std::string getFilter() const;
         std::string getAttributes() const;
@@ -165,6 +184,8 @@ class OlcAccess
         std::string getDnValue() const;
         bool matchesAll() const;
         OlcAclByList getAclByList() const;
+
+        std::string toAclString() const;
 
     private:
         std::string m_filter;
@@ -197,7 +218,7 @@ class OlcDatabase : public OlcConfigEntry
         bool getAcl( OlcAccessList& accessList ) const;
 
         virtual void addAccessControl( const std::string& acl, int index=-1 );
-        virtual void replaceAccessControl( const StringList acllist );
+        virtual void replaceAccessControl( const OlcAccessList& acllist );
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;
