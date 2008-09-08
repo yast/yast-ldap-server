@@ -580,9 +580,12 @@ define boolean cb_input_databases()
                 }
                 else
                 {
-                    LdapServer::UpdateDatabase( tointeger(db["index"]:""), $[] );
-                    cb_read_databases();
-                    rebuild_widget_tree = true;
+                    if ( Popup::YesNo(_("Do you really want to delete the database?")) )
+                    {
+                        LdapServer::UpdateDatabase( tointeger(db["index"]:""), $[] );
+                        cb_read_databases();
+                        rebuild_widget_tree = true;
+                    }
                 }
             }
         }
