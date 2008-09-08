@@ -492,21 +492,19 @@ define boolean cb_input_tls()
  ** handlers for database parent widget
  *****************************************/
 
-define boolean cb_check_databases()
-``{
-    return true;
-}
-
 define boolean cb_read_databases()
 ``{
     y2milestone( "calling databases read handler" );
     list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
-    string text = HTML::Para( HTML::Bold( _("Available Databases:") ) )+HTML::Newline();
-    foreach( map<string,string> db, dblist, {
-        string tmp = sformat("%1 (%2)", db["suffix"]:"", db["type"]:"" );
-        text = text + tmp + HTML::Newline();
-    } );
-    UI::ChangeWidget( `rt_databases, `Value, text );
+
+    integer pos = -1;
+    list itemlist = maplist (map v, dblist,
+        {
+            pos=pos+1;
+            return `item( `id(pos), v["suffix"]:"" , v["type"]:"");
+        }
+    );
+    UI::ChangeWidget( `tab_db, `Items, itemlist) ;
     return true;
 }
 
@@ -560,6 +558,33 @@ define boolean cb_input_databases()
         else
         {
             y2milestone( "Database creating aborted" );
+        }
+    }
+    else if ( handler_cmd == `pb_del )
+    {
+        integer selected = (integer) UI::QueryWidget( `tab_db, `CurrentItem );
+        if ( selected != nil )
+        {
+            list<map> dblist = LdapServer::ReadDatabaseList();
+            map<string,string> db = (map<string,string>)dblist[selected]:nil;
+            if ( db != nil )
+            {
+                y2milestone("Trying to delete datbase %1 %2", db["suffix"]:"", db["type"]:"" );
+                if (db["type"]:"" == "frontend" )
+                {
+                    Popup::Error(_("Can not delete Frontend database") );
+                }
+                else if (db["type"]:"" == "config" )
+                {
+                    Popup::Error( _("Can not delete Config database") );
+                }
+                else
+                {
+                    LdapServer::UpdateDatabase( tointeger(db["index"]:""), $[] );
+                    cb_read_databases();
+                    rebuild_widget_tree = true;
+                }
+            }
         }
     }
 
@@ -879,11 +904,14 @@ widget_map = $[
                     /* Tree item */
         "name"      : _("Databases"),
         "widget"    : `VBox(
-            `RichText( `id( `rt_databases ), "" ),
-                                         /* Button Text */
-            `PushButton( `id( `pb_add ), _("A&dd Database...") )
+            `MinSize( 60, 7,
+                `Table( `id( `tab_db ),`opt(`keepSorting), `header(_("Suffix DN"), _("Database type") ) )
+            ),
+            `HBox(
+                `PushButton( `id( `pb_add ), _("A&dd Database...") ),
+                `PushButton( `id( `pb_del ), _("Delete Database") )
+            )
         ),
-        "cb_check"  : ``( cb_check_databases() ),
         "cb_read"   : ``( cb_read_databases() ),
         "cb_write"  : ``( cb_write_databases() ),
         "cb_input"  : ``( cb_input_databases() )
