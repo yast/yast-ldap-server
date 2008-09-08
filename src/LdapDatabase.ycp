@@ -750,8 +750,14 @@
                             `VSpacing(0.5),
                             `Frame( _("Access Level"),
                                 `VBox(
-                                    `MinSize( 60, 7,
-                                        `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                                    `HBox(
+                                        `MinSize( 60, 7,
+                                            `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                                        ),
+                                        `VBox(
+                                            `PushButton( `id (`pb_up ), _("Up") ),
+                                            `PushButton( `id (`pb_down ), _("Down") )
+                                        )
                                     ),
                                     `HBox(
                                         `PushButton( `id (`pb_add ), _("Add") ),
@@ -832,6 +838,7 @@
         map result = $[];
         list<map> accesslist = acl["access"]:[];
         boolean updateTable = true;
+        integer selected = 0;
         while(true) {
             if ( updateTable )
             {
@@ -843,11 +850,13 @@
                     }
                 );
                 UI::ChangeWidget( `tab_access, `Items, itemlist) ;
+                UI::ChangeWidget(`id(`tab_access), `CurrentItem, selected );
                 updateTable = false;
             }
 
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
+            selected = (integer)UI::QueryWidget( `id( `tab_access ), `CurrentItem );
             if ( ret == `pb_ok )
             {
                 map what = $[];
@@ -974,25 +983,47 @@
             }
             else if ( ret == `pb_edit )
             {
-                any selected = UI::QueryWidget( `id( `tab_access ), `CurrentItem );
                 if ( selected != nil )
                 {
-                    map access = accesslist[(integer)selected]:nil;
+                    map access = accesslist[selected]:nil;
                     access = AddAclAccess(suffix, access);
                     if ( access != nil )
                     {
-                        accesslist[(integer)selected] = access;
+                        accesslist[selected] = access;
                         updateTable = true;
                     }
                 }
             }
             else if ( ret == `pb_del )
             {
-                any selected = UI::QueryWidget( `id( `tab_access ), `CurrentItem );
                 if ( selected != nil )
                 {
-                    accesslist = remove(accesslist, (integer)selected);
+                    accesslist = remove(accesslist, selected);
                     updateTable = true;
+                }
+            }
+            else if ( ret == `pb_up )
+            {
+                if ( selected != nil &&  selected > 0 )
+                {
+                    integer newIndex = selected - 1;
+                    map oldItem = accesslist[newIndex]:nil;
+                    accesslist[newIndex] = accesslist[selected]:nil;
+                    accesslist[selected] = oldItem;
+                    updateTable = true;
+                    selected = newIndex;
+                }
+            }
+            else if ( ret == `pb_down )
+            {
+                if ( selected != nil &&  selected < (size(accesslist)-1) )
+                {
+                    integer newIndex = selected + 1;
+                    map oldItem = accesslist[newIndex]:nil;
+                    accesslist[newIndex] = accesslist[selected]:nil;
+                    accesslist[selected] = oldItem;
+                    updateTable = true;
+                    selected = newIndex;
                 }
             }
         }
@@ -1006,7 +1037,15 @@
             `VBox(
                 `VSpacing(1),
                 `VBox(
-                    `Table( `id( `tab_acl ),`opt(`keepSorting), `header(_("Target"), _("DN"), _("Filter"), _("Attributes") ) ),
+                    `HBox(
+                        `MinSize( 60, 7,
+                            `Table( `id( `tab_acl ),`opt(`keepSorting), `header(_("Target"), _("DN"), _("Filter"), _("Attributes") ) )
+                        ),
+                        `VBox(
+                            `PushButton( `id (`pb_up ), _("Up") ),
+                            `PushButton( `id (`pb_down ), _("Down") )
+                        )
+                    ),
                     `HBox(
                         `PushButton( `id (`pb_add ), _("Add") ),
                         `PushButton( `id (`pb_del ), _("Delete") ),
@@ -1152,6 +1191,8 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
         string suffix =  db["suffix"]:"";
         boolean updateTable = false;
 
+        integer selected = (integer)UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
+
         if ( handler_cmd == `pb_add )
         {
             map aclmap = AddAclTarget(suffix, nil);
@@ -1163,25 +1204,48 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
         }
         else if ( handler_cmd == `pb_del )
         {
-            any selected = UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
             if ( selected != nil )
             {
-                acllist = remove(acllist, (integer)selected);
+                acllist = remove(acllist, selected);
                 updateTable = true;
+                selected = 0;
             }
         }
         else if ( handler_cmd == `pb_edit )
         {
-            any selected = UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
             if ( selected != nil )
             {
-                map aclmap = acllist[(integer)selected]:nil;
+                map aclmap = acllist[selected]:nil;
                 aclmap = AddAclTarget(suffix, aclmap );
                 if (aclmap != nil )
                 {
-                    acllist[(integer)selected] = aclmap;
+                    acllist[selected] = aclmap;
                     updateTable = true;
                 }
+            }
+        }
+        else if ( handler_cmd == `pb_up )
+        {
+            if ( selected != nil &&  selected > 0 )
+            {
+                integer newIndex = selected - 1;
+                map oldItem = acllist[newIndex]:nil;
+                acllist[newIndex] = acllist[selected]:nil;
+                acllist[selected] = oldItem;
+                updateTable = true;
+                selected = newIndex;
+            }
+        }
+        else if ( handler_cmd == `pb_down )
+        {
+            if ( selected != nil &&  selected < (size(acllist)-1) )
+            {
+                integer newIndex = selected + 1;
+                map oldItem = acllist[newIndex]:nil;
+                acllist[newIndex] = acllist[selected]:nil;
+                acllist[selected] = oldItem;
+                updateTable = true;
+                selected = newIndex;
             }
         }
 
@@ -1200,6 +1264,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
                 }
             );
             UI::ChangeWidget( `tab_acl, `Items, itemlist) ;
+            UI::ChangeWidget(`id(`tab_acl), `CurrentItem, selected );
         }
         return true;
     }
