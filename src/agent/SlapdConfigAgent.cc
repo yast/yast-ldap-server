@@ -306,13 +306,20 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             OlcDatabaseList::iterator i;
             for ( i = databases.begin(); i != databases.end() ; i++ )
             {
-                olc.updateEntry(**i);
+                if ( ! (*i)->isDeletedEntry() )
+                {
+                    olc.updateEntry(**i);
+                }
                 OlcOverlayList overlays = (*i)->getOverlays();
                 OlcOverlayList::iterator k;
                 for ( k = overlays.begin(); k != overlays.end(); k++ )
                 {
                     y2milestone("Update overlay: %s", (*k)->getDn().c_str() );
                     olc.updateEntry(**k);
+                }
+                if ( (*i)->isDeletedEntry() )
+                {
+                    olc.updateEntry(**i);
                 }
             }
         } catch ( LDAPException e ) {
@@ -461,6 +468,10 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
     for (i = databases.begin(); i != databases.end(); i++ )
     {
         YCPMap ymap;
+        if ( (*i)->isDeletedEntry() )
+        {
+            continue;
+        }
         ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
         ymap.add( YCPString("type"), YCPString((*i)->getType()) );
         ymap.add( YCPString("index"), YCPInteger((*i)->getEntryIndex()) );
@@ -1035,6 +1046,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     {
         y2milestone("Database to write: %d", dbIndex);
         OlcDatabaseList::const_iterator i;
+        bool dbDeleted=false;
         for ( i = databases.begin(); i != databases.end() ; i++ )
         {
             if ( (*i)->getEntryIndex() == dbIndex ) 
@@ -1042,6 +1054,19 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                 if ( path->length() == 1 )
                 {
                     YCPMap dbMap= arg->asMap();
+                    if ( dbMap.size() == 0 ) // database delete
+                    {
+                        (*i)->clearChangedEntry();
+                        // delete the overlays' DNs  as well
+                        OlcOverlayList overlays = (*i)->getOverlays();
+                        OlcOverlayList::const_iterator l = overlays.begin();
+                        for (; l != overlays.end(); l++ )
+                        {
+                            (*l)->clearChangedEntry();
+                        }
+                        dbDeleted = true;
+                    }
+
                     YCPValue val = dbMap.value( YCPString("rootdn") );
                     if ( ! val.isNull()  && val->isString() )
                     {
@@ -1252,6 +1277,24 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     }
                 }
                 break;
+            }
+        }
+        if ( dbDeleted ) // renumber other dbs
+        {
+            i++;
+            // renumber remaining databases
+            for( ; i != databases.end(); i++ )
+            {
+                y2milestone("%s needs to be renumbered", (*i)->getSuffix().c_str() );
+                (*i)->setIndex( (*i)->getEntryIndex() + 1, true );
+
+                // update the overlays' DNs accordingly
+                OlcOverlayList overlays = (*i)->getOverlays();
+                OlcOverlayList::const_iterator l = overlays.begin();
+                for (; l != overlays.end(); l++ )
+                {
+                    (*l)->newParentDn( (*i)->getUpdatedDn() );
+                }
             }
         }
     }
