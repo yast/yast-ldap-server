@@ -787,6 +787,11 @@
                 UI::ChangeWidget( `id (`te_dn ), `Value, acl["target","dn"]:"" );
                 UI::ChangeWidget( `id (`te_dn ), `Label, _("Subtree DN") );
             }
+            else if ( acl["target","what"]:`nil == `dn_all )
+            {
+                UI::ChangeWidget( `id (`te_dn ), `Enabled, false );
+                UI::ChangeWidget( `id (`pb_dn ), `Enabled, false );
+            }
             if ( acl["target","filter"]:"" != "" )
             {
                 UI::ChangeWidget( `id( `cb_filter ), `Value, true );
@@ -851,7 +856,7 @@
                 if ( (what["what"]:`nil == `dn_base || what["what"]:`nil == `dn_subtree ) &&
                      what["dn"]:"" == "" )
                 {
-                    Popup::Error(_("Please enter a DN into the Textfield") );
+                    Popup::Error(_("Please enter a DN into the textfield") );
                     continue;
                 }
                 else
@@ -862,8 +867,32 @@
                         continue;
                     }
                 }
-                what["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
-                what["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
+                if ( (boolean)UI::QueryWidget( `id( `cb_attrs ), `Value ) )
+                {
+                    if ( "" != (string)UI::QueryWidget( `id( `te_attrs ), `Value ) )
+                    {
+                        // FIXME: Validate attribute types
+                        what["attrs"] = UI::QueryWidget( `id( `te_attrs ), `Value );
+                    }
+                    else
+                    {
+                        Popup::Error(_("Please enter a List of valid Attributes into the \"Attributes\" textfield") );
+                        continue;
+                    }
+                }
+
+                if ( (boolean)UI::QueryWidget( `id( `cb_filter ), `Value ) )
+                {
+                    if ( "" != UI::QueryWidget( `id( `te_filter ), `Value ) )
+                    {
+                        what["filter"] = UI::QueryWidget( `id( `te_filter ), `Value );
+                    }
+                    else
+                    {
+                        Popup::Error(_("Please enter valid LDAP Filter into textfield") );
+                        continue;
+                    }
+                }
 
                 result["target"] = what;
                 result["access"] = accesslist;
@@ -1017,21 +1046,25 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
                     }
                     else
                     {
-                         map dnMap = targetMap["dn"]:$[];
-                         if (size(dnMap) > 0)
-                         {
-                            if (dnMap["style"]:"" == "subtree" )
-                            {
-                                resMap["target", "what"] = `dn_subtree;
-                            }
-                            else if (dnMap["style"]:"" == "base" )
-                            {
-                                resMap["target", "what"] = `dn_base;
-                            }
-                            resMap["target", "dn"] = dnMap["value"]:"";
-                         }
-                         resMap["target", "filter"] = targetMap["filter"]:"";
-                         resMap["target", "attrs"] = targetMap["attrs"]:"";
+                        map dnMap = targetMap["dn"]:$[];
+                        if (size(dnMap) > 0)
+                        {
+                           if (dnMap["style"]:"" == "subtree" )
+                           {
+                               resMap["target", "what"] = `dn_subtree;
+                           }
+                           else if (dnMap["style"]:"" == "base" )
+                           {
+                               resMap["target", "what"] = `dn_base;
+                           }
+                           resMap["target", "dn"] = dnMap["value"]:"";
+                        }
+                        else
+                        {
+                            resMap["target", "what"] = `dn_all;
+                        }
+                        resMap["target", "filter"] = targetMap["filter"]:"";
+                        resMap["target", "attrs"] = targetMap["attrs"]:"";
                     }
                     list<map> accessList = [];
                     foreach( map access, acl["access"]:[],
