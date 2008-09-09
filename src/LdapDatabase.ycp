@@ -78,7 +78,7 @@
 
         term addDbWidget =
             `VBox(
-                `Heading( _("Basic Settings") ),
+                `Heading( _("Basic Database Settings") ),
                 `HSquash(
                     `VBox (
                         `Left(
@@ -199,6 +199,10 @@
                 {
                     continue;
                 }
+            }
+            if ( ret == `back )
+            {
+                break;
             }
             if (ret == `next ){
                 string suffix = String::CutBlanks( (string)UI::QueryWidget( `te_basedn, `Value ) );
