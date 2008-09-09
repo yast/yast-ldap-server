@@ -73,6 +73,7 @@ any ProposalSequence() {
         "ws_start"  : "startup",
         "startup"   : $[
             `next   : "tlssettings",
+            `abort  : `abort,
             `finish : `abort
         ],
         "tlssettings" : $[
