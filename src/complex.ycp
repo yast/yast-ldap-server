@@ -29,10 +29,6 @@ boolean Modified() {
     return LdapServer::Modified();
 }
 
-boolean ReallyAbort() {
-    return !LdapServer::Modified() || Popup::ReallyAbort(true);
-}
-
 boolean PollAbort() {
     return UI::PollInput() == `abort;
 }
@@ -242,7 +238,7 @@ existing configuration to the configuration database?");
 	/* abort? */
 	if (ret == `abort || ret == `cancel )
         {
-	    if(ReallyAbort())
+	    if( Popup::ReallyAbort(true) )
             {
                 break;
             }
@@ -366,7 +362,7 @@ simple authentication.") )
 	/* abort? */
 	if (ret == `abort || ret == `cancel )
         {
-	    if(ReallyAbort())
+	    if( Popup::ReallyAbort(true))
             {
                 break;
             }
@@ -498,7 +494,7 @@ any SummaryDialog() {
 	/* abort? */
 	if (ret == `abort || ret == `cancel )
         {
-	    if(ReallyAbort())
+	    if( Popup::ReallyAbort(true))
             {
                 break;
             }
