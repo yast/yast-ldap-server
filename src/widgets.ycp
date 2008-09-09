@@ -84,12 +84,8 @@
     term schemaWidget =
         `VBox(
             `SelectionBox( `id( `sb_schemalist ), _("Included &Schema Files"), [] ),
-            `Left(
-                `HBox(
-                    `PushButton( `id( `pb_add ), Label::AddButton() ),
-                    `HSpacing( 0.5 ),
-                    `PushButton( `id( `pb_delete ), Label::DeleteButton() )
-                )
+            `HBox(
+                `PushButton( `id( `pb_add ), Label::AddButton() )
             )
         );
 
