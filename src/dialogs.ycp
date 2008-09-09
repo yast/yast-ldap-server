@@ -270,9 +270,20 @@ any TlsConfigDialog()
         ret = UI::UserInput();
         y2milestone( "TlsConfigDialog: seeing return value '%1'", ret );
 
-        if( ret == `back || ret == `abort || ret == `cancel)
+        if( ret == `back )
         {
             break;
+        }
+        if( ret == `abort || ret == `cancel )
+        {
+	    if( Popup::ReallyAbort(true) )
+            {
+                break;
+            }
+	    else
+            {
+                continue;
+            }
         }
         else if( ret == `next || ret == `finish )
         {
