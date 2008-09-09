@@ -125,13 +125,31 @@ It is not possible, you must code it first :-)
 </p>"),
 
     /* Configuration Startup Dialog 1/2 */
-    "service_dialog" : _("<p>With <b>Start LDAP Server Yes or No</b>, 
-start or stop the LDAP server.</p>
-    
-") +
-
+    "service_dialog" :
+        _("<p>With <b>Start LDAP Server Yes or No</b>, start or stop the LDAP server.</p> ") +
+        _("<p>If <b>Yes</b> is selected, you can click <b>Next</b> to start the configuration wizard</p>")+
     /* Configuration Startup Dialog 2/2 */
-_("<p>Click <b>Configure...</p> to configure the LDAP server.</p>"),
+        _("<p>If the Firewall is enabled you can open the required network ports
+for OpenLDAP by checking the corresponding Checkbox."),
+
+    "tls_dialog" :
+        _("<h3>TLS Settings</h3>") +
+
+        _("<h4>Basic Settings</h4>") +
+        _("<p>To enable encryption via TLS/SSL check the <b>Enabled TLS</b> checkbox. Additionally you 
+need to configure which Certificates the the Server should use.</p>") +
+        _("<p>By checking <b>Enabled LDAP over SSL (ldaps) interface</b> you enable the server to
+accept LDAPS connections on port 636. If not checked OpenLDAP will only support TLS encrypted connections
+through the StartTLS extended operation</p>") +
+        _("<p>If you already have a Common Server Certificate installed using the corresponding YaST Module, 
+you can check <b>Use common Server Certificate</b> to have the OpenLDAP server use that certificate</p>") +
+
+        _("<h4>Import Certificate</h4>") +
+        _("<p>If you have no Common Server Certificate or you want OpenLDAP to use a different certifcate
+you can enter the file names of teh <b>CA Certifiate File</b>, <b>Certificate File</b> and 
+<b>Certifcate Key File</b> into the corresponding textfields</p>") +
+        _("<p>To create a new CA or certificate you can launch the CA-Management Module by clicking
+<b>Launch CA Management Module</b></p>"),
 
 
     /* Tree Item Dialog "global" 1/1 */
