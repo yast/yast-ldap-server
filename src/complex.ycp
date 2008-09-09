@@ -21,18 +21,6 @@ import "Service";
 
 include "ldap-server/helps.ycp";
 
-/**
- * Return a modification status
- * @return true if data was modified
- */
-boolean Modified() {
-    return LdapServer::Modified();
-}
-
-boolean PollAbort() {
-    return UI::PollInput() == `abort;
-}
-
 boolean DisplayError( map<string,string> error )
 {
     if ( error["msg"]:nil != nil )
@@ -432,7 +420,6 @@ symbol DoMigration()
  */
 symbol WriteServiceDialog() {
     Wizard::RestoreHelp(HELPS["write"]:"");
-    // LdapServer::AbortFunction = PollAbort;
     boolean ret = LdapServer::WriteServiceSettings();
     return ret ? `next : `reread;
 }
@@ -443,7 +430,6 @@ symbol WriteServiceDialog() {
  */
 symbol WriteDialog() {
     Wizard::RestoreHelp(HELPS["write"]:"");
-    // LdapServer::AbortFunction = PollAbort;
     boolean ret = LdapServer::Write();
     if (! ret ) {
         map<string,string> err = LdapServer::ReadError();
