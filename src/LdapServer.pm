@@ -736,16 +736,6 @@ sub AutoPackages {
     return \%ret;
 }
 
-##
- # Data was modified?
- # @return true if modified
- #
-BEGIN { $TYPEINFO {Modified} = ["function", "boolean"]; }
-sub Modified {
-    y2milestone();
-    return 0;
-}
-
 BEGIN { $TYPEINFO {UseLdapiForConfig} = ["function", "boolean", "boolean"]; }
 sub UseLdapiForConfig
 {
