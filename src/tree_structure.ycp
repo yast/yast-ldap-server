@@ -238,7 +238,7 @@ define boolean cb_input_schema()
             list<string> inclist = LdapServer::ReadSchemaList();
             update_schemalist( inclist );
         }
-
+    // Deleteing Schema ist not supported on the server side yet
     } else if( handler_cmd == `pb_delete )
     {
         if( current_item == nil ) return true;
