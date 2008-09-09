@@ -15,38 +15,24 @@ textdomain "ldap-server";
  * All helps are here
  */
 map HELPS = $[
-    /* Proposal help 1/6 */
-    "propose": _("<p><b><big>LDAP Server Configuration</big></b><br>
-Change the settings of the initial LDAP database here.</p>
-") +
-
-    /* Proposal help 2/6 */
-    _("<p>The <b>Base DN</b> option specifies the root of the database that will be created.</p>") +
-
-    /* Proposal help 3/6 */
-    _("<p>A <b>Root DN</b> along with a <b>Root Password</b> makes it possible to
-to authenticate as the superuser for the database, surpassing all ACLs and other 
+    "database_basic" :
+        _("<h3>Basic Database Settings</h3>") +
+        _("<p>The <b>Base DN</b> option specifies the name of the root entry 
+of the database being created.</p>") +
+        _("<p>The <b>Administrator DN</b> along with a <b>LDAP Administrator Password</b> 
+specifieds a superuser identity for the database, surpassing all ACLs and other 
 administrative limit restrictions. Checking <b>Append Base DN</b> appends the 
-<b>Base DN</b> entered above, for example, a base DN of <tt>dc=com</tt> and root DN of 
-<tt>c=Admin</tt> would combine to an effective root DN of <tt>c=Admin,dc=com</tt>.<p>
-") +
-
-    /* Proposal help 4/6 */
-    _("<p>The <b>Root Password</b> is initially set to the system root password
-entered earlier in the installation process. Change it in the
-edit fields. Change the password encryption method in the relevant field.</p>
-") +
-
-    /* Proposal help 5/6 */
-    _("<p>Checking the <b>Activate StartTLS</b> option enables the LDAP server to
-process incoming StartTLS requests. This requires the common server certificate
-that can be set up in the <b>CA Management</b> YaST module.</p>
-") +
-
-    /* Proposal help 6/6 */
-    _("<p>If <b>Register at an SLP Daemon</b> is checked, the LDAP server tries
-to find a running SLP daemon at which to register.</p>
-"),
+<b>Base DN</b> entered above, for example, a base DN of <tt>dc=example,dc=com</tt>
+and Administrator DN of <tt>c=Admin</tt> would combine to an effective Administrator DN
+of <tt>c=Admin,dc=example,dc=com</tt>.<p> ") +
+        _("<p>If this wizard was starteg during installation, the 
+<b>LDAP Administrator Password</b> is initially set to the system's root password
+entered earlier in the installation process.</p> ") +
+        _("<p>To use this database as the default database for the OpenLDAP client tools
+(e.g. ldapsearch) check <b>Use this database as the default for OpenLDAP clients</b>. This
+will result in the hostname \"localhost\" and the above entered <b>Base DN</b> being written
+to the OpenLDAP client configuration file <tt>/etc/openldap/ldap.conf</tt>.  This checkbox
+is selected by default when creating the first database on a Server.</p>"),
 
     /* Read dialog help 1/2 */
     "read" : _("<p><b><big>Initializing LDAP Server Configuration</big></b><br>Please wait...<br></p>") +
@@ -68,22 +54,11 @@ An additional dialog informs whether it is safe to do so.
 "),
 
     /* Summary dialog help 1/3 */
-    "summary" : _("<p><b><big>LDAP Server Configuration</big></b><br>
-Configure an LDAP server here.<br></p>
-") +
-
-    /* Summary dialog help 2/3 */
-    _("<p><b><big>Adding an LDAP Server:</big></b><br>
-Choose an LDAP server from the list of detected LDAP servers.
-If your LDAP server was not autodetected, use <b>Other (not detected)</b>.
-Then press <b>Configure</b>.</p>
-") +
-
-    /* Summary dialog help 3/3 */
-    _("<p><b><big>Editing or Deleting:</big></b><br>
-If you press <b>Edit</b>, an additional dialog in which to change
-the configuration opens.</p>
-"),
+    "summary" :
+        _("<h3>LDAP Server Configuration Summary</h3>") +
+        _("<p>This dialog just gives a short summary about the configartion you just
+created. Click <b>Finish</b> to write that configuration and leave the LDAP
+Server module</p>"),
 
     /* Ovreview dialog help 1/3 */
     "overview" : _("<p><b><big>LDAP Server Configuration Overview</big></b><br>
@@ -150,7 +125,6 @@ you can enter the file names of teh <b>CA Certifiate File</b>, <b>Certificate Fi
 <b>Certifcate Key File</b> into the corresponding textfields</p>") +
         _("<p>To create a new CA or certificate you can launch the CA-Management Module by clicking
 <b>Launch CA Management Module</b></p>"),
-
 
     /* Tree Item Dialog "global" 1/1 */
     "global" : _("<p>Below this item, configure some global parameters.</p>"),

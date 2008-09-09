@@ -8,6 +8,7 @@
     import "Sequencer";
     import "String";
     import "Wizard";
+    include "ldap-server/helps.ycp";
 
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
@@ -128,8 +129,9 @@
                     )
                 )
             );
-        Wizard::SetContentsButtons(caption, addDbWidget, "",
+        Wizard::SetContentsButtons(caption, addDbWidget, HELPS["database_basic"]:"help not found",
                 Label::BackButton(), Label::NextButton());
+
         boolean append_checked = true;
         if ( createDefaults )
         {
