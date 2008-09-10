@@ -17,6 +17,11 @@ textdomain "ldap-server";
 map HELPS = $[
     "database_basic" :
         _("<h3>Basic Database Settings</h3>") +
+        _("<p>Choose the <b>Database</b> from <b>hdb</b> and <b>bdb</b>. <b>Hdb</b> is a 
+variant of the <b>bdb</b> backend that uses a hierarchical database layout and 
+supports subtree renames. It is otherwise identical to <b>bdb</b>. A <b>hdb</b>-Database
+needs a larger <b>idlcachesize</b> for good search performance than a <b>bdb</b>-Database.
+</p>")+
         _("<p>The <b>Base DN</b> option specifies the name of the root entry 
 of the database being created.</p>") +
         _("<p>The <b>Administrator DN</b> along with a <b>LDAP Administrator Password</b> 
