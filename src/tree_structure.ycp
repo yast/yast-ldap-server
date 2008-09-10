@@ -953,6 +953,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> item_map = $[
         "name"      : label,
+        "children"  : [ item_name + "_acl"],
         "index"     : index,
         "widget"    : editGenericDatabase,
         "new_db"    : new_db,
@@ -983,6 +984,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     else
     {
         widget_map[item_name] = item_map;
+        widget_map[item_name + "_acl"] = dbAcl;
     }
 
     widget_map["databases","children"] = add( widget_map["databases","children"]:[], item_name );
