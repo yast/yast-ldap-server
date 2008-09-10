@@ -435,7 +435,7 @@ static int extractAlcToken( const std::string& acl, std::string::size_type& star
         bool found=false;
         while( ! found )
         {
-            pos = acl.find_first_of('"', pos+1 );
+            pos = acl.find_first_of('"', pos );
             if ( pos == std::string::npos )
             {
                 break;
