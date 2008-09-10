@@ -1389,11 +1389,11 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
 
         while ( ! getSchemaLine(input, schemaLine) )
         {
-            y2milestone("Read schema Line: %s", schemaLine.c_str() );
+            y2debug("Read schema Line: %s", schemaLine.c_str() );
             // empty or comment?
             if ( schemaLine[0] == '#' || schemaLine.size() == 0 )
             {
-                y2milestone("Comment or empty" );
+                y2debug("Comment or empty" );
                 continue;
             }
             std::string::size_type pos=schemaLine.find_last_not_of(" \t\n");
@@ -1409,7 +1409,7 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
             {
                 pos = schemaLine.find_first_not_of(" \t", sizeof("objectidentifier") );
                 schemaLine.erase(0, pos );
-                y2milestone("objectIdentifier Line <%s>", schemaLine.c_str() );
+                y2debug("objectIdentifier Line <%s>", schemaLine.c_str() );
                 entry.addAttribute(LDAPAttribute("olcObjectIdentifier", schemaLine) );
             } 
             else if ( equal(schemaLine.begin(), schemaLine.begin()+sizeof("attributetype")-1, 
