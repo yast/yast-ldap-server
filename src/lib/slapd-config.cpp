@@ -1488,6 +1488,10 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
         bool reread = true;
         log_it(SLAPD_LOG_INFO, "updateEntry() Old DN: "+oce.getDn()+" ChangedDN: "+ oce.getChangedEntry().getDN() );
 //        log_it(SLAPD_LOG_INFO, " LDIF "+oce.toLdif() );
+        if ( ! m_lc )
+        {
+            throw std::runtime_error( "LDAP Connection not initialized" );
+        }
         if ( oce.isNewEntry () ) 
         {
             m_lc->add(&oce.getChangedEntry());
