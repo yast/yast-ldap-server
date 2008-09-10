@@ -80,37 +80,43 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
     y2milestone("Component %s ", path->component_str(0).c_str());
-
-    if ( path->length() < 1 ) {
-        return YCPNull();
-    } 
-    else if ( path->component_str(0) == "global" ) 
-    {
-        y2milestone("Global read");
-        return ReadGlobal(path->at(1), arg, opt);
-    } 
-    else if ( path->component_str(0) == "databases" ) 
-    {
-        y2milestone("read databases");
-        return ReadDatabases(path->at(1), arg, opt);
-    }
-    else if ( path->component_str(0) == "schemaList" )
-    {
-        y2milestone("read schemalist");
-        return ReadSchemaList(path->at(1), arg, opt);
-    }
-    else if ( path->component_str(0) == "schema" )
-    {
-        return ReadSchema( path->at(1), arg, opt );
-    }
-    else if ( path->component_str(0) == "database" ) 
-    {
-        y2milestone("read database");
-        return ReadDatabase(path->at(1), arg, opt);
-    }
-    else if ( path->component_str(0) == "configAsLdif" )
-    {
-        return ConfigToLdif();
+    
+    try {
+        if ( path->length() < 1 ) {
+            return YCPNull();
+        } 
+        else if ( path->component_str(0) == "global" ) 
+        {
+            y2milestone("Global read");
+            return ReadGlobal(path->at(1), arg, opt);
+        } 
+        else if ( path->component_str(0) == "databases" ) 
+        {
+            y2milestone("read databases");
+            return ReadDatabases(path->at(1), arg, opt);
+        }
+        else if ( path->component_str(0) == "schemaList" )
+        {
+            y2milestone("read schemalist");
+            return ReadSchemaList(path->at(1), arg, opt);
+        }
+        else if ( path->component_str(0) == "schema" )
+        {
+            return ReadSchema( path->at(1), arg, opt );
+        }
+        else if ( path->component_str(0) == "database" ) 
+        {
+            y2milestone("read database");
+            return ReadDatabase(path->at(1), arg, opt);
+        }
+        else if ( path->component_str(0) == "configAsLdif" )
+        {
+            return ConfigToLdif();
+        }
+    } catch ( std::runtime_error e ) {
+        lastError->add(YCPString("summary"), YCPString(std::string( e.what() ) ) );
+        lastError->add(YCPString("description"), YCPString("") );
+        return YCPBoolean(false);
     }
     return YCPNull();
 }
@@ -122,34 +128,39 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
 {
     y2milestone("Path %s Length %ld ", path->toString().c_str(),
                                       path->length());
-
-    if ( path->component_str(0) == "global" )
-    {
-        y2milestone("Global Write");
-        return WriteGlobal(path->at(1), arg, arg2);
-    }
-    else if ( (path->component_str(0) == "database") && (path->length() > 1) )
-    {
-        y2milestone("Database Write");
-        return WriteDatabase(path->at(1), arg, arg2);
-    }
-    else if ( path->component_str(0) == "schema" )
-    {
-        y2milestone("Schema Write");
-        return WriteSchema(path->at(1), arg, arg2);
-    }
-    else if ( path->component_str(0) == "sambaACLHack" )
-    {
-        // FIXME: remove this, when ACL support in WriteDatabase() is implemented
-        y2error("Warning: sambaACL is currently not implemented");
-        return YCPBoolean(true);
-    } else {
-        lastError->add(YCPString("summary"), YCPString("Write Failed") );
-        std::string msg = "Unsupported SCR path: `.ldapserver.";
-                    msg += path->toString().c_str();
-                    msg += "`";
-        lastError->add(YCPString("description"), YCPString(msg) );
-        return YCPNull();
+    try {
+        if ( path->component_str(0) == "global" )
+        {
+            y2milestone("Global Write");
+            return WriteGlobal(path->at(1), arg, arg2);
+        }
+        else if ( (path->component_str(0) == "database") && (path->length() > 1) )
+        {
+            y2milestone("Database Write");
+            return WriteDatabase(path->at(1), arg, arg2);
+        }
+        else if ( path->component_str(0) == "schema" )
+        {
+            y2milestone("Schema Write");
+            return WriteSchema(path->at(1), arg, arg2);
+        }
+        else if ( path->component_str(0) == "sambaACLHack" )
+        {
+            // FIXME: remove this, when ACL support in WriteDatabase() is implemented
+            y2error("Warning: sambaACL is currently not implemented");
+            return YCPBoolean(true);
+        } else {
+            lastError->add(YCPString("summary"), YCPString("Write Failed") );
+            std::string msg = "Unsupported SCR path: `.ldapserver.";
+                        msg += path->toString().c_str();
+                        msg += "`";
+            lastError->add(YCPString("description"), YCPString(msg) );
+            return YCPNull();
+        }
+    } catch ( std::runtime_error e ) {
+        lastError->add(YCPString("summary"), YCPString(std::string( e.what() ) ) );
+        lastError->add(YCPString("description"), YCPString("") );
+        return YCPBoolean(false);
     }
 }
 
