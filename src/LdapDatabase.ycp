@@ -868,13 +868,7 @@
                 map what = $[];
                 what["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
                 what["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
-                if ( (what["what"]:`nil == `dn_base || what["what"]:`nil == `dn_subtree ) &&
-                     what["dn"]:"" == "" )
-                {
-                    Popup::Error(_("Please enter a DN into the textfield") );
-                    continue;
-                }
-                else
+                if ( (what["what"]:`nil == `dn_base || what["what"]:`nil == `dn_subtree ) )
                 {
                     if ( ! LdapServer::ValidateDn( what["dn"]:"" ) )
                     {
@@ -1129,9 +1123,18 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
             list itemlist = maplist (map v, acllist,
                 {
                     pos=pos+1;
+                    string dn="";
+                    if ( ( v["target","what"]:`dn_all != `dn_all) && ( v["target","dn"]:"" == "" ) )
+                    {
+                        dn = "<Root-DSE>";
+                    }
+                    else
+                    {
+                        dn = v["target","dn"]:"";
+                    }
                     return `item( `id(pos),
                                   whatId2String[v["target","what"]:`none,0]:"",
-                                  v["target","dn"]:"",
+                                  dn,
                                   v["target","filter"]:"",
                                   v["target","attrs"]:"All Attributes"
                                 );
@@ -1261,9 +1264,18 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
             list itemlist = maplist (map v, acllist,
                 {
                     pos=pos+1;
+                    string dn="";
+                    if ( ( v["target","what"]:`dn_all != `dn_all) && ( v["target","dn"]:"" == "" ) )
+                    {
+                        dn = "<Root-DSE>";
+                    }
+                    else
+                    {
+                        dn = v["target","dn"]:"";
+                    }
                     return `item( `id(pos),
                                   whatId2String[v["target","what"]:`none,0]:"",
-                                  v["target","dn"]:"",
+                                  dn,
                                   v["target","filter"]:"",
                                   v["target","attrs"]:"All Attributes"
                                 );
