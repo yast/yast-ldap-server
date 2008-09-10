@@ -284,7 +284,7 @@
             `Heading( _("Indexing Configuration") ),
             `Table(
                 `id( `tab_idx ),
-                `header( "Attrbute", "pres", "eq", "sub", "approx"),
+                `header( _("Attrbute"), _("Presence"), _("Equality"), _("Substring")),
                 [ ]
             ),
             `HSquash(
