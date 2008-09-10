@@ -330,6 +330,12 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     YCPString(errstring) );
             lastError->add(YCPString("description"), YCPString( details ) );
             return YCPBoolean(false);
+        } catch ( std::runtime_error e ) {
+            lastError->add(YCPString("summary"),
+                    YCPString("Error while trying to update LDAP Entries") );
+            lastError->add(YCPString("description"), 
+                    YCPString(std::string( e.what() ) ) );
+            return YCPBoolean(false);
         }
     }
     else if ( path->component_str(0) == "addRootSaslRegexp" )
@@ -902,6 +908,10 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
     bool databaseAdd = false;
     std::string dbIndexStr = path->component_str(component);
 
+    if ( databases.size() == 0 && olc.hasConnection() )
+    {
+        databases =  olc.getDatabases();
+    }
     if ( dbIndexStr == "new" )
     {
         component++;
@@ -1329,6 +1339,10 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                                       path->length());
 
     y2milestone("WriteSchema");
+    if ( schema.size() == 0 && olc.hasConnection() )
+    {
+        schema =  olc.getSchemaNames();
+    }
     std::string subpath = path->component_str(0);
     if ( subpath == "addFromLdif" )
     {
