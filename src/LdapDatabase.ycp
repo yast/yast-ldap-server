@@ -1294,7 +1294,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
     {
         string caption = _("Password Policy settings");
         term contents = editPolicy;
-        Wizard::SetContentsButtons(caption, contents, "",
+        Wizard::SetContentsButtons(caption, contents, HELPS["ppolicy_edit"]:"",
                 Label::BackButton(), Label::FinishButton());
         symbol ret = `next;
         DbPpolicyRead(-1);
