@@ -3,6 +3,7 @@
     module "LdapDatabase";
     import "Label";
     import "LdapServer";
+    import "Ldap";
     import "LdapPopup";
     import "Popup";
     import "Sequencer";
@@ -57,7 +58,16 @@
                                     )
                                 ),
                                 `VSpacing( 0.3 )
+                            // disabled, this doesn't work as desired
+                            //),
+                            //`HSpacing( 0.5 ),
+                            //`VBox(
+                            //    `Bottom(
+                            //        `PushButton( `id( `pb_define_policy ), _("Edit Policy"))
+                            //    ),
+                            //    `VSpacing( 0.3 )
                             )
+
                         )
                     ),
                     `VSpacing(0.25)
@@ -390,6 +400,7 @@
             UI::ChangeWidget( `cb_ppolicy_overlay, `Value, false );
             UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
             UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
+            UI::ChangeWidget( `pb_define_policy, `Enabled , false );
             UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
         }
         return true;
@@ -419,14 +430,14 @@
                 ppolicy = add( ppolicy, "useLockout", false);
             }
             if (pp_default != "" ) {
+                map<string,any> db = baseDb;
+                if ( dbindex > 0 )
+                {
+                    db = LdapServer::ReadDatabase(dbindex);
+                }
+                string suffix =  db["suffix"]:"";
                 if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
                 {
-                    map<string,any> db = baseDb;
-                    if ( dbindex > 0 )
-                    {
-                        db = LdapServer::ReadDatabase(dbindex);
-                    }
-                    string suffix =  db["suffix"]:"";
                     pp_default = pp_default+","+suffix;
                 }
                 ppolicy = add( ppolicy, "defaultPolicy", pp_default);
@@ -442,19 +453,83 @@
         }
     }
 
-    global boolean DbPpolicyInput( symbol handler_cmd )
+    global boolean DbPpolicyInput( symbol handler_cmd, integer dbindex )
     {
-        if ( handler_cmd == `cb_ppolicy_overlay ) {
+        if ( handler_cmd == `cb_ppolicy_overlay )
+        {
             if ( UI::QueryWidget( `cb_ppolicy_overlay, `Value ) == true ) {
                 UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , true );
                 UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
                 UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
                 UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, true );
+                UI::ChangeWidget( `pb_define_policy, `Enabled , true );
             } else {
                 UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
                 UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );
                 UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , false );
                 UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, false );
+                UI::ChangeWidget( `pb_define_policy, `Enabled , false );
+            }
+        }
+        else if ( handler_cmd == `pb_define_policy )
+        {
+            string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
+            if ( dbindex > 0 )
+            {
+                map<string,any> db = baseDb;
+                db = LdapServer::ReadDatabase(dbindex);
+                if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+                {
+                    pp_default = pp_default+","+db["suffix"]:"";
+                }
+
+                if ( dbindex > 0 )
+                {
+                    // try to read ppolicy from Server
+                    map ppolicyEntry = $[];
+                    Ldap::Import( $[ "ldap_server" : "localhost",
+                                     "bind_dn"    : db["rootdn"]:"" ] );
+                    Ldap::LDAPInit();
+                    string pw = "";
+                    string bind_res = "tmp";
+                    while( bind_res != "" ) {
+                        if ( pw == "" ) {
+                            pw = Ldap::GetLDAPPassword(false);
+                        }
+                        bind_res = Ldap::LDAPBind (pw);
+                        if (bind_res != "" ) {
+                            if (Popup::YesNo( _("Authentication failed. The password is probably incorrect.\n") +
+                                              _("The error message was: '") + bind_res + "'\n" +
+                                              _("Try again?") ) )
+                            {
+                                pw = "";
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if ( bind_res == "" )
+                    {
+                        list res = (list)SCR::Read (.ldap.search,  $[ "base_dn" : pp_default,
+                                                               "filter"  : "objectclass=*",
+                                                               "scope"   : 0 ] );
+                        if ( size(res) >  0 ) {
+                            y2milestone("default_policy does already exist");
+                            ppolicyEntry = (map)res[0]:nil;
+                        }
+                        else
+                        {
+                            y2milestone("default_policy does not yet exist");
+                        }
+                        ppolicyEntry = LdapPopup::PasswordPolicyDialog(ppolicyEntry);
+                        if ( size( ppolicyEntry ) > 0  )
+                        {
+                            ppolicyEntry["objectClass"] = [ "namedObject", "pwdPolicy" ];
+                            ppolicyEntry["pwdAttribute"] = [ "userPassword" ];
+                            SCR::Write(.ldap.add, $[ "dn" : pp_default, "check_attrs" : "true"], ppolicyEntry );
+                        }
+                    }
+                }
             }
         }
         return true;
@@ -1322,7 +1397,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled." 
             }
             else
             {
-                DbPpolicyInput(ret);
+                DbPpolicyInput(ret, -1);
             }
         }
         return ret;

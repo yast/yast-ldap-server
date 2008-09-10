@@ -811,9 +811,9 @@ define boolean cb_write_acl()
 define boolean cb_input_ppolicy()
 {
     y2milestone("cb_input_ppolicy()");
-    string treeItem = current_tree_item;
-    y2milestone( "calling db input handler for item '%1'", treeItem );
-    return LdapDatabase::DbPpolicyInput( handler_cmd );
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    y2milestone( "calling db input handler for item '%1'", current_tree_item );
+    return LdapDatabase::DbPpolicyInput( handler_cmd, index );
 }
 
 define boolean cb_read_ppolicy()
