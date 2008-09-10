@@ -933,7 +933,8 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "widget"    : editBdbIndexes,
         "index"     : index,
         "cb_read"   : ``(cb_read_bdb_index() ),
-        "cb_input"  : ``(cb_input_bdb_index() )
+        "cb_input"  : ``(cb_input_bdb_index() ),
+        "help_page" : "index_edit"
     ];
     map<string, any> dbPpolicy = $[
         "name"      : _("Password Policy Configuration"),
@@ -941,7 +942,8 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "index"     : index,
         "cb_read"   : ``(cb_read_ppolicy() ),
         "cb_input"  : ``(cb_input_ppolicy() ),
-        "cb_write"  : ``(cb_write_ppolicy() )
+        "cb_write"  : ``(cb_write_ppolicy() ),
+        "help_page" : "ppolicy_edit"
     ];
     map<string, any> dbAcl = $[
         "name"      : _("Access Control Configuration"),
@@ -949,7 +951,8 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "index"     : index,
         "cb_read"   : ``(cb_read_acl() ),
         "cb_write"   : ``(cb_write_acl() ),
-        "cb_input"  : ``(cb_input_acl() )
+        "cb_input"  : ``(cb_input_acl() ),
+        "help_page" : "acl_edit"
     ];
     map<string,any> item_map = $[
         "name"      : label,

@@ -15,6 +15,7 @@ textdomain "ldap-server";
  * All helps are here
  */
 map HELPS = $[
+    /* First part of the Add Database Widget */
     "database_basic" :
         _("<h3>Basic Database Settings</h3>") +
         _("<p>Choose the <b>Database</b> from <b>hdb</b> and <b>bdb</b>. <b>Hdb</b> is a 
@@ -38,6 +39,43 @@ entered earlier in the installation process.</p> ") +
 will result in the hostname \"localhost\" and the above entered <b>Base DN</b> being written
 to the OpenLDAP client configuration file <tt>/etc/openldap/ldap.conf</tt>.  This checkbox
 is selected by default when creating the first database on a Server.</p>"),
+
+    "ppolicy_edit" :
+        _("<h3>Password Policy Settings</h3>") +
+        _("<p>To make use of password policies for this database, enable 
+<b>Enable Password Policies</b>.<p>") +
+        _("<p>Check <b>Hash Clear Text Passwords</b> to specify that the OpenLDAP server
+should encrypt clear text passwords present in add and modify requests before storing them
+in the database. Note that this violates the  X.500/LDAP information model, but may be
+needed to compensate for LDAP clients that do not use the password modify extended operation 
+to manage passwords.</p> ")+
+    _("<p>If <b>Disclose \"Account Locked\" Status</b> is enabled, users  trying to authenticate
+to a locked account get a notification that their account is locked. This notification
+might provide useful information to an attacker. Sites that are sensitive to security issues
+should not enable this option.</p> ") +
+    _("<p>Enter the name of the default policy object in <b>Default Policy Object DN</b>.</p>"),
+
+    "index_edit" :
+        _("<h3>Index Configuration</h3>") +
+        _("<p>This dialog allows you to change the indexing options of a hdb of bdb-Database.</p>") +
+        _("<p>The table displays a list of attribute which have an index defined currently.</p>") +
+        _("<p>Indexes are used by OpenLDAP to improve search performance on specific type of
+searches. Indexes should be configured corresponding to the most common searches that are used
+on a database. This YaST modul allows to setup three different types indexes.</p>") +
+        _("<p><b>Presence</b>: This index is used for searches using presence filters
+(i.e. <tt>(attributeType=*)</tt> ). Presence indexes should only be configured for attributes
+that occur very rarely in the database</p>")+
+        _("<p><b>Equality</b>: This index is used for searches using equality filters (i.e.
+(<tt>(attributeType=&lt;exact values&gt;)</tt>). An <b>Equality</b> index should always be configured of the
+<tt>objectclass</tt> attribute.</p>")+
+        _("<p><b>Substring</b>: This index is used for searches using substring filter
+(i.e. <tt>(attributeType=&lt;substring&gt;*)</tt> )</p>")+
+        _("<p>Use <b>Add</b> to define indexing options for a new attribute, <b>Delete</b> to 
+delete an existing index and <b>Edit</b> to change the indexing options of an already indexed
+Attribute.</p>") +
+        _("<p>Note: Depending on the database size it can take a while until newly added
+indexes, will get active on a database. After the configuration has been written to the server.
+a background task will start to generated the indexing information for the database.</p>"),
 
     /* Read dialog help 1/2 */
     "read" : _("<p><b><big>Initializing LDAP Server Configuration</big></b><br>Please wait...<br></p>") +
@@ -172,19 +210,7 @@ order causes the LDAP server not to start.</p>
     _("<p>With <b>Root DN</b>, change the DN for the administrator.") +
     _("Enter the complete DN or only the first part and append the base DN automatically with <b>Append Base DN</b>.</p>")+
     _("<p>To change the password for the root account, enter a new one and select the <b>Encryption</b>.</p>") +
-    _("<p>The password fields are initially empty, even if a password is already set in the configuration file.</p>") +
-    _("<h4>Password Policy Settings</h4>") +
-    _("<p>To make use of password policies for this database, enable <b>Enable Password Policies</b>.<p>") +
-    _("<p>Check <b>Hash Clear Text Passwords</b> to specify that the OpenLDAP server should encrypt clear text passwords
-present in add and modify requests before storing them in the database. Note that this violates the  X.500/LDAP information
-model, but may be needed to compensate for LDAP clients that do not use the password modify extended operation to 
-manage passwords.</p>
-")+
-    _("<p>If <b>Disclose \"Account Locked\" Status</b> is enabled, users authenticating to a locked account
-get a notification that their account is locked. This notification might provide useful information
-to an attacker. Sites that are sensitive to security issues should not enable this option.</p>
-") +
-    _("<p>Enter the name of the default policy object in <b>Default Policy Object DN</b>.</p>")
+    _("<p>The password fields are initially empty, even if a password is already set in the configuration file.</p>")
 ];
 
 /* EOF */
