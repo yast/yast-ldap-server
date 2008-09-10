@@ -1209,7 +1209,7 @@ EXAMPLE:
 
 =cut
 
-BEGIN { $TYPEINFO{AddSchema} = ["function", "boolean", ["list", "string"] ]; }
+BEGIN { $TYPEINFO{AddSchema} = ["function", "boolean", "string" ]; }
 sub AddSchema {
     my $self = shift;
     my $file = shift;
