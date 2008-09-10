@@ -170,7 +170,7 @@ without installing the required packages."));
         }
         else if ( !serviceEnabled || !serviceRunning )
         {
-            symbol ret = Popup::AnyQuestion3( _("You have an existing configuration but the LDAP Server is not running currently."), _("Do you want to start it now to re-read its configuration data or do you want to create a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+            symbol ret = Popup::AnyQuestion3( _("You have an existing configuration but the LDAP Server is not currently running."), _("Do you want to start it now to re-read its configuration data or do you want to create a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
             if ( ret == `yes )
             {
                 LdapServer::WriteServiceEnabled( true );
@@ -196,9 +196,10 @@ symbol MigrationMainDialog()
 {
     string caption = "Migrate existing Configuration";
     string summary = _("Your system is currently configured to use the configuration 
-file /etc/openldap/slapd.conf. This YaST module does only support the dynamich
+file /etc/openldap/slapd.conf. This YaST module only supports the dynamic
 configuration database of OpenLDAP (back-config). Do you want to migrate your
-existing configuration to the configuration database?");
+existing configuration to the configuration database?
+");
     term contents =
         `VBox(
             `HSquash(
@@ -324,7 +325,7 @@ and give \"root\" full access to the configuration."), true )
 simple authentication.") )
                         ),
                         `Left(
-                            `Label( `id( `lab_pw ), _("Please set a password of the configuration user (cn=config)") )
+                            `Label( `id( `lab_pw ), _("Please enter a password for the configuration user (cn=config)") )
                         ),
                         `Password( `id( `te_rootpw ), _("New &Password") ),
                         `HSpacing( 0.5 ),

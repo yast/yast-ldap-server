@@ -275,7 +275,7 @@
             `VBox(
                 `Heading( _("Edit Database") ),
                 `VSpacing( 1 ),
-                `Label( _("Databasetype not supported currently") )
+                `Label( _("Database type not currently supported.") )
             )
         );
 
