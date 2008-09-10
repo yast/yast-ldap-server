@@ -675,7 +675,7 @@
                                 `HBox(
                                     `InputField( `id( `te_who_dn ), `opt( `hstretch ), _("Entry DN") ),
                                     `Bottom(
-                                        `PushButton( `id( `pb_who ), _("Select" ) )
+                                        `PushButton( `id( `pb_who ), _("Select") )
                                     )
                                 )
                             ),
@@ -803,7 +803,7 @@
                                         ),
                                         `InputField( `id( `te_dn ), `opt( `hstretch ), _("Entry DN") ),
                                         `Bottom(
-                                            `PushButton( `id( `pb_dn ), _("Select" ) )
+                                            `PushButton( `id( `pb_dn ), _("Select") )
                                         )
                                     ),
                                     `VSpacing(0.5),
@@ -826,7 +826,7 @@
                                             `InputField( `id( `te_attrs ), `opt(`hstretch), _("Attributes") )
                                         ),
                                         `Bottom(
-                                            `PushButton( `id( `pb_attrs ), _("Edit" ) )
+                                            `PushButton( `id( `pb_attrs ), _("Edit") )
                                         )
                                     )
                                 )
@@ -1147,7 +1147,7 @@
             UI::ChangeWidget( `id(`pb_del), `Enabled, false) ;
             UI::ChangeWidget( `id(`pb_edit), `Enabled, false) ;
             Popup::Error(_("The selected Database contains Access Control Rules that are currently
-not supported by this YaST Module. The Access Control Dialog will be disabled." ) );
+not supported by this YaST Module. The Access Control Dialog will be disabled.") );
         }
         else
         {

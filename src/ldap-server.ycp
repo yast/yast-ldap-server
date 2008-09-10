@@ -207,7 +207,7 @@ map cmdline_description = $[
     "actions"           : $[
         "service"     : $[
                         "handler"   : serviceHandler,
-                        "help"      : _("Enable/disable the service")
+                        "help"      : _("Enable/Disable the service")
                         ],
         "addDatabase" : $[
                         "handler"   : addDatabaseHandler,

@@ -110,7 +110,7 @@ string showTreeDialog( string name, boolean focus_tree )
     if ( !LdapServer::ReadServiceEnabled() )
     {
         if ( name != "daemon" ) {
-            Popup::Error( _("The LDAP Server is disabled currently, no configuration changes possible.") );
+            Popup::Error( _("The LDAP Server is currently disabled, no configuration changes are possible.") );
             name = "daemon";
         }
     }
