@@ -1455,6 +1455,10 @@ boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
 {
     LDAPSearchResults *sr;
     LDAPEntry *dbEntry;
+    if ( ! m_lc )
+    {
+        throw std::runtime_error( "LDAP Connection not initialized" );
+    }
     try {
         sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_BASE);
         dbEntry = sr->getNext();
@@ -1473,6 +1477,10 @@ boost::shared_ptr<OlcGlobalConfig> OlcConfig::getGlobals()
 
 void OlcConfig::setGlobals( OlcGlobalConfig &olcg)
 {
+    if ( ! m_lc )
+    {
+        throw std::runtime_error( "LDAP Connection not initialized" );
+    }
     try {
         LDAPModList ml = olcg.entryDifftoMod();
         m_lc->modify( olcg.getDn(), &ml );
@@ -1528,6 +1536,10 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 OlcDatabaseList OlcConfig::getDatabases()
 {
     OlcDatabaseList res;
+    if ( ! m_lc )
+    {
+        throw std::runtime_error( "LDAP Connection not initialized" );
+    }
     try {
         LDAPSearchResults *sr = m_lc->search( "cn=config", 
                 LDAPConnection::SEARCH_ONE, "objectclass=olcDatabaseConfig" );
@@ -1558,6 +1570,10 @@ OlcDatabaseList OlcConfig::getDatabases()
 OlcSchemaList OlcConfig::getSchemaNames()
 {
     OlcSchemaList res;
+    if ( ! m_lc )
+    {
+        throw std::runtime_error( "LDAP Connection not initialized" );
+    }
     try {
         StringList attrs;
         LDAPSearchResults *sr = m_lc->search( "cn=schema,cn=config", 

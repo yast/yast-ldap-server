@@ -1187,7 +1187,8 @@ sub ReadSchemaList {
     if(! defined $schemaList) {
         my $err = SCR->Error(".ldapserver");
         $err->{'code'} = "SCR_READ_FAILED";
-        return $self->SetError(%{$err});
+        $self->SetError(%{$err});
+        return undef;
     }
     return $schemaList;
 }
