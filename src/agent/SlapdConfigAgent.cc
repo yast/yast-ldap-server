@@ -647,11 +647,11 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                                 {
                                     targetMap.add( YCPString("attrs"), YCPString(attrs) );
                                 }
-                                std::string dn_value = (*j)->getDnValue();
-                                if ( dn_value != "" )
+                                std::string dn_type = (*j)->getDnType();
+                                if ( dn_type != "" )
                                 {
                                     YCPMap dnMap;
-                                    std::string dn_type = (*j)->getDnType();
+                                    std::string dn_value = (*j)->getDnValue();
                                     if (dn_type == "dn.subtree" )
                                     {
                                         dnMap.add(YCPString("style"), YCPString("subtree") );
