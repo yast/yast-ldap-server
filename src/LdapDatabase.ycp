@@ -83,6 +83,9 @@
                 `HSquash(
                     `VBox (
                         `Left(
+                            `ComboBox( `id( `cb_type ), _("Database Type"), [ "hdb", "bdb" ] )
+                        ),
+                        `Left(
                             `InputField(`id( `te_basedn), `opt(`hstretch, `notify) , _("&Base DN"), "" )
                         ),
                         `VSpacing(0.5),
@@ -238,7 +241,7 @@
                 }
                 db["suffix"] = suffix;
                 db["directory"] = directory;
-                db["type"] =  "hdb";
+                db["type"] =  (string)UI::QueryWidget( `cb_type, `Value );
 
                 if( rootdn != "" && (boolean)UI::QueryWidget( `cb_append_basedn, `Value ) )
                 {
