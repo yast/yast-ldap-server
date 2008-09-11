@@ -600,6 +600,14 @@ sub Write {
             Progress->Finish();
             return 1;
         }
+        my $progressItems = [ _("Writing Sysconfig files"),
+                              _("Applying changes to Configuration Database"),
+                              _("Applying changes to /etc/openldap/ldap.conf"),
+                              _("Creating Base Object for newly created databases"),
+                            ];
+
+        Progress->New("Writing OpenLDAP Configuration", "", 3, $progressItems, $progressItems, "");
+        Progress->NextStage();
 
         # these changes might require a restart of slapd
         if ( $use_ldap_listener )
@@ -626,8 +634,11 @@ sub Write {
         {
             SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
         }
-
+        my $progress_orig = Progress->set(0);
         SuSEFirewall->Write();
+        Progress->set($progress_orig);
+        Progress->NextStage();
+
         if( ! SCR->Execute('.ldapserver.commitChanges' ) )
         {
             my $err = SCR->Error(".ldapserver");
@@ -635,6 +646,7 @@ sub Write {
             $self->SetError( $err->{'summary'}, $err->{'description'} );
             return 0;
         }
+        Progress->NextStage();
         if ( $write_ldapconf )
         {
             SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".host",
@@ -643,6 +655,15 @@ sub Write {
 		[$ldapconf_base]);
             y2milestone("Updated /etc/openldap/ldap.conf");
         }
+        Progress->NextStage();
+        if ( ! $self->CreateBaseObjects() )
+        {
+            y2error("Error while creating base objects");
+            $self->SetError( _("Creating base objects failed.") );
+            Progress->Finish();
+            return 0;
+        }
+        Progress->Finish();
     }
     sleep(1);
     $configured = $ret;
@@ -1554,6 +1575,9 @@ sub AddDatabase
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
     }
+    push @added_databases, { suffix => $db->{'suffix'}, 
+                             rootdn => $db->{'rootdn'},
+                             rootpw => $db->{'rootpw_clear'} };
     return 1;
 }
 
