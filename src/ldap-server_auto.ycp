@@ -87,7 +87,7 @@ else if (func == "Write") {
  * return boolean
  */
 else if (func == "GetModified") {
-    ret = LdapServer::Modified ();
+    ret = false;
 }
 
 /**
