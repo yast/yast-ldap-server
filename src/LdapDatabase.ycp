@@ -9,7 +9,7 @@
     import "Sequencer";
     import "String";
     import "Wizard";
-    include "ldap-server/helps.ycp";
+    include "helps.ycp";
 
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
