@@ -1,4 +1,16 @@
 -------------------------------------------------------------------
+Thu Sep 11 17:38:35 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.4:
+  * merged texts from proofreading
+  * Support for deleting databases
+  * improvements on ACL managment code (allow re-ordering, allow 
+    global ACLs, ...)
+  * Updated Online Help
+  * Re-Implemented support for managing Password Policy Entries
+  * YaPI Support for managing ACLs (Fate#120061)
+
+-------------------------------------------------------------------
 Fri Sep  5 14:24:36 CEST 2008 - rhafer@suse.de
 
 - yast2-ca-management is still required, as it can be launched from
