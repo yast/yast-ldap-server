@@ -105,8 +105,7 @@
                 `item( `id( "shell" ), _("Print Communication with Shell Back-Ends") ),
                 `item( `id( "parse" ), _("Entry Parsing") ),
                 `item( `id( "sync" ), _("LDAPSync Replication") ),
-                `item( `id( "none" ), _("None") ),
-                `item( `id( "cache" ), _("Proxy Cache") )
+                `item( `id( "none" ), _("None") )
             ]
         );
 
