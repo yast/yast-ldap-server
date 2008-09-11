@@ -183,6 +183,10 @@ my @schema = ();
 
 my @added_databases = ();
 
+# contains dn/password pairs to mapped to database suffix,
+# can be used to bind against the databases
+my $auth_info = {};
+
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -311,8 +315,8 @@ sub CreateBaseObjects()
     my $self = shift;
     foreach my $db (@added_databases )
     {
-        y2milestone("creating base object for ". $db->{'suffix'} );
-        my $object = X500::DN->ParseRFC2253($db->{'suffix'});
+        y2milestone("creating base object for ". $db );
+        my $object = X500::DN->ParseRFC2253($db);
         if(! defined $object) {
             y2error("Error while parsing base dn");
             return 0;
@@ -373,21 +377,27 @@ sub CreateBaseObjects()
         }
         
         my $ldapERR;
-        
-        if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db->{'rootdn'},
-                                          "bind_pw" => $db->{'rootpw'}}) ) {
-            $ldapERR = SCR->Read(".ldap.error");
-            y2error( "LDAP bind failed" );
-            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
-            return 0;
+        my $db_auth = $self->ReadAuthInfo( $db );
+        if ( defined  $db_auth ) 
+        {
+            if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db_auth->{'bind_dn'},
+                                              "bind_pw" => $db_auth->{'bind_pw'}}) ) {
+                $ldapERR = SCR->Read(".ldap.error");
+                y2error( "LDAP bind failed" );
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                return 0;
+            }
+            if (! SCR->Write(".ldap.add", { dn => $db } , $entry)) {
+                my $ldapERR = SCR->Read(".ldap.error");
+                y2error("Can not add base entry.");
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+            }
+            y2milestone("base entry added");
         }
-        
-        if (! SCR->Write(".ldap.add", { dn => $db->{'suffix'} } , $entry)) {
-            my $ldapERR = SCR->Read(".ldap.error");
-            y2error("Can not add base entry.");
-            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        else
+        {
+            y2milestone("Authentication information for database $db unavailable");
         }
-        y2milestone("base entry added");
     }
     return 1;
 }
@@ -1157,9 +1167,10 @@ sub ReadFromDefaults
     # add default ACLs
     $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
     $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
-    push @added_databases, { suffix => $dbDefaults{'suffix'}, 
-                             rootdn => $dbDefaults{'rootdn'},
-                             rootpw => $dbDefaults{'rootpw_clear'} };
+    push @added_databases, $dbDefaults{'suffix'};
+    $self->WriteAuthInfo( $dbDefaults{'suffix'}, 
+                        { bind_dn => $dbDefaults{'rootdn'},
+                          bind_pw => $dbDefaults{'rootpw_clear'} } );
     $usingDefaults = 0;
     return 1;
 }
@@ -1575,9 +1586,10 @@ sub AddDatabase
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
     }
-    push @added_databases, { suffix => $db->{'suffix'}, 
-                             rootdn => $db->{'rootdn'},
-                             rootpw => $db->{'rootpw_clear'} };
+    push @added_databases, $db->{'suffix'};
+    $self->WriteAuthInfo( $db->{'suffix'}, 
+                        { bind_dn => $db->{'rootdn'},
+                          bind_pw => $db->{'rootpw_clear'} } );
     return 1;
 }
 
@@ -1719,5 +1731,36 @@ sub WriteProtocolListenerEnabled
     }
     return 1;
 }
+
+##
+ # Store Authentication Information for a specific database
+ # @param String containing the database suffix
+ # @param Map with the keys "bind_dn" and "bind_pw" containing the
+ #        DN and Password, that can be used to autheticate against 
+ #        the database
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteAuthInfo} = ["function", "boolean", "string", [ "map", "string", "string" ] ]; }
+sub WriteAuthInfo
+{
+    my ( $self, $suffix, $db_auth ) = @_;
+    y2milestone("WriteAuthinfo $suffix");
+    $auth_info->{$suffix} = $db_auth;
+    return 1;
+}
+
+##
+ # Get Authentication Information for a specific database
+ # @param String containing the database suffix
+ # @return A map with the keys "bind_dn" and "bind_pw" or
+ #         undef
+BEGIN { $TYPEINFO {ReadAuthInfo} = ["function", ["map", "string", "string"], "string" ]; }
+sub ReadAuthInfo
+{
+    my ( $self, $suffix) = @_;
+    y2milestone("ReadAuthinfo $suffix");
+    return $auth_info->{$suffix};
+}
+
 1;
 # EOF
