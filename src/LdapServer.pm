@@ -187,6 +187,10 @@ my @added_databases = ();
 # can be used to bind against the databases
 my $auth_info = {};
 
+# contains a hash, key by database suffixed that contains
+# hashes of the password policy DNs and and objects
+my $ppolicy_objects = {};
+
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -402,6 +406,56 @@ sub CreateBaseObjects()
     return 1;
 }
 
+sub CreatePpolicyObjects
+{
+    my $self = shift; 
+    foreach my $suffix ( keys( %$ppolicy_objects ) )
+    {
+        my $ppolicy = $ppolicy_objects->{$suffix};
+        if ( ! defined $ppolicy )
+        {
+            y2milestone("No default policy for for database $suffix");
+            return undef;
+        }
+        if ( ! defined $ppolicy->{'dn'} || ! defined $ppolicy->{'ppolicy'} )
+        {
+            y2milestone("No default policy for for database $suffix");
+            return undef;
+        }
+        my $ldapERR;
+        my $db_auth = $self->ReadAuthInfo( $suffix );
+        if ( ! defined $db_auth )
+        {
+            y2error("AuthInfo for database $suffix unavailable");
+            return undef;
+        }
+        if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db_auth->{'bind_dn'},
+                                          "bind_pw" => $db_auth->{'bind_pw'}}) ) {
+            $ldapERR = SCR->Read(".ldap.error");
+            y2error( "LDAP bind failed" );
+            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+            return undef;
+        }
+        my @entries = SCR->Read (".ldap.search",  { "base_dn" =>  $ppolicy->{'dn'},
+                                                 "filter"  => "objectclass=*",
+                                                 "scope"   => 0 } );
+        my $path = ".ldap.add";
+        if ( scalar(@entries) > 0 )
+        {
+            $path = ".ldap.modify"
+        }
+        if (! SCR->Write($path, { dn => $ppolicy->{'dn'}, 'check_attrs' => 1 } ,
+                                        $ppolicy->{'ppolicy'} ))
+        {
+            $ldapERR = SCR->Read(".ldap.error");
+            y2error("Can not add ppolicy entry.");
+            y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+        }
+        y2milestone("Ppolicy entry added");
+    }
+    return 1;
+}
+
 
 ##
  # Write all service-related settings (sysconfig, init.d)
@@ -613,10 +667,11 @@ sub Write {
         my $progressItems = [ _("Writing Sysconfig files"),
                               _("Applying changes to Configuration Database"),
                               _("Applying changes to /etc/openldap/ldap.conf"),
-                              _("Creating Base Object for newly created databases"),
+                              _("Creating Base Objects for newly created databases"),
+                              _("Updating Default Password Policy Objects"),
                             ];
 
-        Progress->New("Writing OpenLDAP Configuration", "", 3, $progressItems, $progressItems, "");
+        Progress->New("Writing OpenLDAP Configuration", "", 5, $progressItems, $progressItems, "");
         Progress->NextStage();
 
         # these changes might require a restart of slapd
@@ -673,6 +728,15 @@ sub Write {
             Progress->Finish();
             return 0;
         }
+        Progress->NextStage();
+        if ( ! $self->CreatePpolicyObjects() )
+        {
+            y2error("Error while creating Password Policy objects");
+            $self->SetError( _("Creating Password Policy objects failed.") );
+            Progress->Finish();
+            return 0;
+        }
+
         Progress->Finish();
     }
     sleep(1);
@@ -1754,6 +1818,7 @@ sub WriteAuthInfo
  # @param String containing the database suffix
  # @return A map with the keys "bind_dn" and "bind_pw" or
  #         undef
+ #
 BEGIN { $TYPEINFO {ReadAuthInfo} = ["function", ["map", "string", "string"], "string" ]; }
 sub ReadAuthInfo
 {
@@ -1762,5 +1827,46 @@ sub ReadAuthInfo
     return $auth_info->{$suffix};
 }
 
+##
+ # Set the default Password Policy Object for a database
+ # the object is create/modified during Write() using the
+ # credentials the were set (with WriteAuthInfo()) for the 
+ # specified database
+ # @param String containing the database suffix
+ # @param String containing the DN of the Password Policy Object
+ # @param A map containing the LDAP entry of the Password Policy
+ #        object
+ # @return true
+ #
+BEGIN { $TYPEINFO {WritePpolicyDefault} = ["function", "boolean", "string", "string", [ "map", "string", "any" ] ]; }
+sub WritePpolicyDefault
+{
+    my ( $self, $suffix, $dn, $ppolicy ) = @_;
+    y2milestone("WritePpolicyDefault $suffix $dn");
+    y2milestone("WritePpolicyDefault ". Data::Dumper->Dump([$ppolicy]) );
+    if ( ! defined $ppolicy->{'objectClass'} )
+    {
+        $ppolicy->{'objectClass'} = [ "namedObject", "pwdPolicy" ];
+    }
+    if ( ! defined $ppolicy->{'pwdAttribute'} )
+    {
+        $ppolicy->{'pwdAttribute'} = [ "userPassword" ];
+    }
+    $ppolicy_objects->{$suffix} = { dn => $dn, ppolicy => $ppolicy } ;
+    return 1;
+}
+
+##
+ # Get the default Password Policy object of a specific database
+ # @returns a Map with the keys "dn" and "ppolicy" 
+ #  
+BEGIN { $TYPEINFO {ReadPpolicyDefault} = ["function", ["map", "string", "any"], "string" ]; }
+sub ReadPpolicyDefault
+{
+    my ( $self, $suffix ) = @_;
+    y2milestone("ReadPpolicyDefault $suffix");
+    y2milestone("ReadPpolicyDefault ". Data::Dumper->Dump([$ppolicy_objects->{$suffix}]) );
+    return $ppolicy_objects->{$suffix}
+}
 1;
 # EOF

@@ -58,14 +58,13 @@
                                     )
                                 ),
                                 `VSpacing( 0.3 )
-                            // disabled, this doesn't work as desired
-                            //),
-                            //`HSpacing( 0.5 ),
-                            //`VBox(
-                            //    `Bottom(
-                            //        `PushButton( `id( `pb_define_policy ), _("Edit Policy"))
-                            //    ),
-                            //    `VSpacing( 0.3 )
+                            ),
+                            `HSpacing( 0.5 ),
+                            `VBox(
+                                `Bottom(
+                                    `PushButton( `id( `pb_define_policy ), _("Edit Policy"))
+                                ),
+                                `VSpacing( 0.3 )
                             )
 
                         )
@@ -441,6 +440,15 @@
                     pp_default = pp_default+","+suffix;
                 }
                 ppolicy = add( ppolicy, "defaultPolicy", pp_default);
+                map<string,any> ppolicyEntry = LdapServer::ReadPpolicyDefault(db["suffix"]:"");
+                // User might haved change the Default DN, adjust it
+                if ( size(ppolicyEntry) > 0 )
+                {
+                    ppolicyEntry["dn"] = pp_default;
+                    LdapServer::WritePpolicyDefault(db["suffix"]:"",
+                                                    ppolicyEntry["dn"]:"",
+                                                    ppolicyEntry["ppolicy"]:$[] );
+                }
             }
             else
             {
@@ -474,63 +482,78 @@
         else if ( handler_cmd == `pb_define_policy )
         {
             string pp_default = (string)UI::QueryWidget( `te_ppolicy_defaultpolicy, `Value );
-            if ( dbindex > 0 )
-            {
-                map<string,any> db = baseDb;
-                db = LdapServer::ReadDatabase(dbindex);
-                if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
-                {
-                    pp_default = pp_default+","+db["suffix"]:"";
-                }
 
-                if ( dbindex > 0 )
+            map<string,any> db = baseDb;
+            if (dbindex != -1 )
+            {
+                db = LdapServer::ReadDatabase(dbindex);
+            }
+            if( (boolean)UI::QueryWidget( `cb_pp_append_basedn, `Value ) )
+            {
+                pp_default = pp_default+","+db["suffix"]:"";
+            }
+            map<string,any> ppolicy = LdapServer::ReadPpolicyDefault(db["suffix"]:"");
+            map ppolicyEntry = $[];
+            if ( size(ppolicy) > 0 )
+            {
+               ppolicyEntry = ppolicy["ppolicy"]:$[];
+            }
+            else if ( dbindex > 0 ) // try to read the ppolicy from the server
+            {
+                Ldap::Import( $[ "ldap_server" : "localhost",
+                                 "bind_dn"    : db["rootdn"]:"" ] );
+                Ldap::LDAPInit();
+                string pw = "";
+                map<string,string> authinfo = LdapServer::ReadAuthInfo( db["suffix"]:"" );
+                if ( authinfo != nil )
                 {
-                    // try to read ppolicy from Server
-                    map ppolicyEntry = $[];
-                    Ldap::Import( $[ "ldap_server" : "localhost",
-                                     "bind_dn"    : db["rootdn"]:"" ] );
-                    Ldap::LDAPInit();
-                    string pw = "";
-                    string bind_res = "tmp";
-                    while( bind_res != "" ) {
-                        if ( pw == "" ) {
-                            pw = Ldap::GetLDAPPassword(false);
-                        }
-                        bind_res = Ldap::LDAPBind (pw);
-                        if (bind_res != "" ) {
-                            if (Popup::YesNo( _("Authentication failed. The password is probably incorrect.\n") +
-                                              _("The error message was: '") + bind_res + "'\n" +
-                                              _("Try again?") ) )
-                            {
-                                pw = "";
-                            } else {
-                                break;
-                            }
+                    pw = authinfo["bind_pw"]:"";
+                }
+                string bind_res = "tmp";
+                while( bind_res != "" ) {
+                    if ( pw == "" ) {
+                        pw = Ldap::GetLDAPPassword(false);
+                    }
+                    bind_res = Ldap::LDAPBind (pw);
+                    if (bind_res != "" ) {
+                        if (Popup::YesNo( _("Authentication failed. The password is probably incorrect.\n") +
+                                          _("The error message was: '") + bind_res + "'\n" +
+                                          _("Try again?") ) )
+                        {
+                            pw = "";
+                        } else {
+                            break;
                         }
                     }
-                    if ( bind_res == "" )
+                }
+                if ( bind_res == "" )
+                {
+                    LdapServer::WriteAuthInfo( db["suffix"]:"",
+                                               $[ "bind_dn" : db["rootdn"]:"",
+                                                  "bind_pw" : pw ] );
+
+                    list res = (list)SCR::Read (.ldap.search,  $[ "base_dn" : pp_default,
+                                                           "filter"  : "objectclass=*",
+                                                           "scope"   : 0 ] );
+                    if ( size(res) >  0 ) {
+                        y2milestone("default_policy does already exist");
+                        ppolicyEntry = (map)res[0]:nil;
+                    }
+                    else
                     {
-                        list res = (list)SCR::Read (.ldap.search,  $[ "base_dn" : pp_default,
-                                                               "filter"  : "objectclass=*",
-                                                               "scope"   : 0 ] );
-                        if ( size(res) >  0 ) {
-                            y2milestone("default_policy does already exist");
-                            ppolicyEntry = (map)res[0]:nil;
-                        }
-                        else
-                        {
-                            y2milestone("default_policy does not yet exist");
-                        }
-                        ppolicyEntry = LdapPopup::PasswordPolicyDialog(ppolicyEntry);
-                        if ( size( ppolicyEntry ) > 0  )
-                        {
-                            ppolicyEntry["objectClass"] = [ "namedObject", "pwdPolicy" ];
-                            ppolicyEntry["pwdAttribute"] = [ "userPassword" ];
-                            SCR::Write(.ldap.add, $[ "dn" : pp_default, "check_attrs" : "true"], ppolicyEntry );
-                        }
+                        y2milestone("default_policy does not yet exist");
                     }
                 }
             }
+            map ppolicyEntry_new = LdapPopup::PasswordPolicyDialog(ppolicyEntry);
+            // PasswordPolicyDialog only returns the changes made to the original
+            // Entry, try to merge them here
+            foreach ( string key, any val, (map<string,any>) ppolicyEntry_new,
+                {
+                    ppolicyEntry[key] = val;
+                }
+            );
+            LdapServer::WritePpolicyDefault( db["suffix"]:"", pp_default, (map<string,any>)ppolicyEntry );
         }
         return true;
     }
