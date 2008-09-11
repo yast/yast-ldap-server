@@ -65,9 +65,6 @@ SlapdConfigAgent::SlapdConfigAgent()
 {
     y2milestone("SlapdConfigAgent::SlapdConfigAgent");
     OlcConfig::setLogCallback(y2LogCallback);
-//    LDAPConnection *lc = new LDAPConnection("ldap://localhost");
-//    lc->bind("cn=config", "secret");
-//    olc = OlcConfig(lc);
 }
 
 SlapdConfigAgent::~SlapdConfigAgent()
