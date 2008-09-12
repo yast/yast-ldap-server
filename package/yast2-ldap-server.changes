@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Sep 12 14:58:14 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.5:
+  * Updated Online Help
+  * Ask for confirmation before aborting the module
+
+-------------------------------------------------------------------
 Thu Sep 11 17:38:35 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.4:
