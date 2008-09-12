@@ -209,7 +209,7 @@
             `VSquash(
                 `HBox(
                     `InputField( `id( `te_rootdn ), `opt( `hstretch ),
-                        _("&Root DN") ),
+                        _("Administrator DN") ),
                     `HSpacing( 0.5 ),
                     `Bottom(
                         `CheckBox( `id( `cb_append_basedn ), _("&Append Base DN") )
