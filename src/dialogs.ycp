@@ -405,7 +405,18 @@ any TreeDialog()
         else if( is( ret, symbol ) )
         {
             symbol sym_ret = (symbol)ret;
-            if( sym_ret == `back || sym_ret == `abort || sym_ret == `cancel || sym_ret == `reread ) break;
+            if( sym_ret == `abort || sym_ret == `cancel)
+            {
+                if( Popup::ReallyAbort(true) )
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else if ( sym_ret == `back || sym_ret == `reread ) break;
             else if( sym_ret == `next )
             {
                 if( !callHandler( current_tree_item, "cb_check" ) ) continue;
