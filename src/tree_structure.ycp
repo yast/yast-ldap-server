@@ -863,7 +863,8 @@ widget_map = $[
         "widget"    : dlg_service,
         "cb_read"   : ``( cb_read_daemon() ),
         "cb_input"  : ``( cb_input_daemon() ),
-        "cb_write"  : ``( cb_write_daemon() )
+        "cb_write"  : ``( cb_write_daemon() ),
+        "help_page" : "startup_config"
     ],
     "global" : $[
         "children"  : [ "g_loglevel", "g_allow", "g_tls" ],
