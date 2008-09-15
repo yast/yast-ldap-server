@@ -902,7 +902,8 @@ widget_map = $[
         "widget"    : tlsWidget,
         "cb_read"   : ``( cb_read_tls() ),
         "cb_write"  : ``( cb_write_tls() ),
-        "cb_input"  : ``( cb_input_tls() )
+        "cb_input"  : ``( cb_input_tls() ),
+        "help_page" : "tls_dialog"
     ],
     "databases": $[
                     /* Tree item */
