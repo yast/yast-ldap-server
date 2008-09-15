@@ -15,6 +15,27 @@ textdomain "ldap-server";
  * All helps are here
  */
 map HELPS = $[
+    /* The "Startup Configuration node for the main tree widget*/
+    "startup_config" :
+        _("<h3>Startup Configuration</h3>") +
+        _("<h4>Start LDAP Server</h4>") +
+            _("<p>Select <b>Yes</b> if the LDAP server should be started automatically as 
+part of the boot process. Select <b>No</b> if the LDAP server should not be started. Note:
+After selecting <b>No</b> you will not be able to make any changes to the OpenLDAP 
+configuration.</p>") +
+        _("<h4>Protocol Listeners</h4>") +
+            _("<p>Here you can enable and disable the various protocol listeneres of OpenLDAP</p>") +
+            _("<p><b>LDAP</b> is the standard LDAP interface on Port 389. TLS/SSL secured communication
+is possible with the StartTLS operation when you have a server certifcate configured.</p>") +
+            _("<p><b>LDAPS</b> enables the \"LDAP over SSL (ldaps)\" interface for SSL protected
+connections on port 636. You need to have a Server Certificate configured to make this working
+correctly. (See \"Global Setting\"/\"TLS Settings\" for that)") +
+            _("<p><b>LDAPI</b> enables the \"LDAP over IPC\" interface. By this you can access the
+LDAP Server through a Unix Domain Socket. You should not disable the LDAPI interface as this YaST
+Module uses it to communicate with the server.</p>") +
+        _("<h4>Firewall Settings</h4>") +
+            _("<p>Here you can selecte whether SuSEFirewall should allow access on the LDAP related
+network ports or not.</p>"),
     /* First part of the Add Database Widget */
     "database_basic" :
         _("<h3>Basic Database Settings</h3>") +
