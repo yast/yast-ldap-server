@@ -1085,7 +1085,7 @@ sub CreateInitialDefaults
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
     }
-    y2milestone(Data::Dumper->Dump([\%dbDefaults]));
+    y2debug(Data::Dumper->Dump([\%dbDefaults]));
     $usingDefaults = 1;
     $overwriteConfig = 1;
     return \%dbDefaults;
@@ -1098,7 +1098,7 @@ sub SetInitialDefaults
     my $defaults = shift;
     $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
     $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
-    y2milestone("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
+    y2debug("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
     %dbDefaults = %$defaults;
     return 1;
 }
@@ -1263,7 +1263,7 @@ sub ReadDatabase
     my ($self, $index) = @_;
     y2milestone("ReadDatabase ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}" );
-    y2milestone( "Database: ".Data::Dumper->Dump([$rc]) );
+    y2debug( "Database: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
 
@@ -1501,7 +1501,7 @@ BEGIN { $TYPEINFO {CheckDatabase} = ["function", "boolean", [ "map" , "string", 
 sub CheckDatabase
 {
     my ($self, $db) = @_;
-    y2milestone("CheckDatabase: ".Data::Dumper->Dump([$db]) );
+    y2milestone("CheckDatabase");
     my $suffix_object = X500::DN->ParseRFC2253($db->{'suffix'});
     if(! defined $suffix_object) {
         $self->SetError(_("Base DN \"". $db->{'suffix'} ."\" is not a valid LDAP DN."), "");
@@ -1661,6 +1661,7 @@ BEGIN { $TYPEINFO {UpdateDatabase} = ["function", "boolean", "integer", [ "map" 
 sub UpdateDatabase 
 {
     my ($self, $index, $changes) = @_;
+    y2milestone( "UpdateDatabase");
     if ( defined $changes->{'entrycache'} )
     {
         $changes->{'entrycache'} = YaST::YCP::Integer( $changes->{'entrycache'} );
@@ -1674,10 +1675,8 @@ sub UpdateDatabase
         $changes->{'checkpoint'}->[0] = YaST::YCP::Integer( $changes->{'checkpoint'}->[0] );
         $changes->{'checkpoint'}->[1] = YaST::YCP::Integer( $changes->{'checkpoint'}->[1] );
     }
-    y2milestone( "UpdateDatabase: ".Data::Dumper->Dump([$changes]) );
 
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
-    y2milestone( "result: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 
 }
