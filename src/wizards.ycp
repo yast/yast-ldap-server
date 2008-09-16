@@ -49,6 +49,44 @@ any MainSequence() {
     return ret;
 }
 
+any InstProposalSequence() {
+
+    string caption = _("LDAP Server Configuration");
+    term contents = `Label(_("Initializing..."));
+
+    Wizard::CreateDialog();
+    Wizard::SetContentsButtons(caption, contents, "",
+           Label::BackButton(), Label::NextButton());
+
+    map aliases = $[
+        "startup"   : ``( EnableServiceDialog() ),
+        "database"   : ``( ProposalDialog() ),
+    ];
+
+    map sequence = $[
+        "ws_start"  : "startup",
+        "startup"   : $[
+            `next   : "database",
+            `abort  : `abort,
+            `finish : `abort
+        ],
+        "database"   : $[
+            `next   : `next,
+            `abort  : `abort,
+	]
+    ];
+
+    y2milestone( "--> starting InstProposalSequence" );
+
+    any ret = Sequencer::Run(aliases, sequence);
+
+    y2milestone( "<-- InstProposalSequence finished " );
+
+    UI::CloseDialog();
+
+    return ret;
+}
+
 any ProposalSequence() {
 
     /* Initialization dialog caption */
@@ -102,7 +140,7 @@ any ProposalSequence() {
 
     any ret = Sequencer::Run(aliases, sequence);
 
-    y2milestone( "--> ProposalSequence finished " );
+    y2milestone( "<-- ProposalSequence finished " );
 
     UI::CloseDialog();
 
