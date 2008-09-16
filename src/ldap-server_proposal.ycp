@@ -75,6 +75,7 @@ if(func == "MakeProposal") {
     if( LdapServer::ReadServiceEnabled() )
     {
         string rootPWString = "";
+        defaults = LdapServer::CreateInitialDefaults();
         if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
         {
             rootPWString = _("[root password]");
@@ -118,7 +119,7 @@ if(func == "MakeProposal") {
         }
 
         proposal = _("LDAP Server Configuration:") + HTML::Newline() +
-                     HTML::List( [ _("Base DN: ") + defaults["basedn"]:"",
+                     HTML::List( [ _("Base DN: ") + defaults["suffix"]:"",
                                    _("Root DN: ") + defaults["rootdn"]:"",
                                    _("LDAP Password: ") + rootPWString
                                  ] ) +
@@ -150,6 +151,11 @@ else if(func == "AskUser") {
     {
 //        stored = LdapServer::Export();
         seq = (symbol) WFM::CallFunction("ldap-server", [.propose]);
+        if(seq == `next) {
+            LdapServer::WriteServiceEnabled( true );
+        } else {
+            LdapServer::WriteServiceEnabled( false );
+        }
 //        if(seq != `next) LdapServer::Import(stored);
     }
     y2debug("stored=%1",stored);
@@ -190,11 +196,9 @@ without installing the required packages."));
 
             return ret;
         }
-        Progress::off();
+
         LdapServer::ReadFromDefaults();
-        LdapServer::WriteServiceEnabled( true );
-        LdapServer::WriteLogLevels( ["none"] );
-        Progress::on();
+
         if( !LdapServer::HaveCommonServerCertificate() )
         {
             Report::Error( _("OpenLDAP Server: Common server certificate not available.
@@ -204,7 +208,7 @@ StartTLS is disabled.") );
         {
             LdapServer::WriteTlsConfigCommonCert();
         }
-        LdapServer::WriteSLPEnabled( true );
+        //LdapServer::WriteSLPEnabled( true );
         LdapServer::Write();
     }
 }

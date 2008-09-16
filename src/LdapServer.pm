@@ -1084,9 +1084,9 @@ sub CreateInitialDefaults
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
+        $usingDefaults = 1;
     }
     y2debug(Data::Dumper->Dump([\%dbDefaults]));
-    $usingDefaults = 1;
     $overwriteConfig = 1;
     return \%dbDefaults;
 }
@@ -1100,6 +1100,7 @@ sub SetInitialDefaults
     $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
     y2debug("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
     %dbDefaults = %$defaults;
+    $usingDefaults = 0;
     return 1;
 }
 
