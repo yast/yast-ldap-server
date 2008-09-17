@@ -301,7 +301,7 @@
                     Popup::Error( _("A directory must be specified.") );
                     continue;
                 }
-                if ( SCR::Read(.target.dir, db["directory"]:"" ) == nil ) {
+                if ( db["directory"]:"" != "/var/lib/ldap" && SCR::Read(.target.dir, db["directory"]:"" ) == nil ) {
                     boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
                                         _("The directory does not exist. Create it?"),
                                         Label::YesButton(), Label::NoButton(), `focus);
