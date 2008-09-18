@@ -26,7 +26,7 @@ import "Report";
 import "Summary";
 import "RichText";
 import "CommandLine";
-include "ldap-server/wizards.ycp";
+include "wizards.ycp";
 
 define boolean serviceHandler (map<string, string> options ) {
 

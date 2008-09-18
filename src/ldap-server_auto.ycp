@@ -27,7 +27,7 @@ y2milestone("----------------------------------------");
 y2milestone("LdapServer auto started");
 
 import "LdapServer";
-include "ldap-server/wizards.ycp";
+include "wizards.ycp";
 
 any ret = nil;
 string func = "";
