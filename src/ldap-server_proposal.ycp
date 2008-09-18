@@ -198,6 +198,15 @@ without installing the required packages."));
         }
 
         LdapServer::ReadFromDefaults();
+        map <string,any> defaults = LdapServer::CreateInitialDefaults();
+        map ldapclient_defaults = Ldap::Export();
+        ldapclient_defaults["ldap_server"] = "localhost";
+        ldapclient_defaults["base_config_dn"] = "ou=ldapconfig,"+defaults["suffix"]:"";
+        ldapclient_defaults["bind_dn"] = defaults["rootdn"]:"";
+        ldapclient_defaults["ldap_domain"] = defaults["suffix"]:"";
+        ldapclient_defaults["ldap_tls"] = false;
+        ldapclient_defaults["file_server"] = true;
+        ldapclient_defaults["create_ldap"] = true;
 
         if( !LdapServer::HaveCommonServerCertificate() )
         {
@@ -206,8 +215,12 @@ StartTLS is disabled.") );
         }
         else
         {
+            ldapclient_defaults["ldap_tls"] = true;
             LdapServer::WriteTlsConfigCommonCert();
         }
+
+        Ldap::SetDefaults( ldapclient_defaults );
+        Ldap::SetBindPassword( defaults["rootpw_clear"]:"" );
         //LdapServer::WriteSLPEnabled( true );
         LdapServer::Write();
     }
