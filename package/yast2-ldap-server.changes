@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Sep 18 12:19:16 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.6:
+  * more Online Help updates
+  * Various fixes for the installation proposal.
+    (bnc#427260, bnc#426634, bnc#426593)
+-------------------------------------------------------------------
 Fri Sep 12 14:58:14 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.5:
