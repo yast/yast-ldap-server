@@ -1003,6 +1003,12 @@
                         continue;
                     }
                 }
+                if ( size(accesslist) == 0 )
+                {
+                    Popup::Error(_("You must add at least one item to the \"Access Level\" list") );
+                    continue;
+                }
+
 
                 result["target"] = what;
                 result["access"] = accesslist;

@@ -155,6 +155,7 @@ YCPBoolean SlapdConfigAgent::Write( const YCPPath &path,
             return YCPNull();
         }
     } catch ( std::runtime_error e ) {
+        y2error("Caught exception: %s", e.what());
         lastError->add(YCPString("summary"), YCPString(std::string( e.what() ) ) );
         lastError->add(YCPString("description"), YCPString("") );
         return YCPBoolean(false);
