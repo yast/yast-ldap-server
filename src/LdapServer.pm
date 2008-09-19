@@ -1326,6 +1326,11 @@ sub ChangeDatabaseAcl
     my ($self, $dbIndex, $acllist ) = @_;
     y2milestone("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
     my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
+    if ( ! $rc )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+    }
     return $rc;
 }
 

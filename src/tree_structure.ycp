@@ -805,7 +805,13 @@ define boolean cb_write_acl()
     {
         return true;
     }
-    return LdapServer::ChangeDatabaseAcl( index, (list<map<string,any> >)changedAcls );
+    boolean ret = LdapServer::ChangeDatabaseAcl( index, (list<map<string,any> >)changedAcls );
+    if ( ! ret )
+    {
+        map<string, string> err = LdapServer::ReadError();
+        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+    }
+    return ret;
 }
 
 define boolean cb_input_ppolicy()

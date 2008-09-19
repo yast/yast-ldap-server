@@ -533,6 +533,10 @@ OlcAccess::OlcAccess( const std::string& aclString )
     // we should have reached the "by"-clauses now
     while ( true )
     {
+        if ( spos == std::string::npos )
+        {
+            throw std::runtime_error( "Error while parsing ACL by clause" );
+        }
         if ( aclString.substr(spos, tmppos-spos) != "by" )
         {
             if (tmppos != std::string::npos )
@@ -717,6 +721,12 @@ std::string OlcAccess::toAclString() const
             aclString << " attrs=" << m_attributes;
         }
     }
+    
+    if ( m_byList.empty() )
+    {
+        throw(std::runtime_error("ACL byList is empty"));
+    }
+
     OlcAclByList::const_iterator i;
     for ( i = m_byList.begin(); i != m_byList.end(); i++ )
     {
