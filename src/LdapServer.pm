@@ -1301,7 +1301,7 @@ sub ChangeDatabaseIndex
  #                      # a Map defining the target objects of this ACL
  #                      # can contain any or multiple keys of the following
  #                      # types
- #                      'attrs'  => [ <list of attributetypes> ],
+ #                      'attrs'  => <A comma-separated string of attributetypes>,
  #                      'filter' => <LDAP filter string>,
  #                      'dn' => {
  #                              'style' => <'base' or 'subtree'>
