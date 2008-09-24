@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Wed Sep 24 12:58:24 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.7
+  * Fixed crashes and consistency checks for ACLs ((bnc#425821)
+  * Fixed adding multiple Databases at once (bnc#429450)
+  * Smaller fixes to source documentation
+
+-------------------------------------------------------------------
 Thu Sep 18 12:19:16 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.6:
