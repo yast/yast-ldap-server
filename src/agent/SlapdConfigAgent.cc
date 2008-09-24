@@ -1136,15 +1136,18 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             std::vector<IndexType> idx;
                             std::string attr( arg->asMap()->value(YCPString("name"))->asString()->value_cstr() );
                             y2milestone("Edit Index for Attribute: '%s'", attr.c_str() );
-                            if ( arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
+                            if ( ! arg->asMap()->value(YCPString("pres")).isNull() && 
+                                 arg->asMap()->value(YCPString("pres"))->asBoolean()->value() == true )
                             {
                                 idx.push_back(Present);
                             }
-                            if ( arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
+                            if ( ! arg->asMap()->value(YCPString("eq")).isNull() &&
+                                 arg->asMap()->value(YCPString("eq"))->asBoolean()->value() == true )
                             {
                                 idx.push_back(Eq);
                             }
-                            if ( arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
+                            if ( ! arg->asMap()->value(YCPString("sub")).isNull() &&
+                                 arg->asMap()->value(YCPString("sub"))->asBoolean()->value() == true )
                             {
                                 idx.push_back(Sub);
                             }

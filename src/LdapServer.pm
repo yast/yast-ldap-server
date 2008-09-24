@@ -146,35 +146,28 @@ my @defaultIndexes = (
         },
         { "name" => "member",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1)
         },
         { "name" => "mail",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1)
         },
         { "name" => "cn",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         },
         { "name" => "displayName",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         },
         { "name" => "uid",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         },
         { "name" => "sn",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         },
         { "name" => "givenName",
           "eq" => YaST::YCP::Boolean(1),
-          "pres" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         }
     );
@@ -1283,9 +1276,18 @@ sub ChangeDatabaseIndex
 {
     my ($self, $dbIndex, $newIdx ) = @_;
     y2milestone("ChangeDatabaseIndex: ".Data::Dumper->Dump([$newIdx]) );
-    $newIdx->{'pres'} = YaST::YCP::Boolean($newIdx->{'pres'});
-    $newIdx->{'eq'} = YaST::YCP::Boolean($newIdx->{'eq'});
-    $newIdx->{'sub'} = YaST::YCP::Boolean($newIdx->{'sub'});
+    if( defined $newIdx->{'pres'} )
+    {
+        $newIdx->{'pres'} = YaST::YCP::Boolean($newIdx->{'pres'});
+    }
+    if( defined $newIdx->{'eq'} )
+    { 
+        $newIdx->{'eq'} = YaST::YCP::Boolean($newIdx->{'eq'});
+    }
+    if( defined $newIdx->{'sub'} )
+    { 
+        $newIdx->{'sub'} = YaST::YCP::Boolean($newIdx->{'sub'});
+    }
     my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.index", $newIdx );
     return $rc;
 }
