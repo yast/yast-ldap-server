@@ -747,6 +747,7 @@ BEGIN { $TYPEINFO{Import} = ["function", "boolean", [ "map", "any", "any" ] ]; }
 sub Import {
     my $self = shift;
     my $hash = shift;
+    y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
     return 1;
 }
@@ -761,7 +762,48 @@ sub Export {
     my $self = shift;
 
     my $hash = {};
+    $hash->{'daemon'}->{'slp'} = $self->ReadSLPEnabled(); 
+    $hash->{'daemon'}->{'serviceEnabled'} = $self->ReadServiceEnabled(); 
 
+    my @listeners = ();
+    if ( $self->ReadProtocolListenerEnabled("ldap") )
+    {
+        push @listeners, "ldap";
+    }
+    if ( $self->ReadProtocolListenerEnabled("ldapi") )
+    {
+        push @listeners, "ldapi";
+    }
+    if ( $self->ReadProtocolListenerEnabled("ldaps") )
+    {
+        push @listeners, "ldaps";
+    }
+    $hash->{'daemon'}->{'listeners'} = @listeners;
+
+    my @schema = ();
+    my $schemaList = $self->ReadSchemaList();
+    $hash->{'schema'} = $schemaList;
+    $hash->{'globals'}->{'loglevel'} = $self->ReadLogLevels();
+    $hash->{'globals'}->{'allow'} = $self->ReadAllowFeatures();
+    $hash->{'globals'}->{'disallow'} = $self->ReadDisallowFeatures();
+    $hash->{'globals'}->{'tlsconfig'} = $self->ReadTlsConfig();
+
+    my $dbList = $self->ReadDatabaseList();
+    my @dbs;
+    foreach my $db (@$dbList)
+    {
+        if ( $db->{'type'} eq "config" || $db->{'type'} eq "frontend" )
+        {
+            next;
+        }
+        my $dbhash = $self->ReadDatabase($db->{'index'} );
+        $dbhash->{'access'} = $self->ReadDatabaseAcl( $db->{'index'} );
+        $dbhash->{'indexes'} = $self->ReadDatabaseIndexes( $db->{'index'} );
+        push @dbs, $dbhash;
+    }
+    $hash->{'databases'} = \@dbs;
+
+    y2milestone("LdapServer::Export() ". Data::Dumper->Dump([$hash]));
     return $hash;
 }
 
@@ -773,15 +815,20 @@ BEGIN { $TYPEINFO{Summary} = ["function", "string" ]; }
 sub Summary {
     # Configuration summary text for autoyast
     my $self = shift;
-    my $defaults = $self->CreateInitialDefaults();
     my $string;
-
-    $string .= '<h2>'._("Startup Configuration").'</h2>'
-            .'<p>'._("Start LDAP Server: ").'<code>'.($defaults->{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
-            .'<p>'._("Register at SLP Service: ").'<code>'.($defaults->{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>'
-            .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
-            .'<p>'._("Database Suffix: ").'<code>'.$defaults->{'suffix'}.'</code></p>'
-            .'<p>'._("Administrator DN: ").'<code>'.$defaults->{'rootdn'}.'</code></p>';
+    if ( ! keys(%dbDefaults ) )
+    {
+        $string .= _("Not configured yet.");    
+    }
+    else
+    {
+        $string .= '<h2>'._("Startup Configuration").'</h2>'
+                .'<p>'._("Start LDAP Server: ").'<code>'.($dbDefaults{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
+                .'<p>'._("Register at SLP Service: ").'<code>'.($dbDefaults{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>'
+                .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
+                .'<p>'._("Database Suffix: ").'<code>'.$dbDefaults{'suffix'}.'</code></p>'
+                .'<p>'._("Administrator DN: ").'<code>'.$dbDefaults{'rootdn'}.'</code></p>';
+    }
 
     return $string;
 }

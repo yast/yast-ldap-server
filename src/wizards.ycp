@@ -265,7 +265,7 @@ any LdapServerAutoSequence() {
     Wizard::SetContentsButtons(caption, contents, "",
 	    Label::BackButton(), Label::NextButton());
 
-    any ret = MainSequence();
+    any ret = InstProposalSequence();
 
     UI::CloseDialog();
 
