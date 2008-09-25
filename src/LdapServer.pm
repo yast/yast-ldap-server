@@ -749,6 +749,61 @@ sub Import {
     my $hash = shift;
     y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
+    $usingDefaults = 0;
+    $overwriteConfig = 1;
+    $self->WriteServiceEnabled( $hash->{'daemon'}->{'serviceEnabled'} );
+    if ( ! $self->ReadServiceEnabled )
+    {
+        return 1;
+    }
+    $self->WriteSLPEnabled( $hash->{'daemon'}->{'slp'} );
+
+    SCR->Execute('.ldapserver.initGlobals' );
+    if ( defined $hash->{'globals'}->{'loglevel'} )
+    {
+        $self->WriteLogLevels( $hash->{'globals'}->{'loglevel'} );
+    }
+    if ( defined  $hash->{'globals'}->{'allow'} )
+    {
+        $self->WriteAllowFeatures( $hash->{'globals'}->{'allow'} );
+    }
+    if ( defined $hash->{'globals'}->{'disallow'} )
+    {
+        $self->WriteDisallowFeatures( $hash->{'globals'}->{'disallow'} );
+    }
+    if ( defined  $hash->{'globals'}->{'tlsconfig'} )
+    {
+        $self->WriteTlsConfig( $hash->{'globals'}->{'tlsconfig'} = $self->ReadTlsConfig() );
+    }
+
+    SCR->Execute('.ldapserver.initSchema' );
+    foreach my $schema (@{$hash->{'schema'}})
+    {
+        if ( defined $schema->{'includeldif'} )
+        {
+            $self->AddLdifToSchemaList($schema->{'includeldif'});
+        }
+        elsif ( defined $schema->{'includeschema'} )
+        {
+            $self->AddSchemaToSchemaList($schema->{'includeschema'});
+        }
+        else # Import ldif string
+        {
+
+        }
+    }
+    my $cfgdatabase = { 'type' => 'config',
+                        'rootdn' => 'cn=config' };
+    my $frontenddb = { 'type' => 'frontend' };
+    SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
+    my $i = 1;
+    foreach my $database (@{$hash->{'databases'}})
+    {
+        $self->AddDatabase($i, $database, 1);
+    }
+
+    my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+    y2milestone($ldif);
     return 1;
 }
 
@@ -791,12 +846,12 @@ sub Export {
         if ( $schema eq "core" || $schema eq "cosine" || $schema eq "inetorgperson" ||
              $schema eq "nis" )
         {
-            $schemaDef->{'include'} = "/etc/openldap/schema/".$schema.".ldif";
+            $schemaDef->{'includeldif'} = "/etc/openldap/schema/".$schema.".ldif";
         }
         elsif ( $schema eq "dnszone" || $schema eq "ppolicy" || $schema eq "rfc2307bis" ||
                 $schema eq "suse-mailserver" || $schema eq "yast" )
         {
-            $schemaDef->{'include'} = "/etc/openldap/schema/".$schema.".schema";
+            $schemaDef->{'includeschema'} = "/etc/openldap/schema/".$schema.".schema";
         }
         else
         {
@@ -839,11 +894,7 @@ sub Summary {
     # Configuration summary text for autoyast
     my $self = shift;
     my $string;
-    if ( ! keys(%dbDefaults ) )
-    {
-        $string .= _("Not configured yet.");    
-    }
-    else
+    if ( keys(%dbDefaults) && $usingDefaults )
     {
         $string .= '<h2>'._("Startup Configuration").'</h2>'
                 .'<p>'._("Start LDAP Server: ").'<code>'.($dbDefaults{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
@@ -851,6 +902,23 @@ sub Summary {
                 .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
                 .'<p>'._("Database Suffix: ").'<code>'.$dbDefaults{'suffix'}.'</code></p>'
                 .'<p>'._("Administrator DN: ").'<code>'.$dbDefaults{'rootdn'}.'</code></p>';
+    }
+    elsif ( ! $usingDefaults )
+    {
+        my $dbList = $self->ReadDatabaseList();
+        $string .= '<h2>'._("Startup Configuration").'</h2>'
+                .'<p>'._("Start LDAP Server: ").'<code>'.($serviceEnabled?_("Yes"):_("No")).'</code></p>'
+                .'<p>'._("Register at SLP Service: ").'<code>'.($registerSlp?_("Yes"):_("No")).'</code></p>'
+                .'<h2>'._("Create the following databases:").'</h2>';
+        foreach my $db ( @$dbList )
+        {
+            $string .= '<p>'._("Database Suffix: ").'<code>'.$db->{'suffix'}.'</code><br>'
+                ._("Database Type: ").'<code>'.$db->{'type'}.'</code></p>';
+        }
+    }
+    else
+    {
+        $string .= _("Not configured yet.");    
     }
 
     return $string;
@@ -1229,7 +1297,10 @@ BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
 sub ReadFromDefaults
 {
     my $self = shift;
-    
+
+    $self->WriteServiceEnabled( $dbDefaults{'serviceEnabled'} );
+    $self->WriteSLPEnabled( $dbDefaults{'slpRegister'} );
+
     my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
     my $database = { 'type' => 'hdb',
                      'suffix' => $dbDefaults{'suffix'},
@@ -1640,7 +1711,10 @@ sub AddDatabase
         }
     }
     my $rc;
-    $db->{'rootpw'} = $self->HashPassword($db->{'pwenctype'}, $db->{'rootpw_clear'} );
+    if ( ! defined  $db->{'rootpw'} )
+    {
+        $db->{'rootpw'} = $self->HashPassword($db->{'pwenctype'}, $db->{'rootpw_clear'} );
+    }
     if ( $index == 0 )
     {
         # calculate new database index
