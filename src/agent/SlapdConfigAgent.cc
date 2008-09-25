@@ -718,12 +718,7 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
                                     const YCPValue &arg,
                                     const YCPValue &opt)
 {
-    if ( path->length() !=1 )
-    {
-        y2milestone("Unsupported Path: %s", path->toString().c_str() );
-        return YCPNull();
-    } 
-    else if ( path->component_str(0) == "attributeTypes" )
+    if ( path->component_str(0) == "attributeTypes" )
     {
         if ( schema.size() == 0 )
         {
@@ -775,6 +770,30 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
         }
         return resMap;
     }
+    else if ( path->component_str(0) == "ldif" )
+    {
+        std::string name = path->component_str(1);
+        if ( schema.size() == 0 )
+        {
+            schema = olc.getSchemaNames();
+        }
+        OlcSchemaList::const_iterator i;
+        YCPMap resMap;
+        std::string result = "";
+        for (i = schema.begin(); i != schema.end(); i++ )
+        {
+            if ( (*i)->getName() == name )
+            {
+                ostringstream oldifstr;
+                LdifWriter oldif(oldifstr);
+                oldif.writeRecord((*i)->getChangedEntry());
+                result = oldifstr.str();
+                break;
+            }
+        }
+        return YCPString( result.c_str() );
+    }
+    y2milestone("Unsupported Path: %s", path->toString().c_str() );
     return YCPNull();
 }
 

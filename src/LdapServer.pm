@@ -782,7 +782,30 @@ sub Export {
 
     my @schema = ();
     my $schemaList = $self->ReadSchemaList();
-    $hash->{'schema'} = $schemaList;
+
+    foreach my $schema (@$schemaList)
+    {
+        my $schemaDef = {};
+        # Don't include definitions of well know Schema shipping with the
+        # openldap2 RPMs
+        if ( $schema eq "core" || $schema eq "cosine" || $schema eq "inetorgperson" ||
+             $schema eq "nis" )
+        {
+            $schemaDef->{'include'} = "/etc/openldap/schema/".$schema.".ldif";
+        }
+        elsif ( $schema eq "dnszone" || $schema eq "ppolicy" || $schema eq "rfc2307bis" ||
+                $schema eq "suse-mailserver" || $schema eq "yast" )
+        {
+            $schemaDef->{'include'} = "/etc/openldap/schema/".$schema.".schema";
+        }
+        else
+        {
+            $schemaDef->{'name'} = $schema;
+            $schemaDef->{'definition'} = SCR->Read(".ldapserver.schema.ldif.$schema");
+        }
+        push @schema, $schemaDef;
+    }
+    $hash->{'schema'} = \@schema;
     $hash->{'globals'}->{'loglevel'} = $self->ReadLogLevels();
     $hash->{'globals'}->{'allow'} = $self->ReadAllowFeatures();
     $hash->{'globals'}->{'disallow'} = $self->ReadDisallowFeatures();
