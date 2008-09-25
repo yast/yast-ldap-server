@@ -535,6 +535,8 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                             YCPString( (*i)->getStringValue("olcSuffix") ));
                 resMap.add( YCPString("rootdn"), 
                             YCPString( (*i)->getStringValue("olcRootDn") ));
+                resMap.add( YCPString("rootpw"), 
+                            YCPString( (*i)->getStringValue("olcRootPw") ));
                 if ( dbtype == "bdb" || dbtype == "hdb" )
                 {
                     boost::shared_ptr<OlcBdbDatabase> bdb = 
