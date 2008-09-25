@@ -238,6 +238,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     else if ( path->component_str(0) == "initDatabases" )
     {
         YCPList dbList = arg->asList();
+        databases.clear();
         for ( int i = 0; i < dbList->size(); i++ )
         {
             YCPMap dbMap = dbList->value(i)->asMap();
