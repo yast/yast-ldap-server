@@ -1271,6 +1271,7 @@ sub SetInitialDefaults
 {
     my $self = shift;
     my $defaults = shift;
+    $self->WriteServiceEnabled( $defaults->{'serviceEnabled'} );
     $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
     $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
     y2debug("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
@@ -1311,7 +1312,7 @@ sub InitDbDefaults
     $dbDefaults{'idlcache'} = 30000;
     $dbDefaults{'checkpoint'} = [ 1024, 5 ];
     $dbDefaults{'defaultIndex'} = YaST::YCP::Boolean(1);
-    $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(0);
+    $dbDefaults{'serviceEnabled'} = YaST::YCP::Boolean(1);
     $dbDefaults{'slpRegister'} = YaST::YCP::Boolean(0);
     return 1;
 }
