@@ -228,10 +228,9 @@ sub Read {
         {
             # assume a changed config as we don't ship a default for back-config
             $slapdConfChanged = 1;
-            # How do we get the LDAP password?
-            y2milestone("LDAP server is running. How should I connect?");
             SCR->Execute('.ldapserver.init' );
             my $rc = SCR->Read('.ldapserver.databases');
+            $usingDefaults = 0;
         }
         else
         {
@@ -749,6 +748,13 @@ sub Import {
     my $hash = shift;
     y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
+    if ( ! keys( %$hash ) )
+    {
+        $usingDefaults = 1;
+        $overwriteConfig = 0;
+        $self->WriteServiceEnabled( 0 );
+        return 1;
+    }
     $usingDefaults = 0;
     $overwriteConfig = 1;
     $self->WriteServiceEnabled( $hash->{'daemon'}->{'serviceEnabled'} );
@@ -843,6 +849,11 @@ sub Export {
     my $self = shift;
 
     my $hash = {};
+    if ( ! $self->ReadServiceEnabled() )
+    {
+        return $hash;
+    }
+
     $hash->{'daemon'}->{'slp'} = $self->ReadSLPEnabled(); 
     $hash->{'daemon'}->{'serviceEnabled'} = $self->ReadServiceEnabled(); 
 
@@ -924,10 +935,14 @@ sub Summary {
     {
         $string .= '<h2>'._("Startup Configuration").'</h2>'
                 .'<p>'._("Start LDAP Server: ").'<code>'.($dbDefaults{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
-                .'<p>'._("Register at SLP Service: ").'<code>'.($dbDefaults{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>'
-                .'<h2>'._("Create initial Database with the following Parameters").'</h2>'
+                .'<p>'._("Register at SLP Service: ").'<code>'.($dbDefaults{'slpRegister'}->value?_("Yes"):_("No")).'</code></p>';
+
+        if ( $dbDefaults{'serviceEnabled'}->value )
+        {
+            $string .= '<h2>'._("Create initial Database with the following Parameters").'</h2>'
                 .'<p>'._("Database Suffix: ").'<code>'.$dbDefaults{'suffix'}.'</code></p>'
                 .'<p>'._("Administrator DN: ").'<code>'.$dbDefaults{'rootdn'}.'</code></p>';
+        }
     }
     elsif ( ! $usingDefaults )
     {
