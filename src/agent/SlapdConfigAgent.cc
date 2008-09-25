@@ -1247,8 +1247,12 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         {
                             boost::shared_ptr<OlcAccess> acl( new OlcAccess() );
 
+                            YCPMap target;
                             // create the "to dn.<scope>=<dn> ...." part of the ACL
-                            YCPMap target = argList->value(j)->asMap()->value(YCPString("target"))->asMap();
+                            if (! argList->value(j)->asMap()->value(YCPString("target")).isNull() )
+                            {
+                                target = argList->value(j)->asMap()->value(YCPString("target"))->asMap();
+                            }
                             if (target.size() == 0 )
                             {
                                 acl->setFilter("");
