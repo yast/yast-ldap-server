@@ -134,7 +134,7 @@ my $defaultGlobalAcls = [
                 ]
         }
     ];
-my @defaultIndexes = (
+my $defaultIndexes = [
         { "name" => "objectclass",
           "eq" => YaST::YCP::Boolean(1) 
         },
@@ -170,7 +170,7 @@ my @defaultIndexes = (
           "eq" => YaST::YCP::Boolean(1),
           "sub" => YaST::YCP::Boolean(1)
         }
-    );
+    ];
 
 my @schema = ();
 
@@ -375,7 +375,7 @@ sub CreateBaseObjects()
         
         my $ldapERR;
         my $db_auth = $self->ReadAuthInfo( $db );
-        if ( defined  $db_auth ) 
+        if ( keys( %$db_auth ) )
         {
             if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db_auth->{'bind_dn'},
                                               "bind_pw" => $db_auth->{'bind_pw'}}) ) {
@@ -573,7 +573,7 @@ sub Write {
             chomp $tmpfile;
             y2milestone("using tempfile: ".$tmpfile );
             my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-            y2milestone($ldif);
+            y2debug($ldif);
             $rc = SCR->Write('.target.string', $tmpfile, $ldif );
             if ( $rc )
             {
@@ -752,11 +752,16 @@ sub Import {
     $usingDefaults = 0;
     $overwriteConfig = 1;
     $self->WriteServiceEnabled( $hash->{'daemon'}->{'serviceEnabled'} );
-    if ( ! $self->ReadServiceEnabled )
+    if ( ! $self->ReadServiceEnabled() )
     {
         return 1;
     }
     $self->WriteSLPEnabled( $hash->{'daemon'}->{'slp'} );
+
+    foreach my $listner (@{$hash->{'daemon'}->{'listners'} } )
+    {
+        $self->WriteProtocolListenerEnabled($listner, 1);
+    }
 
     SCR->Execute('.ldapserver.initGlobals' );
     if ( defined $hash->{'globals'}->{'loglevel'} )
@@ -796,11 +801,32 @@ sub Import {
                         'rootdn' => 'cn=config' };
     my $frontenddb = { 'type' => 'frontend' };
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
+    SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
     my $i = 1;
+    my $defIdxBak = $defaultIndexes;
+    $defaultIndexes = [];
+    my $defAclBak = $defaultDbAcls;
+    $defaultDbAcls = [];
     foreach my $database (@{$hash->{'databases'}})
     {
         $self->AddDatabase($i, $database, 1);
+        foreach my $idx ( keys %{$database->{'indexes'}} )
+        {
+            my $idxHash = {
+                "name" => $idx,
+                "eq" =>  $database->{'indexes'}->{$idx}->{'eq'} || 0,
+                "sub" =>  $database->{'indexes'}->{$idx}->{'sub'} || 0,
+                "pres" =>  $database->{'indexes'}->{$idx}->{'pres'} || 0,
+            };
+            $self->ChangeDatabaseIndex( $i, $idxHash );
+        }
+        if ( defined $database->{'access'} )
+        {
+            $self->ChangeDatabaseAcl( $i, $database->{'access'} );
+        }
     }
+    $defaultIndexes = $defIdxBak;
+    $defaultDbAcls = $defAclBak;
 
     my $ldif = SCR->Read('.ldapserver.configAsLdif' );
     y2milestone($ldif);
@@ -833,7 +859,7 @@ sub Export {
     {
         push @listeners, "ldaps";
     }
-    $hash->{'daemon'}->{'listeners'} = @listeners;
+    $hash->{'daemon'}->{'listeners'} = \@listeners;
 
     my @schema = ();
     my $schemaList = $self->ReadSchemaList();
@@ -912,8 +938,11 @@ sub Summary {
                 .'<h2>'._("Create the following databases:").'</h2>';
         foreach my $db ( @$dbList )
         {
-            $string .= '<p>'._("Database Suffix: ").'<code>'.$db->{'suffix'}.'</code><br>'
-                ._("Database Type: ").'<code>'.$db->{'type'}.'</code></p>';
+            if ($db->{'type'} ne "frontend" && $db->{'type'} ne "config" )
+            {
+                $string .= '<p>'._("Database Suffix: ").'<code>'.$db->{'suffix'}.'</code><br>'
+                    ._("Database Type: ").'<code>'.$db->{'type'}.'</code></p>';
+            }
         }
     }
     else
@@ -1358,7 +1387,7 @@ sub ReadFromDefaults
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
     if ( $dbDefaults{'defaultIndex'} == 1 )
     {
-        foreach my $idx ( @defaultIndexes )
+        foreach my $idx ( @$defaultIndexes )
         {
             $self->ChangeDatabaseIndex(1, $idx );
         }
@@ -1774,7 +1803,7 @@ sub AddDatabase
         return 0;
     }
     # default indexing
-    foreach my $idx ( @defaultIndexes )
+    foreach my $idx ( @$defaultIndexes )
     {
         $self->ChangeDatabaseIndex($index, $idx );
     }
