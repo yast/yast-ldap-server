@@ -118,7 +118,7 @@ if(func == "MakeProposal") {
                 textdomain "ldap-server";
         }
 
-        proposal = _("LDAP Server Configuration:") + HTML::Newline() +
+        proposal = _("LDAP Server Configuration:") +
                      HTML::List( [ _("Base DN: ") + defaults["suffix"]:"",
                                    _("Root DN: ") + defaults["rootdn"]:"",
                                    _("LDAP Password: ") + rootPWString
