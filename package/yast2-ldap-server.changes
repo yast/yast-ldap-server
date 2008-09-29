@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Mon Sep 29 13:03:41 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.8
+  * revived AutoYaST support (bnc#429528)
+  * Additional fix for installation proposal. Don't propose 
+    configuration if openldap2 is not installed (bnc#426593)
+
+-------------------------------------------------------------------
 Wed Sep 24 12:58:24 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.7
