@@ -2,52 +2,85 @@ default namespace = "http://www.suse.com/1.0/yast2ns"
 namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
 namespace config = "http://www.suse.com/1.0/configns"
 
+#start = element profile { ldap-server }
+#include '/usr/share/YaST2/schema/autoyast/rnc/common.rnc'
 
 ldap-server = element ldap-server {
-    element allowList {
-        LIST,
-        element listentry { text }*
+    element daemon {
+        element listeners {
+            LIST,
+            element listentry { text }+ 
+        }? &
+        element serviceEnabled { BOOLEAN }? &
+        element slp { BOOLEAN }? 
     }? &
-    element commonServerCertificateAvailable { text }? &
-    element configureCommonServerCertificate { text }? &
-    element tlsSettings {
-        element TLSCertificateKeyFile { text }? &
-        element TLSCertificateFile { text }? &
-        element TLSCACertificateFile { text }? &
-        element TLSCACertificatePath { text }?
-    }? &
-    element database {
+    element databases {
         LIST,
         element listentry {
-            element cachesize { text }? &
-            element checkpoint { text }? &
-            element createdatabasedir { text }? &
-            element cryptmethod { text }? &
-            element database { text }? &
-            element directory { text }? &
-            element overlay {
+            element access {
                 LIST,
                 element listentry {
-                    LIST,
-                    element listentry { Anything }*
+                    element access {
+                        LIST,
+                        element listentry {
+                            element level { text } &
+                            element type { text } &
+                            element value { text }? 
+                        }+
+                    }+ &
+                    element target {
+                        element attrs { text }? &
+                        element filter { text }? &
+                        element dn {
+                            element style { text }? &
+                            element value { text }?
+                        }?
+                    }?
                 }*
+            }* &
+            element indexes { Anything }* &
+            element checkpoint {
+                LIST,
+                element listentry { text }+
             }? &
-            element passwd { text }? &
-            element ppolicy_default_changed { text }? &
+            element directory { text }? &
+            element entrycache { text }? &
+            element idlcache { text }? &
             element rootdn { text }? &
-            element suffix { text }?
+            element rootpw { text }? &
+            element suffix { text }? &
+            element type { text }?
         }*
     }? &
-    element loglevel { text }? &
-    element schemaIncludeList {
-        LIST,
-        element listentry { text }*
+    element globals {
+        element allow {
+            LIST,
+            element listentry { text }*
+        }? &
+        element disallow {
+            LIST,
+            element listentry { text }*
+        }? &
+        element loglevel {
+            LIST,
+            element listentry { text }*
+        }? &
+        element tlsconfig {
+            element caCertDir { text }? &
+            element caCertFile { text }? &
+            element certFile { text }? &
+            element certKeyFile { text }? &
+            element crlCheck { text }? &
+            element crlFile { text }? &
+            element verifyClient { text }?
+        }? 
     }? &
-    element serviceEnabled { text }? &
-    element importCertificates {
-        element CACertificatesFile { text }? &
-        element ServerCertificateFile { text }? &
-        element ServerKeyFile { text }?
+    element schema {
+        LIST,
+        element listentry {
+            element includeldif { text }? &
+            element includeschema { text }?
+        }*
     }?
 }
 
