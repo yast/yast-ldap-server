@@ -65,6 +65,7 @@ if(func == "MakeProposal") {
                 LdapServer::WriteServiceEnabled( true );
             }
             defaults = LdapServer::CreateInitialDefaults();
+            defaults["serviceEnabled"] = LdapServer::ReadServiceEnabled();
             defaults["rootpw_clear"] = Users::GetRootPassword();
             LdapServer::SetInitialDefaults(defaults);
         }
