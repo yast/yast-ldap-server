@@ -322,6 +322,7 @@ any TreeDialog()
     //close service dialog
 //    UI::CloseDialog();
     Wizard::CreateTreeDialog();
+    Wizard::SetDesktopIcon("ldap-server");
     //item selected at start
     current_tree_item = "daemon";
 
