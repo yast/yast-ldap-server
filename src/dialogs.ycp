@@ -194,7 +194,7 @@ any EnableServiceDialog()
 {
     map <string, any> defaults = LdapServer::CreateInitialDefaults();
     map<string, any> firewall_settings = $[
-            "services": [ "ldap" , "ldaps" ],
+            "services": [ "service:openldap" ],
             "display_details": true,
          ];
     map<string, any> firewall_widget =
