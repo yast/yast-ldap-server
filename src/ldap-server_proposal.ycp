@@ -59,6 +59,12 @@ if(func == "MakeProposal") {
             {
                 y2milestone ("Openldap2 is not installed. --> service disabled");
                 LdapServer::WriteServiceEnabled (false);
+                // temporarly create the services file for the Firewallsettings
+                if (SCR::Read(.target.size, "/etc/sysconfig/SuSEfirewall2.d/services/openldap") <= 0)
+                {
+                    SCR::Write(.target.string, "/etc/sysconfig/SuSEfirewall2.d/services/openldap",
+                        "TCP=\"ldap ldaps\"\nUDP=\"ldap\"\n" );
+                }
             }
             else
             {
@@ -101,7 +107,7 @@ if(func == "MakeProposal") {
                         y2milestone("Zones used by firewall: %1", used_zones);
 
                         foreach (string zone, used_zones, {
-                            if (SuSEFirewall::IsServiceSupportedInZone ("ldap", zone))
+                            if (SuSEFirewall::IsServiceSupportedInZone ("service:openldap", zone))
                                 is_ldap_enabled = true;
                         });
                 }
@@ -179,6 +185,11 @@ else if(func == "Description") {
 else if(func == "Write") {
     if( LdapServer::Configured() ) return ret;
 
+    if (!Package::Installed ("openldap2"))
+    {
+        //remove temp file
+        SCR::Execute(.target.remove, "/etc/sysconfig/SuSEfirewall2.d/services/openldap");
+    }
     if( LdapServer::ReadServiceEnabled() )
     {
         /* ensure openldap2 package is installed */
