@@ -1,4 +1,16 @@
 -------------------------------------------------------------------
+Wed Oct  1 16:01:24 CEST 2008 - rhafer@suse.de
+
+- Verstion 2.17.9
+  * revived commandline support  (bnc#429486)
+  * additional checks when adding .schema files (bnc#431168)
+  * workaround for Firewall-Widget in installation proposal 
+    (bnc#428364)
+  * fixed regression in initial server configuration (bnc#431250)
+  * use ldap-server icon in all wizards (bnc#431210)
+  * adjust size of Warning Popup (bnc#431228)
+
+-------------------------------------------------------------------
 Mon Sep 29 13:03:41 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.8
