@@ -52,7 +52,7 @@ specifieds a superuser identity for the database, surpassing all ACLs and other
 administrative limit restrictions. Checking <b>Append Base DN</b> appends the 
 <b>Base DN</b> entered above, for example, a base DN of <tt>dc=example,dc=com</tt>
 and Administrator DN of <tt>c=Admin</tt> would combine to an effective Administrator DN
-of <tt>c=Admin,dc=example,dc=com</tt>.<p> ") +
+of <tt>c=Admin,dc=example,dc=com</tt>.</p> ") +
         _("<p>If this wizard was starteg during installation, the 
 <b>LDAP Administrator Password</b> is initially set to the system's root password
 entered earlier in the installation process.</p> ") +
@@ -85,7 +85,7 @@ thumbs).</p>" ),
     "ppolicy_edit" :
         _("<h3>Password Policy Settings</h3>") +
         _("<p>To make use of password policies for this database, enable 
-<b>Enable Password Policies</b>.<p>") +
+<b>Enable Password Policies</b>.</p>") +
         _("<p>Check <b>Hash Clear Text Passwords</b> to specify that the OpenLDAP server
 should encrypt clear text passwords present in add and modify requests before storing them
 in the database. Note that this violates the  X.500/LDAP information model, but may be
