@@ -170,7 +170,11 @@ without installing the required packages."));
         }
         else if ( !serviceEnabled || !serviceRunning )
         {
-            symbol ret = Popup::AnyQuestion3( _("You have an existing configuration but the LDAP Server is not currently running."), _("Do you want to start it now to re-read its configuration data or do you want to create a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+            symbol ret = Popup::AnyQuestion3( _("Existing configuration detected."), 
+                _("You have an existing configuration, but the LDAP server is currently not running.
+Do you want to start the server now and re-read its configuration data or do you 
+want to create a new configuration from scratch?"),
+                _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
             if ( ret == `yes )
             {
                 LdapServer::WriteServiceEnabled( true );
