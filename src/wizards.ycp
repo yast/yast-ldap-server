@@ -44,6 +44,7 @@ any MainSequence() {
         ]
     ];
 
+    Wizard::SetDesktopIcon("ldap-server");
     any ret = Sequencer::Run(aliases, sequence);
     UI::CloseDialog();
     return ret;
@@ -55,6 +56,7 @@ any InstProposalSequence() {
     term contents = `Label(_("Initializing..."));
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
     Wizard::SetContentsButtons(caption, contents, "",
            Label::BackButton(), Label::NextButton());
 
@@ -95,6 +97,7 @@ any ProposalSequence() {
     term contents = `Label(_("Initializing..."));
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
     Wizard::SetContentsButtons(caption, contents, "",
            Label::BackButton(), Label::NextButton());
 
@@ -183,6 +186,7 @@ any MigrateSequence() {
     y2milestone( "--> starting MigrateSequence" );
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
     any ret = Sequencer::Run(aliases, sequence);
 
     y2milestone( "--> MigrateSequence finished " );
@@ -240,6 +244,7 @@ any LdapServerSequence() {
     ];
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
 
     any ret = Sequencer::Run(aliases, sequence);
 
@@ -262,6 +267,7 @@ any LdapServerAutoSequence() {
     y2milestone ( "--> starting LdapServerAutoSequence" );
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
     Wizard::SetContentsButtons(caption, contents, "",
 	    Label::BackButton(), Label::NextButton());
 
