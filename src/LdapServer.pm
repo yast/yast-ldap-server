@@ -656,6 +656,11 @@ sub Write {
             Progress->Finish();
             return 1;
         }
+        if ( ! $wasEnabled && $serviceEnabled )
+        {
+            Service->Enable("ldap");
+            Service->Start("ldap");
+        }
         my $progressItems = [ _("Writing Sysconfig files"),
                               _("Applying changes to Configuration Database"),
                               _("Applying changes to /etc/openldap/ldap.conf"),
@@ -1419,6 +1424,13 @@ sub ReadFromDefaults
     return 1;
 }
 
+##
+ # Read the list of configured Databases.
+ #
+ # @return A list of hashes. Each hash represents a database and has the keys
+ #         'type' (e.g. "hdb" or "bdb"), 'suffix' (the base DN of the database) and
+ #         'index' (the index number used by back-config to order databases correctly)
+ #
 BEGIN { $TYPEINFO {ReadDatabaseList} = ["function", [ "list", [ "map" , "string", "string"] ] ]; }
 sub ReadDatabaseList
 {
