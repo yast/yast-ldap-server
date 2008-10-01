@@ -34,6 +34,7 @@ YaST::YCP::Import ("SCR");
 
 my %error = ( msg => undef, details => undef );
 my $usingDefaults = 1;
+my $readConfig = 0;
 my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
@@ -231,6 +232,7 @@ sub Read {
             SCR->Execute('.ldapserver.init' );
             my $rc = SCR->Read('.ldapserver.databases');
             $usingDefaults = 0;
+            $readConfig = 1;
         }
         else
         {
@@ -936,7 +938,7 @@ sub Summary {
     # Configuration summary text for autoyast
     my $self = shift;
     my $string;
-    if ( keys(%dbDefaults) && $usingDefaults )
+    if ( keys(%dbDefaults) && ! $readConfig )
     {
         $string .= '<h2>'._("Startup Configuration").'</h2>'
                 .'<p>'._("Start LDAP Server: ").'<code>'.($dbDefaults{'serviceEnabled'}->value?_("Yes"):_("No")).'</code></p>'
@@ -1421,6 +1423,7 @@ sub ReadFromDefaults
                         { bind_dn => $dbDefaults{'rootdn'},
                           bind_pw => $dbDefaults{'rootpw_clear'} } );
     $usingDefaults = 0;
+    $readConfig = 1;
     return 1;
 }
 
