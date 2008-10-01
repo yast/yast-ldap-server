@@ -1387,6 +1387,14 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
         std::string filename = arg->asString()->value_cstr();
         y2milestone("adding Ldif File: %s", filename.c_str());
         std::ifstream ldifFile(filename.c_str());
+        if ( ! ldifFile )
+        {
+            lastError->add( YCPString("summary"),
+                    YCPString("Error while opening Schema file") );
+            lastError->add( YCPString("description"),
+                    YCPString("") );
+            return YCPBoolean(false);
+        }
         try {
             LdifReader ldif(ldifFile);
             if ( ldif.readNextRecord() )
@@ -1434,6 +1442,14 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
         y2milestone("RDN will be: %s", dn.c_str());
         
         std::ifstream input(filename.c_str());
+        if ( ! input )
+        {
+            lastError->add( YCPString("summary"),
+                    YCPString("Error while opening Schema file") );
+            lastError->add( YCPString("description"),
+                    YCPString("") );
+            return YCPBoolean(false);
+        }
         std::string schemaLine;
         LDAPEntry entry(dn), oldEntry;
         entry.addAttribute( LDAPAttribute( "objectClass", "olcSchemaConfig" ) ); 
