@@ -111,6 +111,7 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
             return ConfigToLdif();
         }
     } catch ( std::runtime_error e ) {
+        y2error("Error during Read: %s", e.what() );
         lastError->add(YCPString("summary"), YCPString(std::string( e.what() ) ) );
         lastError->add(YCPString("description"), YCPString("") );
         return YCPBoolean(false);
