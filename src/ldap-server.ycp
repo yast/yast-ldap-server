@@ -34,22 +34,23 @@ define boolean serviceHandler (map<string, string> options ) {
         ["enable", "disable" ] );
     if( command == nil ) return false;
 
-//    LdapServer::WriteServiceEnabled( command == "enable" );
+    LdapServer::WriteServiceEnabled( command == "enable" );
 
     return true;
 }
 
 define boolean getDatabaseListHandler (map options) {
 
-//    map<string, any> edb = LdapServer::ReadDatabase();
-//
-//    string s = "";
-//    foreach( string suffix, any value, edb,
-//    {
-//        s = s + suffix + "<br>";
-//    });
-//
-//    CommandLine::Print (RichText::Rich2Plain("<br>"+s));
+    list<map<string, string> > dbList = LdapServer::ReadDatabaseList();
+
+    string s = "";
+    foreach( map<string,string> db, dbList,
+        {
+            s = s + db["suffix"]:"" + " (" + db["type"]:"" + ") "  + "<br>";
+        }
+    );
+
+    CommandLine::Print (RichText::Rich2Plain("<br>"+s));
 
     return false;
 }
@@ -63,48 +64,47 @@ define boolean addDatabaseHandler (map options ) {
 //    y2milestone("DBs: %1", edb);
 //
 //
-//    if (options["basedn"]:nil != nil &&
-//        edb[options["basedn"]:""]:nil == nil)
-//    {
-//        db["suffix"] = options["basedn"]:"";
-//    }
-//    else
-//    {
-//        CommandLine::Print (_("No basedn provided or a database with the provided basedn does already \nexist"));
-//        return false;
-//    }
-//    if (options["rootdn"]:nil != nil)
-//    {
-//        db["rootdn"] = options["rootdn"]:"";
-//    }
-//    if (options["password"]:nil != nil)
-//    {
-//        db["passwd"] = options["password"]:"";
-//    }
-//    if (options["enctype"]:nil != nil)
-//    {
-//        db["cryptmethod"] = options["enctype"]:"";
-//    }
-//    if (options["dbdir"]:nil != nil)
-//    {
-//        db["directory"] = options["dbdir"]:"";
-//    }
-//
-//    if(LdapServer::ReadServiceEnabled() == false)
-//    {
-//        // Database cannot be written when the service is not enabled
-//        LdapServer::WriteServiceEnabled(true);
-//    }
-//
+    if (options["basedn"]:nil != nil )
+    {
+        db["suffix"] = options["basedn"]:"";
+    }
+    else
+    {
+        CommandLine::Print (_("No basedn provided\n"));
+        return false;
+    }
+    db["type"] = options["type"]:"hdb";
+    if (options["rootdn"]:nil != nil)
+    {
+        db["rootdn"] = options["rootdn"]:"";
+    }
+    if (options["password"]:nil != nil)
+    {
+        db["rootpw_clear"] = options["password"]:"";
+    }
+    db["pwenctype"] = options["enctype"]:"SSHA";
+    if (options["dbdir"]:nil != nil)
+    {
+        db["directory"] = options["dbdir"]:"";
+    }
+
+    if(LdapServer::ReadServiceEnabled() == false)
+    {
+        Report::Error(_("Database cannot be created when the service is not enabled"));
+        return false;
+    }
+
 //    y2milestone("db-options : %1", db);
 //
-//    ret = LdapServer::AddDatabase(db);
-//
-//    if(!ret)
-//    {
-//        CommandLine::Print (_("Error while adding the database"));
-//        return false;
-//    }
+    ret = LdapServer::AddDatabase(0,db, true);
+
+    if(!ret)
+    {
+        CommandLine::Print (_("Error while adding the database"));
+        map<string, string> err = LdapServer::ReadError();
+        Report::Error(err["msg"]:"" + "<br>" + err["details"]:"");
+        return false;
+    }
     return true;
 }
 
@@ -112,87 +112,38 @@ define boolean getSchemaListHandler (map options ) {
 
     string s = "";
     integer i = 0;
-//    foreach(string v, LdapServer::ReadSchemaIncludeList (),
-//    {
-//        i = i + 1;
-//        s = s + tostring(i) + " "+ v +"<br>"; 
-//    });
-//
-//    CommandLine::Print (RichText::Rich2Plain("<br>"+s));
+    foreach(string v, LdapServer::ReadSchemaList (),
+    {
+        if ( v != "schema" ) // skip the baseentry (hardcoded schema)
+            s = s + " "+ v +"<br>";
+    });
+
+    CommandLine::Print (RichText::Rich2Plain("<br>"+s));
     return false; // do not call Write...
 }
 
 define boolean addSchemaHandler (map options ) {
 
-    boolean ret = false;
-//    if (options["file"]:"" != "")
-//    {
-//        string file = options["file"]:"";
-//        if(options["pos"]:"" != "")
-//        {
-//            integer pos = tointeger (options["pos"]:"");
-//            if (pos == nil || pos < 0)
-//            {
-//                // error: wrong input (probably string or negative integer)
-//                Report::Error (_("The value for pos must be a positive integer."));
-//                return false;
-//            }
-//
-//            list<string> l =  LdapServer::ReadSchemaIncludeList ();
-//            list<string> rl = [];
-//            boolean added = false;
-//            integer i = 0;
-//            foreach(string s, l,
-//            {
-//                i = i + 1;
-//                if(i == pos)
-//                {
-//                    rl = add(rl, file);
-//                    added = true;
-//                }
-//                rl = add(rl, s);
-//            });
-//        if(!added)
-//        {
-//           rl = add(rl, file);
-//        } 
-//        LdapServer::WriteSchemaIncludeList (rl);
-//        ret = true;
-//        }
-//    }
-
-    return ret;
-}
-
-define boolean delSchemaHandler (map options ) {
-
-    boolean ret = false;
-//    if(options["pos"]:"" != "")
-//    {
-//        integer pos = tointeger (options["pos"]:"");
-//        if (pos == nil || pos < 0)
-//        {
-//            // error: wrong input (probably string or negative integer)
-//            Report::Error (_("The value for pos must be a positive integer."));
-//            return false;
-//        }
-//
-//        list<string> l =  LdapServer::ReadSchemaIncludeList ();
-//        list<string> rl = [];
-//        integer i = 0;
-//        foreach(string s, l,
-//        {
-//            i = i + 1;
-//            if(i != pos)
-//            {
-//                rl = add(rl, s);
-//            }
-//        });
-//        LdapServer::WriteSchemaIncludeList (rl);
-//        ret = true;
-//    }
-
-    return ret;
+    if (options["file"]:"" != "")
+    {
+        string file = options["file"]:"";
+        if ( regexpmatch( file, ".*\.schema$" ) )
+        {
+            if (! LdapServer::AddSchemaToSchemaList(file) ) {
+                map<string, string> err = LdapServer::ReadError();
+                Report::Error(err["msg"]:"" + "<br>" + err["details"]:"");
+                return false;
+            }
+        }
+        else if (! LdapServer::AddLdifToSchemaList(file) )
+        {
+            map<string, string> err = LdapServer::ReadError();
+            Report::Error(err["msg"]:"" + "<br>" + err["details"]:"");
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 
@@ -225,14 +176,14 @@ map cmdline_description = $[
                         "handler"   : addSchemaHandler,
                         "help"      : _("Add a schema to the list"),
                         ],
-        "delSchema":    $[
-                        "handler"   : delSchemaHandler,
-                        "help"      : _("Delete a schema from the list"),
-                        ],
     ],
     "options"		: $[
         "enable" : $[ "help"      : _("Enable the service") ],
         "disable" : $[ "help"      : _("Disable the service") ],
+        "type" : $[
+                    "help" : _("Database type (\"hdb\" or \"bdb\")"),
+                    "type" : "string"
+        ],
         "basedn" : $[
                     "help" : _("Base DN for the database"),
                     "type" : "string"
@@ -264,11 +215,10 @@ map cmdline_description = $[
     ],
     "mappings"		: $[
         "service" :[ "enable", "disable" ],
-        "addDatabase" : [ "basedn", "rootdn", "password", "enctype", "dbdir" ],
+        "addDatabase" : [ "basedn", "rootdn", "password", "enctype", "dbdir", "type" ],
         "getDatabaseList" : [],
         "getSchemaList" : [],
-        "addSchema": [ "file", "pos" ],
-        "delSchema": [ "pos" ]
+        "addSchema": [ "file" ]
     ]
 ];
 
