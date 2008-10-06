@@ -547,7 +547,7 @@ sub Write {
         if ( ! $rc )
         {
             y2error("Error while enabling LDAPI listener");
-            $self->SetError( _("Enabling thi LDAPI Protocol listener failed.") );
+            $self->SetError( _("Enabling the LDAPI Protocol listener failed.") );
             Progress->Finish();
             return 0;
         }
