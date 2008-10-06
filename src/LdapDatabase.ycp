@@ -101,7 +101,7 @@
                         `Left(
                             `VSquash(
                                 `HBox(
-                                    `InputField( `id( `te_rootdn ),  _("&Administrator DN"),"cn=Administrator" ),
+                                    `InputField( `id( `te_rootdn ), `opt(`hstretch) ,  _("&Administrator DN"),"cn=Administrator" ),
                                     `HSpacing(),
                                     `VBox(
                                         `Bottom(
@@ -302,7 +302,7 @@
                     continue;
                 }
                 if ( db["directory"]:"" != "/var/lib/ldap" && SCR::Read(.target.dir, db["directory"]:"" ) == nil ) {
-                    boolean res = Popup::AnyQuestion(Label::ErrorMsg(),
+                    boolean res = Popup::AnyQuestion(Label::WarningMsg(),
                                         _("The directory does not exist. Create it?"),
                                         Label::YesButton(), Label::NoButton(), `focus);
                     if ( res == false ) {
