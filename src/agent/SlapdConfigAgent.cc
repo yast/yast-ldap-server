@@ -1505,7 +1505,12 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
             }
         }
         boost::shared_ptr<OlcSchemaConfig> schemaCfg(new OlcSchemaConfig(oldEntry, entry));
-        schemaCfg->setIndex( schema.size()-1, true );
+        int index = schema.size();
+        if ( ! schema.empty() && (*schema.begin())->getName() == "schema" )
+        {
+            index--;
+        }
+        schemaCfg->setIndex( index , true );
         schema.push_back( schemaCfg );
 
         //lastError->add( YCPString("summary"),
