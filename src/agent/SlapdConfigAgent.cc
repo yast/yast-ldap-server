@@ -195,6 +195,10 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             }
             olc = OlcConfig(lc);
         }
+        databases.clear();
+        schema.clear();
+        deleteableSchema.clear();
+        globals.reset((OlcGlobalConfig*) 0 );
     }
     else if ( path->component_str(0) == "initFromLdif" )
     {
@@ -314,7 +318,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             {
                 olc.updateEntry(**j);
             }
-            deleteAbleSchema.clear();
+            deleteableSchema.clear();
             OlcDatabaseList::iterator i;
             for ( i = databases.begin(); i != databases.end() ; i++ )
             {
@@ -802,7 +806,7 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
     {
         YCPList result;
         std::list<std::string>::const_iterator i;
-        for (i = deleteAbleSchema.begin() ; i != deleteAbleSchema.end(); i++ )
+        for (i = deleteableSchema.begin() ; i != deleteableSchema.end(); i++ )
         {
             result.add( YCPString(*i) );
         }
@@ -1421,7 +1425,7 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                     index--;
                 }
                 std::string cn = *entry.getAttributeByName("cn")->getValues().begin();
-                deleteAbleSchema.push_back(cn);
+                deleteableSchema.push_back(cn);
                 schemaCfg->setIndex( index , true );
                 schema.push_back( schemaCfg );
             }
@@ -1524,13 +1528,10 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
             index--;
         }
         std::string cn = *entry.getAttributeByName("cn")->getValues().begin();
-        deleteAbleSchema.push_back(cn);
+        deleteableSchema.push_back(cn);
         schemaCfg->setIndex( index , true );
         schema.push_back( schemaCfg );
 
-        //lastError->add( YCPString("summary"),
-        //        YCPString("Error while parsing Schema file") );
-        //lastError->add( YCPString("description"), YCPString("") );
         return YCPBoolean(true);
     }
     else if ( subpath == "remove" )
@@ -1538,15 +1539,15 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
         std::string name = arg->asString()->value_cstr();
         y2milestone("remove Schema Entry: %s", name.c_str());
         std::list<std::string>::iterator j;
-        for ( j = deleteAbleSchema.begin(); j != deleteAbleSchema.end(); j++ )
+        for ( j = deleteableSchema.begin(); j != deleteableSchema.end(); j++ )
         {
             if ( name == *j )
             {
-                deleteAbleSchema.erase(j);
+                deleteableSchema.erase(j);
                 break;
             }
         }
-        if ( j == deleteAbleSchema.end() )
+        if ( j == deleteableSchema.end() )
         {
             y2milestone( "Schema %s is not deleteable", name.c_str() );
             return YCPBoolean(false);

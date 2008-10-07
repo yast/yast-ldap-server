@@ -74,7 +74,7 @@ class SlapdConfigAgent : public SCRAgent {
         OlcConfig olc;
         OlcDatabaseList databases;
         OlcSchemaList schema;
-        std::list<std::string> deleteAbleSchema; 
+        std::list<std::string> deleteableSchema; 
         boost::shared_ptr<OlcGlobalConfig> globals;
         boost::shared_ptr<OlcSchemaConfig> schemaBase;
 };
