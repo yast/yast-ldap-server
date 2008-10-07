@@ -314,6 +314,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             {
                 olc.updateEntry(**j);
             }
+            deleteAbleSchema.clear();
             OlcDatabaseList::iterator i;
             for ( i = databases.begin(); i != databases.end() ; i++ )
             {
@@ -796,6 +797,16 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
             }
         }
         return YCPString( result.c_str() );
+    }
+    else if ( path->component_str(0) == "deletable" )
+    {
+        YCPList result;
+        std::list<std::string>::const_iterator i;
+        for (i = deleteAbleSchema.begin() ; i != deleteAbleSchema.end(); i++ )
+        {
+            result.add( YCPString(*i) );
+        }
+        return result;
     }
     y2milestone("Unsupported Path: %s", path->toString().c_str() );
     return YCPNull();
@@ -1409,6 +1420,8 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
                 {
                     index--;
                 }
+                std::string cn = *entry.getAttributeByName("cn")->getValues().begin();
+                deleteAbleSchema.push_back(cn);
                 schemaCfg->setIndex( index , true );
                 schema.push_back( schemaCfg );
             }
@@ -1510,6 +1523,8 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
         {
             index--;
         }
+        std::string cn = *entry.getAttributeByName("cn")->getValues().begin();
+        deleteAbleSchema.push_back(cn);
         schemaCfg->setIndex( index , true );
         schema.push_back( schemaCfg );
 
@@ -1522,12 +1537,32 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
     {
         std::string name = arg->asString()->value_cstr();
         y2milestone("remove Schema Entry: %s", name.c_str());
-        OlcSchemaList::const_iterator i;
+        std::list<std::string>::iterator j;
+        for ( j = deleteAbleSchema.begin(); j != deleteAbleSchema.end(); j++ )
+        {
+            if ( name == *j )
+            {
+                deleteAbleSchema.erase(j);
+                break;
+            }
+        }
+        if ( j == deleteAbleSchema.end() )
+        {
+            y2milestone( "Schema %s is not deleteable", name.c_str() );
+            return YCPBoolean(false);
+        }
+        OlcSchemaList::iterator i;
         for (i = schema.begin(); i != schema.end(); i++ )
         {
             if ( (*i)->getName() == name )
             {
-                (*i)->clearChangedEntry();
+                OlcSchemaList::iterator k;
+                for ( k = i; k != schema.end(); k++ )
+                {
+                    (*k)->setIndex( (*k)->getEntryIndex() - 1, true );
+                }
+                schema.erase(i);
+                break;
             }
         }
         return YCPBoolean(true);

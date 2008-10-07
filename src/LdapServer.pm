@@ -1649,6 +1649,19 @@ sub AddLdifToSchemaList
     return $rc;
 }
 
+BEGIN { $TYPEINFO {IsSchemaDeletable} = ["function", "boolean", "string" ]; }
+sub IsSchemaDeletable
+{
+    my ($self, $name) = @_;
+    my $deletableSchema = SCR->Read(".ldapserver.schema.deletable" );
+
+    if ( grep( /^$name$/, @{$deletableSchema} ) )
+    {
+        return YaST::YCP::Boolean(1);
+    }
+    return YaST::YCP::Boolean(0);
+}
+
 BEGIN { $TYPEINFO {RemoveFromSchemaList} = ["function", "boolean", "string" ]; }
 sub RemoveFromSchemaList
 {
