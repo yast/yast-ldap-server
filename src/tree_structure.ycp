@@ -78,7 +78,7 @@ void update_schemalist( list<string> l )
     if( l == nil ) l = [];
     //widget_map["g_schema","inclist"] = l;
     UI::ChangeWidget( `sb_schemalist, `Items, l );
-    UI::ChangeWidget( `pb_delete, `Enabled, false );
+    UI::ChangeWidget( `pb_del, `Enabled, false );
 }
 
 define boolean cb_read_daemon()
@@ -239,13 +239,26 @@ define boolean cb_input_schema()
             update_schemalist( inclist );
         }
     // Deleteing Schema ist not supported on the server side yet
-    } else if( handler_cmd == `pb_delete )
+    }
+    else if( handler_cmd == `pb_del )
     {
         if( current_item == nil ) return true;
         LdapServer::RemoveFromSchemaList(current_item);
         list<string> inclist = LdapServer::ReadSchemaList();
         update_schemalist( inclist );
     }
+    else if ( handler_cmd == `sb_schemalist )
+    {
+        if ( LdapServer::IsSchemaDeletable( current_item ) )
+        {
+            UI::ChangeWidget( `pb_del, `Enabled, true );
+        }
+        else
+        {
+            UI::ChangeWidget( `pb_del, `Enabled, false );
+        }
+    }
+
     return true;
 }
 
