@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Tue Oct  7 17:49:23 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.10
+  * fixed typo and HTML on online help (bnc#430521,bnc#432416)
+  * adjusted size of Admin-DN input field (bnc#432503)
+  * Fix calculation of next schema index when adding .schema files
+    (bnc#432733)
+  * Allow uncommitted schema changes to be deleted (bnc#431264)
+  * Fixed cleanup procedures in SCR-agent (bnc#433089)
+
+-------------------------------------------------------------------
 Wed Oct  1 16:01:24 CEST 2008 - rhafer@suse.de
 
 - Verstion 2.17.9
