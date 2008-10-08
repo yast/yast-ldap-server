@@ -29,12 +29,12 @@ configuration.</p>") +
 is possible with the StartTLS operation when you have a server certifcate configured.</p>") +
             _("<p><b>LDAPS</b> enables the \"LDAP over SSL (ldaps)\" interface for SSL protected
 connections on port 636. You need to have a Server Certificate configured to make this working
-correctly. (See \"Global Setting\"/\"TLS Settings\" for that)") +
+correctly. (See \"Global Settings\"/\"TLS Settings\" for that)") +
             _("<p><b>LDAPI</b> enables the \"LDAP over IPC\" interface. By this you can access the
 LDAP Server through a Unix Domain Socket. You should not disable the LDAPI interface as this YaST
 Module uses it to communicate with the server.</p>") +
         _("<h4>Firewall Settings</h4>") +
-            _("<p>Here you can selecte whether SuSEFirewall should allow access on the LDAP related
+            _("<p>Here you can select whether SuSEFirewall should allow access on the LDAP related
 network ports or not.</p>"),
 
     /* First part of the Add Database Widget */
@@ -53,7 +53,7 @@ administrative limit restrictions. Checking <b>Append Base DN</b> appends the
 <b>Base DN</b> entered above, for example, a base DN of <tt>dc=example,dc=com</tt>
 and Administrator DN of <tt>c=Admin</tt> would combine to an effective Administrator DN
 of <tt>c=Admin,dc=example,dc=com</tt>.</p> ") +
-        _("<p>If this wizard was starteg during installation, the 
+        _("<p>If this wizard was started during installation, the 
 <b>LDAP Administrator Password</b> is initially set to the system's root password
 entered earlier in the installation process.</p> ") +
         _("<p>To use this database as the default database for the OpenLDAP client tools
