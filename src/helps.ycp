@@ -26,7 +26,7 @@ configuration.</p>") +
         _("<h4>Protocol Listeners</h4>") +
             _("<p>Here you can enable and disable the various protocol listeneres of OpenLDAP</p>") +
             _("<p><b>LDAP</b> is the standard LDAP interface on Port 389. TLS/SSL secured communication
-is possible with the StartTLS operation when you have a server certifcate configured.</p>") +
+is possible with the StartTLS operation when you have a server certificate configured.</p>") +
             _("<p><b>LDAPS</b> enables the \"LDAP over SSL (ldaps)\" interface for SSL protected
 connections on port 636. You need to have a Server Certificate configured to make this working
 correctly. (See \"Global Settings\"/\"TLS Settings\" for that)") +
@@ -169,7 +169,7 @@ for OpenLDAP by checking the corresponding Checkbox."),
 
         _("<h4>Basic Settings</h4>") +
         _("<p>To enable encryption via TLS/SSL check the <b>Enabled TLS</b> checkbox. Additionally you 
-need to configure which Certificates the the Server should use.</p>") +
+need to configure a Certificate the Server should use.</p>") +
         _("<p>By checking <b>Enabled LDAP over SSL (ldaps) interface</b> you enable the server to
 accept LDAPS connections on port 636. If not checked OpenLDAP will only support TLS encrypted connections
 through the StartTLS extended operation</p>") +
@@ -177,9 +177,9 @@ through the StartTLS extended operation</p>") +
 you can check <b>Use common Server Certificate</b> to have the OpenLDAP server use that certificate</p>") +
 
         _("<h4>Import Certificate</h4>") +
-        _("<p>If you have no Common Server Certificate or you want OpenLDAP to use a different certifcate
-you can enter the file names of teh <b>CA Certifiate File</b>, <b>Certificate File</b> and 
-<b>Certifcate Key File</b> into the corresponding textfields</p>") +
+        _("<p>If you have no Common Server Certificate or you want OpenLDAP to use a different certificate
+you can enter the file names of the <b>CA Certifciate File</b>, <b>Certificate File</b> and 
+<b>Certificate Key File</b> into the corresponding textfields</p>") +
         _("<p>To create a new CA or certificate you can launch the CA-Management Module by clicking
 <b>Launch CA Management Module</b></p>"),
 
@@ -200,18 +200,18 @@ Schema Data</p>"),
     "g_allow" :
         _("<p>Select which special features the OpenLDAP Server should allow or disallow:</p>") +
         _("<h3>Select Allow Flags</h3>") +
-            _("<p><b>LDAPv2 Bind Request</b>: To let the server accept LDAPv2 bind requests.  Note
+            _("<p><b>LDAPv2 Bind Requests</b>: To let the server accept LDAPv2 bind requests.  Note
 that OpenLDAP does not truly implement LDAPv2</p>") +
             _("<p><b>Anonymous Bind when credentials not empty</b>: To allow anonymous bind when 
 credentials are not empty (i.e. password is present but bind DN is not present) </p>") +
             _("<p><b>Unauthenticated Bind when DN not empty</b>: To allow unauthenticated 
 (anonymous) binds when DN is not empty</p>") +
-            _("<p><b>Unauthenticated Update Options to process</b>: To allow unauthenticated
+            _("<p><b>Unauthenticated Update Operations to process</b>: To allow unauthenticated
 (anonymous) update operations to be processed (they are still subject to access controls and
 other administrative limits)</p>") +
 
         _("<h3>Select Disallow Flags</h3>") +
-            _("<p><b>Disable acceptance of anonymous Bind Requests</b>: By selected this the Server will
+            _("<p><b>Disable acceptance of anonymous Bind Requests</b>: By selecting this the Server will
 no longer accept anonymous bind request. Note, that this does not generally prohibit anonymous 
 directory access</p>") +
             _("<p><b>Disable Simple Bind authentication</b>: Complete disable Simple Bind
