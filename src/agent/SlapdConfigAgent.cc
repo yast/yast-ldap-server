@@ -190,6 +190,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 lastError->add(YCPString("summary"),
                         YCPString(errstring) );
                 lastError->add(YCPString("description"), YCPString( details ) );
+                y2milestone("Error connection to the LDAP Server: %s", details.c_str());
                 delete(lc);
                 return YCPBoolean(false);
             }

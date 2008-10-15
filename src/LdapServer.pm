@@ -192,7 +192,7 @@ my $ppolicy_objects = {};
  #
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read {
-    y2milestone("");
+    my $self = shift;
     SuSEFirewall->Read();
 
     my $progressItems = [ "Reading Startup Configuration", 
@@ -230,7 +230,12 @@ sub Read {
         {
             # assume a changed config as we don't ship a default for back-config
             $slapdConfChanged = 1;
-            SCR->Execute('.ldapserver.init' );
+            if ( ! SCR->Execute('.ldapserver.init' ) )
+            {
+                my $err = SCR->Error(".ldapserver");
+                $self->SetError( _("Error while initializing the configuration.\nIs the LDAPI listener enabled?"), $err->{'description'} );
+                return 0;
+            }
             my $rc = SCR->Read('.ldapserver.databases');
             $usingDefaults = 0;
             $readConfig = 1;

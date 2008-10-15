@@ -64,6 +64,7 @@ without installing the required packages."));
     boolean ret = LdapServer::Read();
     if ( ! ret )
     {
+        DisplayError( LdapServer::ReadError() );
         return `abort;
     }
     boolean hasBackconfig = LdapServer::IsUsingBackconfig();
