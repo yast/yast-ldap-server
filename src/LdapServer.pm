@@ -623,14 +623,7 @@ sub Write {
             return 0;
         }
         Progress->NextStage();
-        $rc = $self->CreateBaseObjects();
-        if (! $rc )
-        {
-            y2error("Error while creating base objects");
-            $self->SetError( _("Creating base objects failed.") );
-            Progress->Finish();
-            return 0;
-        }
+        $self->CreateBaseObjects();
         if ( $write_ldapconf )
         {
             y2milestone("Updating /etc/openldap/ldap.conf");
@@ -638,6 +631,26 @@ sub Write {
 		["localhost"]);
 	    SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base",
 		[$ldapconf_base]);
+        }
+        if (! $usesBackConfig )
+        {
+            SCR->Execute('.target.bash', 'cp -f /etc/openldap/slapd.conf /etc/openldap/slapd.conf.YaSTsave' );
+            SCR->Write(".target.string",
+                       "/etc/openldap/slapd.conf",
+                    "#\n".
+                    "# Note: The OpenLDAP configuration has been created by YaST. YaST does not\n".
+                    "#       use /etc/openldap/slapd.conf to store the OpenLDAP configuration anymore.\n".
+                    "#       YaST uses OpenLDAP\'s dynamic configuration database (back-config) to\n".
+                    "#       store the LDAP server\'s configuration.\n".
+                    "#       For details about the dynamic configuration backend please see the\n".
+                    "#       slapd-config(5) manpage or the OpenLDAP Software 2.4 Administrator's Guide\n".
+                    "#       located at /usr/share/doc/packages/openldap2/guide/admin/guide.html\n".
+                    "#       on this system.\n".
+                    "#\n".
+                    "#       A copy of the original /etc/openldap/slapd.conf file has been created as:\n".
+                    "#           /etc/openldap/slapd.conf.YaSTsave\n".
+                    "#\n"
+                );
         }
         Progress->Finish();
         SuSEFirewall->Write();
@@ -1476,7 +1489,7 @@ BEGIN { $TYPEINFO {ChangeDatabaseIndex} = ["function", "boolean" , "integer", ["
 sub ChangeDatabaseIndex
 {
     my ($self, $dbIndex, $newIdx ) = @_;
-    y2milestone("ChangeDatabaseIndex: ".Data::Dumper->Dump([$newIdx]) );
+    y2debug("ChangeDatabaseIndex: ".Data::Dumper->Dump([$newIdx]) );
     if( defined $newIdx->{'pres'} )
     {
         $newIdx->{'pres'} = YaST::YCP::Boolean($newIdx->{'pres'});
@@ -1527,7 +1540,7 @@ BEGIN { $TYPEINFO {ChangeDatabaseAcl} = ["function", "boolean" , "integer", ["li
 sub ChangeDatabaseAcl
 {
     my ($self, $dbIndex, $acllist ) = @_;
-    y2milestone("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
+    y2debug("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
     my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
     if ( ! $rc )
     {
@@ -1549,7 +1562,7 @@ sub ReadDatabaseAcl
     my ($self, $index) = @_;
     y2milestone("ReadDatabaseAcl ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}.acl" );
-    y2milestone( "ACL: ".Data::Dumper->Dump([$rc]) );
+    y2debug( "ACL: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
 
