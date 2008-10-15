@@ -262,7 +262,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             YCPMapIterator j = dbMap.begin();
             for ( ; j != dbMap.end(); j++ )
             {
-                y2milestone("Key: %s, Valuetype: %s",
+                y2debug("Key: %s, Valuetype: %s",
                     j.key()->asString()->value_cstr(),
                     j.value()->valuetype_str() );
                 if ( std::string("suffix") == j.key()->asString()->value_cstr() )
@@ -580,7 +580,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         for ( ; j != idx.end(); j++ )
                         {
                             YCPMap ycpIdx;
-                            y2milestone("indexed Attribute: \"%s\"", j->first.c_str() );
+                            y2debug("indexed Attribute: \"%s\"", j->first.c_str() );
                             std::vector<IndexType>::const_iterator k = j->second.begin();
                             for ( ; k != j->second.end(); k++ )
                             {
@@ -748,7 +748,7 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
                 // Attention! This code assumes that supertypes have been 
                 // read prior to their subtypes
                 if ( j->getSuperiorOid() != "" ){
-                    y2milestone("'%s' is a subtype of '%s'",j->getName().c_str(), j->getSuperiorOid().c_str() );
+                    y2debug("'%s' is a subtype of '%s'",j->getName().c_str(), j->getSuperiorOid().c_str() );
                     // locate Supertype
 
                     YCPMap supMap = resMap->value(YCPString(j->getSuperiorOid()))->asMap();
@@ -893,7 +893,7 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             for ( ; i != tlsMap.end(); i++ )
             {
                 std::string key(i.key()->asString()->value_cstr() );
-                y2milestone("tlsMap Key: %s", key.c_str() );
+                y2debug("tlsMap Key: %s", key.c_str() );
                 if ( key == "caCertDir" )
                 {
                     if ( ! i.value().isNull() )
@@ -1022,7 +1022,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
         YCPMapIterator j = dbMap.begin();
         for ( ; j != dbMap.end(); j++ )
         {
-            y2milestone("Key: %s, Valuetype: %s",
+            y2debug("Key: %s, Valuetype: %s",
                 j.key()->asString()->value_cstr(),
                 j.value()->valuetype_str() );
             if ( std::string("suffix") == j.key()->asString()->value_cstr() )
@@ -1309,7 +1309,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                     value = accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr();
                                 }
                                 std::string level( accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr() );
-                                y2milestone("level %s, type %s, value %s", level.c_str(), type.c_str(), value.c_str() );
+                                y2debug("level %s, type %s, value %s", level.c_str(), type.c_str(), value.c_str() );
                                 boost::shared_ptr<OlcAclBy> by( new OlcAclBy( level, type, value ) );
                                 byList.push_back( by );
                             }
