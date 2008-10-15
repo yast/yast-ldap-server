@@ -741,6 +741,9 @@ sub Write {
                 $restartRequired = 1;
             }
         }
+        # FIXME:
+        # Explicit cache flush, see bnc#350581 for details
+        SCR->Write(".sysconfig.openldap", undef);
         my $progress_orig = Progress->set(0);
         SuSEFirewall->Write();
         Progress->set($progress_orig);
