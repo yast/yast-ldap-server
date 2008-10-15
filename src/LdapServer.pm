@@ -35,6 +35,7 @@ YaST::YCP::Import ("SCR");
 my %error = ( msg => undef, details => undef );
 my $usingDefaults = 1;
 my $readConfig = 0;
+my $restartRequired = 0;
 my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
@@ -686,30 +687,54 @@ sub Write {
         Progress->New("Writing OpenLDAP Configuration", "", 5, $progressItems, $progressItems, "");
         Progress->NextStage();
 
-        # these changes might require a restart of slapd
+        # these changes require a restart of slapd
         if ( $use_ldap_listener )
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'yes');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAP') eq "no" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'yes');
+                $restartRequired = 1;
+            }
         } 
         else
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'no');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAP') eq "yes" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAP', 'no');
+                $restartRequired = 1;
+            }
         }
         if ( $use_ldapi_listener )
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI') eq "no" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'yes');
+                $restartRequired = 1;
+            }
         } 
         else
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'no');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPI') eq "yes" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPI', 'no');
+                $restartRequired = 1;
+            }
         }
         if ( $use_ldaps_listener )
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'yes');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPS') eq "no" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'yes');
+                $restartRequired = 1;
+            }
         } 
         else
         {
-            SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPS') eq "yes" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+                $restartRequired = 1;
+            }
         }
         my $progress_orig = Progress->set(0);
         SuSEFirewall->Write();
@@ -750,6 +775,10 @@ sub Write {
         }
 
         Progress->Finish();
+        if ( $restartRequired )
+        {
+            Service->Restart("ldap");
+        }
     }
     sleep(1);
     $configured = $ret;
@@ -1176,6 +1205,14 @@ sub WriteTlsConfig
             return 0;
         }
     }
+    my $oldtls = $self->ReadTlsConfig();
+    if ( $oldtls->{'certKeyFile'} ne $tls->{'certKeyFile'} ||
+         $oldtls->{'certFile'} ne $tls->{'certFile'} ||
+         $oldtls->{'caCertFile'} ne $tls->{'caCertFile'})
+    {
+        $restartRequired = 1;
+    }
+
     my $rc = SCR->Write('.ldapserver.global.tlsSettings', $tls );
     return 1;
 }
