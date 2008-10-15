@@ -70,7 +70,7 @@ define boolean addDatabaseHandler (map options ) {
     }
     else
     {
-        CommandLine::Print (_("No basedn provided\n"));
+        CommandLine::Print (_("No base DN provided\n"));
         return false;
     }
     db["type"] = options["type"]:"hdb";
