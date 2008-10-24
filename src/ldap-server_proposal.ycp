@@ -131,7 +131,7 @@ if(func == "MakeProposal") {
                                    _("LDAP Password: ") + rootPWString
                                  ] ) +
                    _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
-                   _("Register at SLP Daemon: ") + HTML::Bold( LdapServer::ReadSLPEnabled() ? _("YES") : _("NO") ) +
+                   _("Register at SLP Daemon: ") + HTML::Bold( defaults["slpRegister"]:false ? _("YES") : _("NO") ) +
                    HTML::Newline() +
                   fw_text;
     } else {
@@ -233,7 +233,7 @@ StartTLS is disabled.") );
 
         Ldap::SetDefaults( ldapclient_defaults );
         Ldap::SetBindPassword( defaults["rootpw_clear"]:"" );
-        //LdapServer::WriteSLPEnabled( true );
+        LdapServer::WriteSLPEnabled( defaults["slpRegister"]:false );
         LdapServer::Write();
     }
 }

@@ -218,6 +218,7 @@ any EnableServiceDialog()
         UI::ChangeWidget( `cb_register_slp, `Enabled, false );
         Wizard::SetNextButton( `finish , Label::FinishButton());
     }
+    UI::ChangeWidget( `cb_register_slp, `Value, defaults["slpRegister"]:false );
 
     any ret = nil;
     map event = $[];

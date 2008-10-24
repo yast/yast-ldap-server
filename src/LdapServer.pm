@@ -217,6 +217,7 @@ sub Read {
     
     $use_ldap_listener = ( "yes" eq SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAP') );
     $ldap_interfaces = SCR->Read('.sysconfig.openldap.OPENLDAP_LDAP_INTERFACES');
+    $registerSlp = ( "yes" eq SCR->Read('.sysconfig.openldap.OPENLDAP_REGISTER_SLP') );
     
     Progress->NextStage();
     my $configBackend = SCR->Read('.sysconfig.openldap.OPENLDAP_CONFIG_BACKEND');
@@ -557,6 +558,14 @@ sub Write {
             Progress->Finish();
             return 0;
         }
+        if ( $registerSlp )
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'yes');
+        }
+        else
+        {
+            SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'no');
+        }
 
         # FIXME:
         # Explicit cache flush, see bnc#350581 for details
@@ -738,6 +747,22 @@ sub Write {
             if (SCR->Read('.sysconfig.openldap.OPENLDAP_START_LDAPS') eq "yes" )
             {
                 SCR->Write('.sysconfig.openldap.OPENLDAP_START_LDAPS', 'no');
+                $restartRequired = 1;
+            }
+        }
+        if ( $registerSlp )
+        {
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_REGISTER_SLP') eq "no" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'yes');
+                $restartRequired = 1;
+            }
+        }
+        else
+        {
+            if (SCR->Read('.sysconfig.openldap.OPENLDAP_REGISTER_SLP') eq "yes" )
+            {
+                SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'no');
                 $restartRequired = 1;
             }
         }
@@ -1337,8 +1362,22 @@ sub SetInitialDefaults
     my $self = shift;
     my $defaults = shift;
     $self->WriteServiceEnabled( $defaults->{'serviceEnabled'} );
-    $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
-    $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
+    if ( defined $defaults->{'serviceEnabled'} )
+    {
+        $defaults->{'serviceEnabled'} =  YaST::YCP::Boolean($defaults->{'serviceEnabled'});
+    }
+    else
+    {
+        $defaults->{'serviceEnabled'} =  $dbDefaults{'serviceEnabled'};
+    }
+    if ( defined $defaults->{'slpRegister'} )
+    {
+        $defaults->{'slpRegister'} =  YaST::YCP::Boolean($defaults->{'slpRegister'});
+    }
+    else
+    {
+        $defaults->{'slpRegister'} =  $dbDefaults{'slpRegister'};
+    }
     y2debug("SetInitialDefaults: ". Data::Dumper->Dump([$defaults]));
     %dbDefaults = %$defaults;
     $usingDefaults = 0;
