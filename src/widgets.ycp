@@ -34,7 +34,7 @@
                                 `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ), Label::YesButton(), true ) )
                             )
                         ),
-//                        `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )),
+                        `Left( `CheckBox( `id( `cb_register_slp ), _("Register at an &SLP Daemon"), LdapServer::ReadSLPEnabled() )),
                         `HStretch()
                     )
                 )
