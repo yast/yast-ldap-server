@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Oct 24 16:28:16 CEST 2008 - rhafer@suse.de
+
+- Version 2.17.12
+  * SLP Checkbox had no effect in Proposal and was not displayed
+    in "normal" Mode (bnc#437267)
+
+-------------------------------------------------------------------
 Wed Oct 15 14:52:59 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.11
