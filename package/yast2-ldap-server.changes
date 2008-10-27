@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Oct 27 15:51:31 CET 2008 - rhafer@suse.de
+
+- Version 2.17.13
+  * fixed creation of default password policies (bnc#439188)
+
+-------------------------------------------------------------------
 Fri Oct 24 16:28:16 CEST 2008 - rhafer@suse.de
 
 - Version 2.17.12
