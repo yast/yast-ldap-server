@@ -437,11 +437,11 @@ sub CreatePpolicyObjects
             y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
             return undef;
         }
-        my @entries = SCR->Read (".ldap.search",  { "base_dn" =>  $ppolicy->{'dn'},
+        my $entries = SCR->Read (".ldap.search",  { "base_dn" =>  $ppolicy->{'dn'},
                                                  "filter"  => "objectclass=*",
                                                  "scope"   => 0 } );
         my $path = ".ldap.add";
-        if ( scalar(@entries) > 0 )
+        if ( defined $entries && scalar(@{$entries}) > 0 )
         {
             $path = ".ldap.modify"
         }
