@@ -71,7 +71,7 @@ change any configuration settings here.") ,
         _("<p>Here you can change some basic settings of BDB and HDB Databases.</p>") +
         _("<p>Enter the complete DN or only the first part and append the base DN automatically
 with <b>Append Base DN</b>.</p>")+
-        _("<p>To change the password for the Administrator account, clicke <b>Change Password</b>.
+        _("<p>To change the password for the Administrator account, click <b>Change Password</b>.
 A Popup will open where you can enter the new password and select the <b>Password Encryption</b>.
 The password fields are initially empty, even if a password is already set in the configuration.</p>") +
         _("<p>With the <b>Entry Cache</b> and <b>Index Cache (IDL cache)</b> you can adjust
@@ -162,7 +162,7 @@ Server module</p>"),
         _("<p>If <b>Yes</b> is selected, you can click <b>Next</b> to start the configuration wizard</p>")+
     /* Configuration Startup Dialog 2/2 */
         _("<p>If the Firewall is enabled you can open the required network ports
-for OpenLDAP by checking the corresponding Checkbox."),
+for OpenLDAP by checking the corresponding Checkbox.</p>"),
 
     "tls_dialog" :
         _("<h3>TLS Settings</h3>") +
@@ -170,7 +170,7 @@ for OpenLDAP by checking the corresponding Checkbox."),
         _("<h4>Basic Settings</h4>") +
         _("<p>To enable encryption via TLS/SSL check the <b>Enabled TLS</b> checkbox. Additionally you 
 need to configure a Certificate the Server should use.</p>") +
-        _("<p>By checking <b>Enabled LDAP over SSL (ldaps) interface</b> you enable the server to
+        _("<p>By checking <b>Enable LDAP over SSL (ldaps) interface</b> you enable the server to
 accept LDAPS connections on port 636. If not checked OpenLDAP will only support TLS encrypted connections
 through the StartTLS extended operation</p>") +
         _("<p>If you already have a Common Server Certificate installed using the corresponding YaST Module, 
