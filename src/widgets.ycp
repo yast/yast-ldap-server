@@ -306,20 +306,17 @@
                 `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
                 `HSpacing( 0.5 ),
                 `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types ),
-                `HBox(
-                    `PushButton( `id( `pb_ok ), Label::OKButton() ),
-                    `PushButton( `id( `pb_cancel ), Label::CancelButton() )
-                )
+                Wizard::CancelOKButtonBox()
             );
         UI::OpenDialog( `opt(`decorated), content );
         while ( true )
         {
             any ret = UI::UserInput();
-            if (ret == `pb_cancel )
+            if (ret == `cancel )
             {
                 break;
             }
-            else if ( ret == `pb_ok )
+            else if ( ret == `ok )
             {
                 string pw = (string)UI::QueryWidget( `te_rootpw, `Value );
                 string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
@@ -368,10 +365,7 @@
                 `Left(
                     `CheckBox( `id( `cb_idx_substr ), _("Substring") )
                 ),
-                `HBox(
-                    `PushButton( `id( `pb_ok ), Label::OKButton() ),
-                    `PushButton( `id( `pb_cancel ), Label::CancelButton() )
-                )
+                Wizard::CancelOKButtonBox()
             );
 
         map <string, map<string,boolean> > attrTypes =
@@ -438,7 +432,7 @@
         {
             any ret = UI::UserInput();
             y2milestone("ret = %1", ret );
-            if (ret == `pb_cancel )
+            if (ret == `cancel )
             {
                 break;
             }
@@ -469,7 +463,7 @@
                 } else {
                     UI::ChangeWidget( `cb_idx_pres, `Enabled, false );
                 }
-            } else if (ret == `pb_ok )
+            } else if (ret == `ok )
             {
                 retval["name"] = selectedAttr;
                 retval["pres"] = UI::QueryWidget( `cb_idx_pres, `Value );
