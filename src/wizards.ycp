@@ -59,6 +59,7 @@ any InstProposalSequence() {
     Wizard::SetDesktopIcon("ldap-server");
     Wizard::SetContentsButtons(caption, contents, "",
            Label::BackButton(), Label::NextButton());
+    Wizard::SetAbortButton(`abort, Label::CancelButton());
 
     map aliases = $[
         "startup"   : ``( EnableServiceDialog() ),
