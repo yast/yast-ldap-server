@@ -68,7 +68,7 @@ change any configuration settings here.") ,
 
     "database_detail" :
         _("<h3>Edit BDB Database</h3>") +
-        _("<p>Here you can change some basic settings of BDB and HDB Databases.") +
+        _("<p>Here you can change some basic settings of BDB and HDB Databases.</p>") +
         _("<p>Enter the complete DN or only the first part and append the base DN automatically
 with <b>Append Base DN</b>.</p>")+
         _("<p>To change the password for the Administrator account, clicke <b>Change Password</b>.
