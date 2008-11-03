@@ -139,10 +139,11 @@ string showTreeDialog( string name, boolean focus_tree )
     string help_page = (string)widget_map[name,"help_page"]:name;
     string help_string = HELPS[help_page]:("help page for item <b>"+help_page+"</b> not available");
 
+    Wizard::SetAbortButton(`abort, Label::CancelButton());
     Wizard::SetContentsButtons( caption, widget, help_string,
-        Label::BackButton(), Label::FinishButton() );
+        Label::BackButton(), Label::OKButton() );
+    Wizard::HideBackButton();
 
-    Wizard::DisableBackButton();
 
     if( focus_tree ) UI::SetFocus( `id( `wizardTree ) );
 
@@ -202,6 +203,7 @@ any EnableServiceDialog()
 
     Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
     Wizard::HideBackButton();
+    Wizard::SetAbortButton(`abort, Label::CancelButton());
 
     UI::ReplaceWidget(`rp_firewall,
             firewall_widget["custom_widget"]:`Empty()
