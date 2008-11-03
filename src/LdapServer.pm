@@ -1701,13 +1701,52 @@ sub AddPasswordPolicy
         }
     }
 
-    if ( ! SCR->Write(".ldapserver.database.{".$dbIndex."}.ppolicy", $ppolicy ) ) {
+    if ( ! SCR->Write(".ldapserver.database.{".$dbIndex."}.ppolicy", $ppolicy ) )
+    {
         my $err = SCR->Error(".ldapserver");
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return YaST::YCP::Boolean(0);
-    } else {
-        return YaST::YCP::Boolean(1);
     }
+    elsif  ( 0 < scalar(keys %{$ppolicy}) )
+    {
+        # add ACL to protect password policy related Attributes
+        my $acl = $self->ReadDatabaseAcl( $dbIndex );
+        my @ppAttrs = ( "pwdChangedTime", "pwdAccountLockedTime",
+                        "pwdFailureTime", "pwdHistory",
+                        "pwdGraceUseTime", "pwdReset" );
+        # check if ACLs for ppolicy Attribute are already present
+        foreach my $aclItem (@$acl)
+        {
+            if ( defined $aclItem->{'target'} && defined $aclItem->{'target'}->{'attrs'} )
+            {
+                my @attrs = split /,/, $aclItem->{'target'}->{'attrs'};
+                foreach my $attr (@attrs)
+                {
+                    @ppAttrs = grep(!/^$attr$/, @ppAttrs );
+                }
+            }
+        }
+        if ( scalar(@ppAttrs) > 0 )
+        {
+            my $dbList = $self->ReadDatabaseList();
+            my $suffix = "";
+            foreach my $db (@$dbList) 
+            {
+                if ($db->{'index'} == $dbIndex )
+                {
+                    $suffix = $db->{'suffix'};
+                    last;
+                }
+            }
+            my $attrString =  join ",", @ppAttrs;
+            my @ppAcl = ( { 'target' => { 'attrs' => $attrString },
+                            'access' => [ { 'level' => 'none',
+                                            'type'  => '*' } ] } );
+            push @ppAcl, (@$acl );
+            $self->ChangeDatabaseAcl( $dbIndex, \@ppAcl );
+        }
+    }
+    return YaST::YCP::Boolean(1);
 }
 
 BEGIN { $TYPEINFO {ReadSchemaList} = ["function", [ "list" , "string"] ]; }
