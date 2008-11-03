@@ -706,8 +706,7 @@
                                 `ComboBox( `id(`cb_access), _("Define the Access Level"), access_itemlist)
                             ),
                             `HBox(
-                                `PushButton( `id( `pb_ok), Label::OKButton() ),
-                                `PushButton( `id( `cancel), Label::CancelButton() )
+                                Wizard::CancelOKButtonBox()
                             )
                         )
                     )
@@ -737,7 +736,7 @@
         while(true) {
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
-            if ( ret == `pb_ok )
+            if ( ret == `ok )
             {
                 symbol type = (symbol)UI::QueryWidget( `id( `cb_who ), `Value );
                 res["type"] = type;
@@ -875,8 +874,7 @@
                             ),
                             `VSpacing(1),
                             `HBox(
-                                `PushButton( `id( `pb_ok), Label::OKButton() ),
-                                `PushButton( `id( `cancel), Label::CancelButton() )
+                                Wizard::CancelOKButtonBox()
                             )
                         )
                     )
@@ -964,7 +962,7 @@
             ret = (symbol)UI::UserInput();
             y2milestone("Input event: %1", ret);
             selected = (integer)UI::QueryWidget( `id( `tab_access ), `CurrentItem );
-            if ( ret == `pb_ok )
+            if ( ret == `ok )
             {
                 map what = $[];
                 what["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
