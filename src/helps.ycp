@@ -77,7 +77,7 @@ The password fields are initially empty, even if a password is already set in th
         _("<p>With the <b>Entry Cache</b> and <b>Index Cache (IDL cache)</b> you can adjust
 the sizes of OpenLDAP's internal caches. The <b>Entry Cache</b> defines the number of entries
 that are kept in OpenLDAP's in-memory entry cache. If it is possible (enough RAM) this number
-should be large enought to keep the whole database in memory. The <b>Index Cache (IDL cache)</b> 
+should be large enough to keep the whole database in memory. The <b>Index Cache (IDL cache)</b> 
 is used to speed up searches on indexed attributes. In general especially HDB-Databases require a
 large IDL cache for good search performance (three times the size of the entry cache as a rule of
 thumbs).</p>" ),
