@@ -619,7 +619,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     OlcOverlayList::const_iterator j = overlays.begin();
                     for (; j != overlays.end(); j++ )
                     {
-                        if ( (*j)->getType() == "ppolicy" )
+                        if ( (*j)->getType() == "ppolicy" && (*j)->getUpdatedDn() != "" )
                         {
                             resMap.add(YCPString("defaultPolicy"), 
                                     YCPString((*j)->getStringValue("olcPpolicyDefault") ) );
