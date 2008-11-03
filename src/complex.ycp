@@ -106,7 +106,7 @@ without installing the required packages."));
                 _("You have an existing configuration, but the LDAP server is currently not running.
 Do you want to start the server now and re-read its configuration data or do you 
 want to create a new configuration from scratch?"),
-                _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+                _("Restart"), Label::CancelButton(), _("New Configuration"), `focus_yes );
             if ( ret == `yes )
             {
                 LdapServer::WriteServiceEnabled( true );
@@ -114,13 +114,13 @@ want to create a new configuration from scratch?"),
             }
             else  if (ret == `no )
             {
-                // Start new config wizward
-                LdapServer::InitDbDefaults();
-                return `initial;
+                return `abort;
             }
             else if ( ret == `retry )
             {
-                return `abort;
+                // Start new config wizward
+                LdapServer::InitDbDefaults();
+                return `initial;
             }
         }
     }
