@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Mon Nov  3 16:29:03 CET 2008 - rhafer@suse.de
+
+- Version 2.17.14
+  * Create ACL to protect operational Attributes of Password
+    Policies (bnc#439487)
+  * Fixed HTML syntax and typos in Online Help (bnc#440230,
+    bnc#440902)
+  * Fixed Button-Labels and ordering according to YaST Style Guide
+    (bnc#440526)
+
+-------------------------------------------------------------------
 Mon Oct 27 15:51:31 CET 2008 - rhafer@suse.de
 
 - Version 2.17.13
