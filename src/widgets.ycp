@@ -117,7 +117,7 @@
                     `item( `id( "bind_v2" ), _("LDAPv2 Bind Requests") ),
                     `item( `id( "bind_anon_cred" ), _("Anonymous Bind when Credentials Not Empty") ),
                     `item( `id( "bind_anon_dn" ), _("Unauthenticated Bind when DN Not Empty") ),
-                    `item( `id( "update_anon" ), _("Unauthenticated Update Options to Process") )
+                    `item( `id( "update_anon" ), _("Unauthenticated Update Operations to Process") )
                 ]
             ),
             `MultiSelectionBox(

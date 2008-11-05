@@ -194,7 +194,7 @@ Schema Data</p>"),
 
     /* Tree Item Dialog "loglevel" */
     "g_loglevel" :
-        _("<p>Selected the subsystems that should log debugging statements and statistics  to syslog.</p>"),
+        _("<p>Selected the subsystems that should log debugging statements and statistics to syslog.</p>"),
 
     /* Tree Item Dialog "allow" 1/1 */
     "g_allow" :
