@@ -1,5 +1,5 @@
 -------------------------------------------------------------------
-Mon Nov  3 16:29:03 CET 2008 - rhafer@suse.de
+Thu Nov  6 14:53:18 CET 2008 - rhafer@suse.de
 
 - Version 2.17.14
   * Create ACL to protect operational Attributes of Password
@@ -8,6 +8,9 @@ Mon Nov  3 16:29:03 CET 2008 - rhafer@suse.de
     bnc#440902)
   * Fixed Button-Labels and ordering according to YaST Style Guide
     (bnc#440526)
+  * Adjusted default slapd loglevel (bnc#442260)
+  * Additional fix for bnc#437267, disabling SLP had no effect, when
+    configuring a new server
 
 -------------------------------------------------------------------
 Mon Oct 27 15:51:31 CET 2008 - rhafer@suse.de
