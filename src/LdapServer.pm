@@ -558,7 +558,7 @@ sub Write {
             Progress->Finish();
             return 0;
         }
-        if ( $registerSlp )
+        if ( $registerSlp == 1 ||  $registerSlp->value == 1 )
         {
             SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'yes');
         }
