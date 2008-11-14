@@ -235,6 +235,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         globals->setStringValue("olcPidFile", "/var/run/slapd/slapd.pid");
         globals->setStringValue("olcArgsFile", "/var/run/slapd/slapd.args");
         globals->setStringValue("olcLogLevel", "none");
+        globals->setStringValue("olcSizeLimit", "10000");
         globals->setStringValue("olcAuthzRegexp", 
                 "gidNumber=0\\+uidNumber=0,cn=peercred,cn=external,cn=auth dn:cn=config");
     }
