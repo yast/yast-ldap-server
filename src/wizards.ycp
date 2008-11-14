@@ -162,7 +162,7 @@ any MigrateSequence() {
     map aliases = $[
         "startup"   : ``( MigrationMainDialog() ),
         "proposal"  : ``( ProposalSequence() ),
-        "authconfig"    : ``( MigrationDialog() ),
+//        "authconfig"    : ``( MigrationDialog() ),
         "migrate"   : ``( DoMigration() )
     ];
 
@@ -170,12 +170,12 @@ any MigrateSequence() {
         "ws_start"  : "startup",
         "startup"   : $[
 	    `abort  : `abort,
-            `next   : "authconfig",
+            `next   : "migrate",
             `initial : "proposal"
         ],
-        "authconfig"   : $[
-            `next   : "migrate"
-        ],
+//        "authconfig"   : $[
+//            `next   : "migrate"
+//        ],
         "migrate"   : $[
             `next   : `next
         ],
