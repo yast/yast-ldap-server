@@ -1409,6 +1409,7 @@ sub InitDbDefaults
     }
     my $basedn = join ',', @rdn ;
     y2milestone("suffix: $basedn");
+    $dbDefaults{'type'} = "hdb";
     $dbDefaults{'suffix'} = $basedn;
     $dbDefaults{'directory'} = "/var/lib/ldap";
     $dbDefaults{'rootdn'} = "cn=Administrator,".$basedn;
@@ -1454,7 +1455,7 @@ sub ReadFromDefaults
     $self->WriteSLPEnabled( $dbDefaults{'slpRegister'} );
 
     my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
-    my $database = { 'type' => 'hdb',
+    my $database = { 'type' => $dbDefaults{'type'},
                      'suffix' => $dbDefaults{'suffix'},
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,
