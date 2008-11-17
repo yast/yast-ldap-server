@@ -1,4 +1,17 @@
 -------------------------------------------------------------------
+Mon Nov 17 15:30:56 CET 2008 - rhafer@suse.de
+
+- Version 2.17.15
+  * Add "eq" index on memberUid by default (bnc#444546)
+  * Set an increased sizelimit in new configurations (bnc#444529)
+  * Don't offer to configure a password for cn=config (bnc#445118)
+  * recognize "caCertDir" in TLS configurations (was breaking migration
+    from SLES10 based setups (bnc#445115)
+  * honor database type selection when creating initial database
+    (bnc#445587)
+  * Fixed perl crasher in installation proposal (bnc#445566)
+
+-------------------------------------------------------------------
 Thu Nov  6 14:53:18 CET 2008 - rhafer@suse.de
 
 - Version 2.17.14
