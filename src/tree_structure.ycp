@@ -343,7 +343,7 @@ define boolean cb_read_tls()
     y2milestone( "calling tls read handler" );
     map<string, any> tls = LdapServer::ReadTlsConfig();
     y2milestone( "tls config %1", tls );
-    if ( (string)tls["caCertFile"]:"" != ""  &&
+    if ( ( (string)tls["caCertFile"]:"" != "" || (string)tls["caCertDir"]:"" != "" )  &&
          (string)tls["certFile"]:"" != ""  &&
          (string)tls["certKeyFile"]:"" != "" )
     {
