@@ -1127,8 +1127,16 @@ sub ReadSLPEnabled {
 BEGIN { $TYPEINFO {WriteSLPEnabled} = ["function", "boolean", "boolean"]; }
 sub WriteSLPEnabled {
     my $self = shift;
+    my $value = shift;
     y2milestone("WriteSlpEnabled");
-    $registerSlp = shift;
+    if ( $value == 1 || $value == 0 ) # convert to YaST::YCP::Boolean
+    {
+        $registerSlp = YaST::YCP::Boolean($value);
+    }
+    else  #most probably already a YaST::YCP::Boolean
+    {
+        $registerSlp = $value;
+    }
     return 1;
 }
 
