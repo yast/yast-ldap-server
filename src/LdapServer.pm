@@ -1517,7 +1517,10 @@ sub ReadFromDefaults
     }
 
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
-    if ( $dbDefaults{'defaultIndex'} == 1 )
+    if ( $dbDefaults{'defaultIndex'} == 1 || 
+         ( ref($dbDefaults{'defaultIndex'}) eq "YaST::YCP::Boolean" &&
+           $dbDefaults{'defaultIndex'}->value == 1 ) 
+       )
     {
         foreach my $idx ( @$defaultIndexes )
         {
