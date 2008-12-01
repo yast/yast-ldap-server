@@ -667,6 +667,11 @@ sub Write {
                     "#\n".
                     "#       A copy of the original /etc/openldap/slapd.conf file has been created as:\n".
                     "#           /etc/openldap/slapd.conf.YaSTsave\n".
+                    "#\n".
+                    "#       To access the new configuration backend easily you can use SASL external\n".
+                    "#       authentication. I.e. the following ldapsearch command, executed as the root\n".
+                    "#       user, can be used to print the complete slapd configuration to stdout:\n".
+                    "#          ldapsearch -Y external -H ldapi:/// -b cn=config\n".
                     "#\n"
                 );
         }
