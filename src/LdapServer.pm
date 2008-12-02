@@ -561,7 +561,9 @@ sub Write {
             Progress->Finish();
             return 0;
         }
-        if ( $registerSlp == 1 ||  $registerSlp->value == 1 )
+        if ( $registerSlp == 1 || 
+               ( ref($registerSlp) eq "YaST::YCP::Boolean" && $registerSlp->value == 1 ) 
+           )
         {
             SCR->Write('.sysconfig.openldap.OPENLDAP_REGISTER_SLP', 'yes');
         }
@@ -758,7 +760,9 @@ sub Write {
                 $restartRequired = 1;
             }
         }
-        if ( $registerSlp )
+        if ( $registerSlp == 1 || 
+               ( ref($registerSlp) eq "YaST::YCP::Boolean" && $registerSlp->value == 1 ) 
+           )
         {
             if (SCR->Read('.sysconfig.openldap.OPENLDAP_REGISTER_SLP') eq "no" )
             {
