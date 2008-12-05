@@ -198,10 +198,10 @@ sub Read {
     my $self = shift;
     SuSEFirewall->Read();
 
-    my $progressItems = [ "Reading Startup Configuration", 
-            "Reading Configuration Backend", 
-            "Reading Configuration Data" ];
-    Progress->New("Initializing LDAP Server Configuration", " ", 3, $progressItems, $progressItems, "");
+    my $progressItems = [ _("Reading Startup Configuration"), 
+            _("Reading Configuration Backend"), 
+            _("Reading Configuration Data") ];
+    Progress->New(_("Initializing LDAP Server Configuration"), " ", 3, $progressItems, $progressItems, "");
     Progress->NextStage();
 
     my $serviceInfo = Service->FullInfo("ldap");
