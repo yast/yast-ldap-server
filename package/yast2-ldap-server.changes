@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Fri Dec  5 12:00:32 CET 2008 - rhafer@suse.de
+
+- Version 2.17.18
+  * Fixed translation issues (bnc#448282, bnc#447631)
+  * when a restart of slapd is required wait until slapd finishes
+    any running indexing task before restarting (bnc#450457)
+
+-------------------------------------------------------------------
 Tue Dec  2 11:05:22 CET 2008 - rhafer@suse.de
 
 - Version 2.17.17
