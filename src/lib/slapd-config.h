@@ -339,6 +339,8 @@ class OlcConfig {
         void setGlobals( OlcGlobalConfig &olcg);
         void updateEntry( OlcConfigEntry &oce );
 
+        void waitForBackgroundTasks();
+
         static SlapdConfigLogCallback *logCallback;
         static void setLogCallback( SlapdConfigLogCallback *lcb );
 
