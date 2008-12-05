@@ -1,7 +1,7 @@
 -------------------------------------------------------------------
 Tue Dec  2 11:05:22 CET 2008 - rhafer@suse.de
 
-- Version 2.17.16
+- Version 2.17.17
   * removed unneeded restart of slapd when running for the first
     time after the initial configuration, this broke indexing
     under certain conditions (bnc#450457)
