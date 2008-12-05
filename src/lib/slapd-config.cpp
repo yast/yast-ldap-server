@@ -1543,6 +1543,28 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
     }
 }
 
+/*
+ * This function triggers a simple Modify Operation ( basically a NO-OP) to
+ * the config backend, if slapd is currently running an indexing task this
+ * Operation will block until that task is finished as back-config can only
+ * complete that operation when it's the only active thread.
+ */
+void OlcConfig::waitForBackgroundTasks()
+{
+    try {
+        LDAPModification mod( LDAPAttribute("objectClass", "olcConfig"), LDAPModification::OP_ADD );
+        LDAPModList ml;
+        ml.addModification(mod);
+        m_lc->modify( "cn=config", &ml );
+    } catch (LDAPException e) {
+        if (e.getResultCode() != LDAPResult::ATTRIBUTE_OR_VALUE_EXISTS )
+        {
+            log_it(SLAPD_LOG_INFO, e.getResultMsg() + " " + e.getServerMsg() );
+            throw;
+        }
+    }
+}
+
 OlcDatabaseList OlcConfig::getDatabases()
 {
     OlcDatabaseList res;

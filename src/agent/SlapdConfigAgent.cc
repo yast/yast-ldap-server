@@ -357,6 +357,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             return YCPBoolean(false);
         }
     }
+    else if ( path->component_str(0) == "waitForBackgroundTasks" )
+    {
+        olc.waitForBackgroundTasks();
+        return YCPBoolean(true);
+    }
     else if ( path->component_str(0) == "addRootSaslRegexp" )
     {
         std::string filename = "/etc/openldap/slapd.d/cn=config.ldif";

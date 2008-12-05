@@ -706,9 +706,11 @@ sub Write {
                               _("Applying changes to /etc/openldap/ldap.conf"),
                               _("Creating Base Objects for newly created databases"),
                               _("Updating Default Password Policy Objects"),
+                              _("Waiting for OpenLDAP background indexing tasks to complete (this might take some minutes)"),
+                              _("Restarting OpenLDAP Server if required"),
                             ];
 
-        Progress->New("Writing OpenLDAP Configuration", "", 5, $progressItems, $progressItems, "");
+        Progress->New("Writing OpenLDAP Configuration", "", 7, $progressItems, $progressItems, "");
         Progress->NextStage();
 
         # these changes require a restart of slapd
@@ -819,11 +821,23 @@ sub Write {
             return 0;
         }
 
-        Progress->Finish();
         if ( $restartRequired )
         {
+            # An indexing Task might be running, wait for it to complete
+            # before restarting the server (bnc#450457)
+            Progress->NextStage();
+            y2milestone("slapd might be running a background task, waiting for completion");
+            SCR->Execute('.ldapserver.waitForBackgroundTasks') ;
+            y2milestone("background tasks completed");
+            Progress->NextStage();
             Service->Restart("ldap");
         }
+        else
+        {
+            Progress->NextStage();
+            Progress->NextStage();
+        }
+        Progress->Finish();
     }
     sleep(1);
     $configured = $ret;
