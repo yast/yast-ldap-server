@@ -1848,22 +1848,22 @@ sub IsSubordinate
     my ($self, $base, $child) = @_;
     my $baseDN = X500::DN->ParseRFC2253($base);
     if(! defined $baseDN) {
-        $self->SetError(_("\"". $base ."\" is not a valid LDAP DN."), "");
+        $self->SetError("\"". $base ."\" ". _("is not a valid LDAP DN."), "");
         return undef;
     }
     if ( $baseDN->hasMultivaluedRDNs() )
     {
-        $self->SetError(_("\"". $base ."\" has mulitvalued RDNs."), "");
+        $self->SetError("\"". $base ."\" ". _("has mulitvalued RDNs."), "");
         return undef;
     }
     my $childDN = X500::DN->ParseRFC2253($child);
     if(! defined $childDN) {
-        $self->SetError(_("\"". $child ."\" is not a valid LDAP DN."), "");
+        $self->SetError( "\"". $child ."\" ". _("is not a valid LDAP DN."), "");
         return undef;
     }
     if ( $childDN->hasMultivaluedRDNs() )
     {
-        $self->SetError(_("\"". $child ."\" has mulitvalued RDNs."), "");
+        $self->SetError( "\"". $child ."\" ". _("has mulitvalued RDNs."), "");
         return undef;
     }
     my @base_rdns = $baseDN->getRDNs();
@@ -1886,12 +1886,12 @@ sub CheckDatabase
     y2milestone("CheckDatabase");
     my $suffix_object = X500::DN->ParseRFC2253($db->{'suffix'});
     if(! defined $suffix_object) {
-        $self->SetError(_("Base DN \"". $db->{'suffix'} ."\" is not a valid LDAP DN."), "");
+        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("is not a valid LDAP DN."), "");
         return 0;
     }
     elsif ( $suffix_object->hasMultivaluedRDNs() )
     {
-        $self->SetError(_("Base DN \"". $db->{'suffix'} ."\" has multivalued RDNs. This is not supported in this YaST Module."), "");
+        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("has multivalued RDNs. This is not supported in this YaST Module."), "");
         return 0;
     }
 
@@ -1900,12 +1900,13 @@ sub CheckDatabase
     {
         my $object = X500::DN->ParseRFC2253($db->{'rootdn'});
         if(! defined $object) {
-            $self->SetError(_("Root DN \"". $db->{'rootdn'} ."\" is not a valid LDAP DN."), "");
+            $self->SetError(_("Root DN"). " \"". $db->{'rootdn'} ."\" ". _("is not a valid LDAP DN."), "");
             return 0;
         }
         elsif ( $object->hasMultivaluedRDNs() )
         {
-            $self->SetError(_("Root DN \"". $db->{'rootdn'} ."\" has multivalued RDNs. This is not supported in this YaST Module."), "");
+            $self->SetError(_("Root DN"). " \"". $db->{'rootdn'} ."\" ". 
+                            _("has multivalued RDNs. This is not supported in this YaST Module."), "");
             return 0;
         }
 
