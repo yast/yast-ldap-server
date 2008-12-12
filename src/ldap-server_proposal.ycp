@@ -211,6 +211,9 @@ without installing the required packages."));
 
         LdapServer::ReadFromDefaults();
         map <string,any> defaults = LdapServer::CreateInitialDefaults();
+        Progress::set(false);
+        Ldap::Read();
+        Progress::set(true);
         map ldapclient_defaults = Ldap::Export();
         ldapclient_defaults["ldap_server"] = "localhost";
         ldapclient_defaults["base_config_dn"] = "ou=ldapconfig,"+defaults["suffix"]:"";
