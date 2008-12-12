@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Fri Dec 12 16:39:44 CET 2008 - rhafer@suse.de
+
+- Version 2.17.19
+  * pam_password in /etc/ldap.conf was set to an invalid value
+    because of a missing Ldap::Read() in the ldap-server proposal
+    (bnc#458363)
+
+-------------------------------------------------------------------
 Fri Dec  5 12:00:32 CET 2008 - rhafer@suse.de
 
 - Version 2.17.18
