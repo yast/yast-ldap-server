@@ -160,8 +160,9 @@ else if(func == "AskUser") {
         seq = (symbol) WFM::CallFunction("ldap-server", [.propose]);
         if(seq == `next) {
             LdapServer::WriteServiceEnabled( true );
-        } else {
+        } else if (seq == `disable ) {
             LdapServer::WriteServiceEnabled( false );
+            seq = `next;
         }
 //        if(seq != `next) LdapServer::Import(stored);
     }
