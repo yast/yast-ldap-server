@@ -71,7 +71,7 @@ any InstProposalSequence() {
         "startup"   : $[
             `next   : "database",
             `abort  : `abort,
-            `finish : `abort
+            `finish : `disable
         ],
         "database"   : $[
             `next   : `next,
