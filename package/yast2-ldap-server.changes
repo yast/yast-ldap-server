@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Dec 15 14:34:57 CET 2008 - rhafer@suse.de
+
+- Version 2.17.20
+  * Service proposal page didn't update correctly after
+    disabling LDAP server (bnc#456524) 
+
+-------------------------------------------------------------------
 Fri Dec 12 16:39:44 CET 2008 - rhafer@suse.de
 
 - Version 2.17.19
