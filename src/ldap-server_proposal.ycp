@@ -74,6 +74,7 @@ if(func == "MakeProposal") {
             defaults["serviceEnabled"] = LdapServer::ReadServiceEnabled();
             defaults["rootpw_clear"] = Users::GetRootPassword();
             LdapServer::SetInitialDefaults(defaults);
+            SuSEFirewall::Read();
         }
     }
 

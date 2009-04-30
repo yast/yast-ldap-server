@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Apr 30 13:25:12 CEST 2009 - rhafer@novell.com
+
+- call SuSEFirewall::Read() in installation proposal to avoid 
+  overwriting Firewall configuration (bnc#496862) 
+
+-------------------------------------------------------------------
 Mon Dec 15 14:34:57 CET 2008 - rhafer@suse.de
 
 - Version 2.17.20
