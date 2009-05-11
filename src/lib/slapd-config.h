@@ -128,7 +128,10 @@ class OlcAclBy
         inline OlcAclBy( const std::string& level,
                   const std::string& type,
                   const std::string& value = "" ) : 
-                        m_level(level), m_type(type), m_value(value) {};
+                        m_type(type), m_value(value)
+        {
+            setLevel(level);
+        }
 
         inline std::string getLevel() const
         {
@@ -147,6 +150,13 @@ class OlcAclBy
 
         inline void setLevel( const std::string &level )
         {
+
+            if ( level != "none" && level != "disclose" && level != "auth" &&
+                 level != "compare" && level != "read" &&
+                 level != "write" && level != "manage" )
+            {
+                throw std::runtime_error( "Unsupported access level" );
+            }
             m_level = level;
         }
         inline void setType( const std::string &type )
