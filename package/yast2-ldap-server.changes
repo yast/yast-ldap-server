@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Jun 19 12:17:51 CEST 2009 - mvidner@suse.cz
+
+- Using autodocs-ycp.ami, which contains a fix for automake 1.11.
+
+-------------------------------------------------------------------
 Mon May 11 14:26:59 CEST 2009 - rhafer@suse.de
 
 - error out on unsupported access levels when creating ACLs 
