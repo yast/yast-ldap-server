@@ -7,7 +7,8 @@ Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 ya
 Summary:	YaST2 - OpenLDAP Server Configuration
 
 %description
--
+Provides basic configuration of an OpenLDAP Server over YaST2 Control
+Center and during installation.
 
 @PREP@
 
