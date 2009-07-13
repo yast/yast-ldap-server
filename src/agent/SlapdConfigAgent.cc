@@ -262,46 +262,46 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 db = boost::shared_ptr<OlcDatabase>( new OlcDatabase(dbtype.c_str()) );
             }
             db->setIndex(i-1);
-            YCPMapIterator j = dbMap.begin();
+            YCPMap::const_iterator j = dbMap.begin();
             for ( ; j != dbMap.end(); j++ )
             {
                 y2debug("Key: %s, Valuetype: %s",
-                    j.key()->asString()->value_cstr(),
-                    j.value()->valuetype_str() );
-                if ( std::string("suffix") == j.key()->asString()->value_cstr() )
+                    j->first->asString()->value_cstr(),
+                    j->second->valuetype_str() );
+                if ( std::string("suffix") == j->first->asString()->value_cstr() )
                 {
-                    db->setSuffix( j.value()->asString()->value_cstr() );
+                    db->setSuffix( j->second->asString()->value_cstr() );
                     continue;
                 }
-                else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+                else if (std::string("rootdn") == j->first->asString()->value_cstr() )
                 {
-                    db->setRootDn( j.value()->asString()->value_cstr() );
+                    db->setRootDn( j->second->asString()->value_cstr() );
                     continue;
                 }
-                else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+                else if (std::string("rootpw") == j->first->asString()->value_cstr() )
                 {
-                    db->setRootPw( j.value()->asString()->value_cstr() );
+                    db->setRootPw( j->second->asString()->value_cstr() );
                     continue;
                 }
                 if ( dbtype == "bdb" || dbtype == "hdb" )
                 {
                     boost::shared_ptr<OlcBdbDatabase> bdb = 
                         boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
-                    if (std::string("directory") == j.key()->asString()->value_cstr() )
+                    if (std::string("directory") == j->first->asString()->value_cstr() )
                     {
-                        bdb->setDirectory( j.value()->asString()->value_cstr() );
+                        bdb->setDirectory( j->second->asString()->value_cstr() );
                     }
-                    else if (std::string("entrycache") == j.key()->asString()->value_cstr() )
+                    else if (std::string("entrycache") == j->first->asString()->value_cstr() )
                     {
-                        bdb->setEntryCache( j.value()->asInteger()->value() );
+                        bdb->setEntryCache( j->second->asInteger()->value() );
                     }
-                    else if (std::string("idlcache") == j.key()->asString()->value_cstr() )
+                    else if (std::string("idlcache") == j->first->asString()->value_cstr() )
                     {
-                        bdb->setIdlCache( j.value()->asInteger()->value() );
+                        bdb->setIdlCache( j->second->asInteger()->value() );
                     }
-                    else if (std::string("checkpoint") == j.key()->asString()->value_cstr() )
+                    else if (std::string("checkpoint") == j->first->asString()->value_cstr() )
                     {
-                        YCPList cpList = j.value()->asList();
+                        YCPList cpList = j->second->asList();
                         bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
                                 cpList->value(1)->asInteger()->value() );
                     }
@@ -897,34 +897,34 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             y2milestone("Write TLS Settings");
             YCPMap tlsMap = arg->asMap();
             OlcTlsSettings tls( globals->getTlsSettings() );
-            YCPMapIterator i= tlsMap.begin();
+            YCPMap::const_iterator i= tlsMap.begin();
             for ( ; i != tlsMap.end(); i++ )
             {
-                std::string key(i.key()->asString()->value_cstr() );
+                std::string key(i->first->asString()->value_cstr() );
                 y2debug("tlsMap Key: %s", key.c_str() );
                 if ( key == "caCertDir" )
                 {
-                    if ( ! i.value().isNull() )
-                        tls.setCaCertDir(i.value()->asString()->value_cstr() );
+                    if ( ! i->second.isNull() )
+                        tls.setCaCertDir(i->second->asString()->value_cstr() );
                 } 
                 else if ( key == "caCertFile" )
                 {
-                    if ( ! i.value().isNull() )
-                        tls.setCaCertFile(i.value()->asString()->value_cstr() );
+                    if ( ! i->second.isNull() )
+                        tls.setCaCertFile(i->second->asString()->value_cstr() );
                     else
                         tls.setCaCertFile("");
                 }
                 else if ( key == "certFile" )
                 {
-                    if ( ! i.value().isNull() )
-                        tls.setCertFile(i.value()->asString()->value_cstr() );
+                    if ( ! i->second.isNull() )
+                        tls.setCertFile(i->second->asString()->value_cstr() );
                     else
                         tls.setCertFile("");
                 }
                 else if ( key == "certKeyFile" )
                 {
-                    if ( ! i.value().isNull() )
-                        tls.setCertKeyFile(i.value()->asString()->value_cstr() );
+                    if ( ! i->second.isNull() )
+                        tls.setCertKeyFile(i->second->asString()->value_cstr() );
                     else
                         tls.setCertKeyFile("");
                 }
@@ -933,8 +933,8 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
                 }
                 else if ( key == "crlFile" )
                 {
-                    if ( ! i.value().isNull() )
-                        tls.setCrlFile (i.value()->asString()->value_cstr() );
+                    if ( ! i->second.isNull() )
+                        tls.setCrlFile (i->second->asString()->value_cstr() );
                     else
                         tls.setCertKeyFile("");
 
@@ -1027,46 +1027,46 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
             db = boost::shared_ptr<OlcDatabase>( new OlcDatabase(dbtype.c_str()) );
         }
         db->setIndex(dbIndex);
-        YCPMapIterator j = dbMap.begin();
+        YCPMap::const_iterator j = dbMap.begin();
         for ( ; j != dbMap.end(); j++ )
         {
             y2debug("Key: %s, Valuetype: %s",
-                j.key()->asString()->value_cstr(),
-                j.value()->valuetype_str() );
-            if ( std::string("suffix") == j.key()->asString()->value_cstr() )
+                j->first->asString()->value_cstr(),
+                j->second->valuetype_str() );
+            if ( std::string("suffix") == j->first->asString()->value_cstr() )
             {
-                db->setSuffix( j.value()->asString()->value_cstr() );
+                db->setSuffix( j->second->asString()->value_cstr() );
                 continue;
             }
-            else if (std::string("rootdn") == j.key()->asString()->value_cstr() )
+            else if (std::string("rootdn") == j->first->asString()->value_cstr() )
             {
-                db->setRootDn( j.value()->asString()->value_cstr() );
+                db->setRootDn( j->second->asString()->value_cstr() );
                 continue;
             }
-            else if (std::string("rootpw") == j.key()->asString()->value_cstr() )
+            else if (std::string("rootpw") == j->first->asString()->value_cstr() )
             {
-                db->setRootPw( j.value()->asString()->value_cstr() );
+                db->setRootPw( j->second->asString()->value_cstr() );
                 continue;
             }
             if ( dbtype == "bdb" || dbtype == "hdb" )
             {
                 boost::shared_ptr<OlcBdbDatabase> bdb = 
                     boost::dynamic_pointer_cast<OlcBdbDatabase>(db);
-                if (std::string("directory") == j.key()->asString()->value_cstr() )
+                if (std::string("directory") == j->first->asString()->value_cstr() )
                 {
-                    bdb->setDirectory( j.value()->asString()->value_cstr() );
+                    bdb->setDirectory( j->second->asString()->value_cstr() );
                 }
-                else if (std::string("entrycache") == j.key()->asString()->value_cstr() )
+                else if (std::string("entrycache") == j->first->asString()->value_cstr() )
                 {
-                    bdb->setEntryCache( j.value()->asInteger()->value() );
+                    bdb->setEntryCache( j->second->asInteger()->value() );
                 }
-                else if (std::string("idlcache") == j.key()->asString()->value_cstr() )
+                else if (std::string("idlcache") == j->first->asString()->value_cstr() )
                 {
-                    bdb->setIdlCache( j.value()->asInteger()->value() );
+                    bdb->setIdlCache( j->second->asInteger()->value() );
                 }
-                else if (std::string("checkpoint") == j.key()->asString()->value_cstr() )
+                else if (std::string("checkpoint") == j->first->asString()->value_cstr() )
                 {
-                    YCPList cpList = j.value()->asList();
+                    YCPList cpList = j->second->asList();
                     bdb->setCheckPoint( cpList->value(0)->asInteger()->value(),
                             cpList->value(1)->asInteger()->value() );
                 }
