@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Jul 13 15:03:39 CEST 2009 - rhafer@novell.com
+
+- Version 2.18.0
+- don't use deprecated YCPMapIterator (bnc#520674)
+
+-------------------------------------------------------------------
 Fri Jun 19 12:17:51 CEST 2009 - mvidner@suse.cz
 
 - Using autodocs-ycp.ami, which contains a fix for automake 1.11.
