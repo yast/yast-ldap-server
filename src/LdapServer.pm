@@ -535,6 +535,10 @@ sub Write {
     my $ret = 1;
     if ( ! $usesBackConfig || ! $slapdConfChanged || $overwriteConfig ) 
     {
+        if ( ! $self->ReadServiceEnabled() )
+        {
+            return 1;
+        }
         $overwriteConfig = 0;
         my $progressItems = [ _("Writing Startup Configuration"),
                 _("Cleaning up config directory"),
@@ -595,6 +599,15 @@ sub Write {
             y2milestone("using tempfile: ".$tmpfile );
             my $ldif = SCR->Read('.ldapserver.configAsLdif' );
             y2debug($ldif);
+            if ( ! $ldif )
+            {
+                my $err = SCR->Error(".ldapserver");
+                y2error("Creating LDIF for initial configuration failed");
+                $self->SetError( $err->{'summary'}, $err->{'description'} );
+                # cleanup
+                SCR->Execute('.target.bash', "rm -f $tmpfile" );
+                return 0;
+            }
             $rc = SCR->Write('.target.string', $tmpfile, $ldif );
             if ( $rc )
             {
@@ -856,21 +869,41 @@ sub Import {
     my $hash = shift;
     y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
-    if ( ! keys( %$hash ) )
+    if ( (! keys( %$hash ))  || (! defined $hash->{'daemon'}) || 
+         (! defined $hash->{'globals'}) || (! defined $hash->{'databases'}) )
     {
         $usingDefaults = 1;
         $overwriteConfig = 0;
         $self->WriteServiceEnabled( 0 );
-        return 1;
+        y2milestone("Wrong/empty ldap-server profile");
+        return 0;
     }
-    $usingDefaults = 0;
-    $overwriteConfig = 1;
-    $self->WriteServiceEnabled( $hash->{'daemon'}->{'serviceEnabled'} );
+
+    if ( defined $hash->{'daemon'}->{'serviceEnabled'} )
+    {
+        $self->WriteServiceEnabled( $hash->{'daemon'}->{'serviceEnabled'} );
+    }
+    else
+    {
+        $self->WriteServiceEnabled(0);
+    }
+
     if ( ! $self->ReadServiceEnabled() )
     {
         return 1;
     }
-    $self->WriteSLPEnabled( $hash->{'daemon'}->{'slp'} );
+
+    $usingDefaults = 0;
+    $overwriteConfig = 1;
+
+    if ( defined $hash->{'daemon'}->{'slp'} )
+    {
+        $self->WriteSLPEnabled( $hash->{'daemon'}->{'slp'} );
+    }
+    else
+    {
+        $self->WriteSLPEnabled( 0 );
+    }
 
     foreach my $listner (@{$hash->{'daemon'}->{'listners'} } )
     {
@@ -1108,7 +1141,7 @@ BEGIN { $TYPEINFO{AutoPackages} = ["function", ["map", "string", ["list", "strin
 sub AutoPackages {
     # TODO FIXME: your code here...
     my %ret = (
-	"install" => (),
+	"install" => ( "openldap2", "openldap2-client" ),
 	"remove" => (),
     );
     return \%ret;
