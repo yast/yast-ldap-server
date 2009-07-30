@@ -1583,6 +1583,10 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
 {
     y2milestone("ConfigToLdif");
     std::ostringstream ldif;
+    if ( ! globals || ! schemaBase )
+    {
+        throw std::runtime_error("Configuration not initialized. Can't create LDIF dump." );
+    }
     ldif << globals->toLdif() << std::endl;
     ldif << schemaBase->toLdif() << std::endl;
     OlcSchemaList::const_iterator j;
