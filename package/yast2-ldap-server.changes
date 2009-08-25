@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Aug 25 13:16:18 UTC 2009 - rhafer@novell.com
+
+- Fixes for AutoYaST integration, error out on invalid profiles
+  (bnc#522216)
+
+-------------------------------------------------------------------
 Mon May 11 14:36:45 CEST 2009 - rhafer@suse.de
 
 - Version 2.17.21
