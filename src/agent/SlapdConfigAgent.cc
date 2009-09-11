@@ -5,6 +5,7 @@
 #include <LdifWriter.h>
 #include <LDAPEntry.h>
 #include <SaslInteraction.h>
+#include <algorithm>
 #include <exception>
 #include <sstream>
 #include <fstream>
@@ -45,7 +46,6 @@ bool caseIgnoreCompare( char c1, char c2)
 {
     return toupper(c1) == toupper(c2);
 }
-
 
 static void y2LogCallback( int level, const std::string &msg,
             const char* file=0, const int line=0, const char* function=0)
@@ -743,6 +743,9 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
         }
         OlcSchemaList::const_iterator i;
         YCPMap resMap;
+        std::map<std::string,std::string> attrNamesMap;
+        std::map<std::string,std::string> aliasesMap;
+
         for (i = schema.begin(); i != schema.end(); i++ )
         {
             y2milestone("Schema: %s", (*i)->getName().c_str() );
@@ -752,14 +755,28 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
             {
                 YCPMap attrMap;
 
+                // normalize to lowercase for later comparison
+                std::string curName = j->getName();
+                std::transform(curName.begin(), curName.end(), curName.begin(), ::tolower);
+                
                 // Handling derived AttributeTypes.
                 // Attention! This code assumes that supertypes have been 
                 // read prior to their subtypes
                 if ( j->getSuperiorOid() != "" ){
-                    y2debug("'%s' is a subtype of '%s'",j->getName().c_str(), j->getSuperiorOid().c_str() );
+                    y2debug("'%s' is a subtype of '%s'",curName.c_str(), j->getSuperiorOid().c_str() );
+                    // normalize supertype to lowercase as well
+                    std::string supName =  j->getSuperiorOid();
+                    std::transform(supName.begin(), supName.end(), supName.begin(), ::tolower);
+                    // check if Supertype references an Aliasname
+                    std::map<std::string,std::string>::const_iterator pos = aliasesMap.find(supName);
+                    if ( pos != aliasesMap.end() )
+                    {
+                        y2debug("subtype '%s' is an alias for '%s'", supName.c_str(), pos->second.c_str() );
+                        supName = pos->second;
+                    }
                     // locate Supertype
 
-                    YCPMap supMap = resMap->value(YCPString(j->getSuperiorOid()))->asMap();
+                    YCPMap supMap = resMap->value(YCPString(attrNamesMap[supName]))->asMap();
                     attrMap.add( YCPString("equality"), supMap->value(YCPString("equality")) );
                     attrMap.add( YCPString("substring"), supMap->value(YCPString("substring")) );
                     attrMap.add( YCPString("presence"), supMap->value(YCPString("presence")) );
@@ -781,8 +798,22 @@ YCPValue SlapdConfigAgent::ReadSchema( const YCPPath &path,
 
                 // FIXME: how should "approx" indexing be handled, create 
                 //        whitelist based upon syntaxes?
-                
                 resMap.add( YCPString( j->getName() ), attrMap );
+                attrNamesMap.insert(std::make_pair(curName, j->getName() ) );
+
+
+                // does the current AttributeType have any addional Names?
+                StringList names = j->getNames();
+                if ( names.size() > 1 )
+                {
+                    StringList::const_iterator k = names.begin();
+                    k++; // skip first
+                    for ( std::string curAlias=*k ; k != names.end(); k++ )
+                    {
+                        std::transform(curAlias.begin(), curAlias.end(), curAlias.begin(), ::tolower);
+                        aliasesMap.insert(std::make_pair(curAlias, curName) );
+                    }
+                }
             }
         }
         return resMap;
