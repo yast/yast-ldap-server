@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Mon Sep 14 13:32:08 UTC 2009 - rhafer@novell.com
+
+- Version 2.18.2
+  * Adding indexes could crash yast2-ldap-server, because
+    attributes names were not handled case-insensitve and addtional
+    names for Attributes were ignored, when analyzing the directory
+    schema (bnc#504214).
+
+-------------------------------------------------------------------
 Fri Jul 31 09:48:56 CEST 2009 - rhafer@novell.com
 
 - Version 2.18.1
