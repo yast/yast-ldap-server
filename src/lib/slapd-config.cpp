@@ -1281,16 +1281,8 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
     {
         throw std::runtime_error( "Entry '" + dn + "' does not define any objectclasses or attributetypes." );
     }
-    if ( name[0] == '{' )
-    {
-        std::string::size_type pos = name.find('}');
-        std::istringstream indexstr(name.substr(1, pos-1));
-        indexstr >> entryIndex;
-        m_name = name.substr( pos+1, std::string::npos );
-    } else {
-        m_name = name;
-        entryIndex = 0;
-    }
+
+    entryIndex = splitIndexFromString( name, m_name );
 }
 OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : OlcConfigEntry(e1, e2)
 {
