@@ -1253,6 +1253,8 @@ void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
     tls.applySettings( *this );
 }
 
+const std::string OlcSchemaConfig::schemabase = "cn=schema,cn=config";
+
 OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
 {
     m_dbEntryChanged.setDN("cn=schema,cn=config");
@@ -1264,6 +1266,21 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
 {
     log_it(SLAPD_LOG_INFO, "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)");
     std::string name(this->getStringValue("cn"));
+    std::string dn(e.getDN() );
+    if ( name.empty() )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' has no 'cn' Attribute." );
+    }
+    if ( (dn.size() <= schemabase.size()) || 
+         (dn.compare( dn.size()-schemabase.size(), schemabase.size(), schemabase ))  )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' is not a child of '" + schemabase + "'." );
+    }
+    if ( this->getStringValues("olcobjectclasses").empty() &&
+         this->getStringValues("olcattributetypes").empty() )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' does not define any objectclasses or attributetypes." );
+    }
     if ( name[0] == '{' )
     {
         std::string::size_type pos = name.find('}');
@@ -1277,8 +1294,24 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
 }
 OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : OlcConfigEntry(e1, e2)
 {
-    log_it(SLAPD_LOG_INFO, "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)");
+    log_it(SLAPD_LOG_INFO, "OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : OlcConfigEntry(e1, e2)" );
     std::string name(this->getStringValue("cn"));
+    std::string dn(e2.getDN() );
+    if ( name.empty() )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' has no 'cn' Attribute." );
+    }
+    if ( (dn.size() <= schemabase.size()) || 
+         (dn.compare( dn.size()-schemabase.size(), schemabase.size(), schemabase ))  )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' is not a child of '" + schemabase + "'." );
+    }
+    if ( this->getStringValues("olcobjectclasses").empty() &&
+         this->getStringValues("olcattributetypes").empty() )
+    {
+        throw std::runtime_error( "Entry '" + dn + "' does not define any objectclasses or attributetypes." );
+    }
+
     entryIndex = splitIndexFromString( name, m_name );
 }
 
