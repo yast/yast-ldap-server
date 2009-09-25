@@ -1271,7 +1271,7 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e) : OlcConfigEntry(e)
     {
         throw std::runtime_error( "Entry '" + dn + "' has no 'cn' Attribute." );
     }
-    if ( (dn.size() <= schemabase.size()) || 
+    if ( (dn.size() < schemabase.size()) || 
          (dn.compare( dn.size()-schemabase.size(), schemabase.size(), schemabase ))  )
     {
         throw std::runtime_error( "Entry '" + dn + "' is not a child of '" + schemabase + "'." );
@@ -1301,7 +1301,7 @@ OlcSchemaConfig::OlcSchemaConfig(const LDAPEntry &e1, const LDAPEntry &e2) : Olc
     {
         throw std::runtime_error( "Entry '" + dn + "' has no 'cn' Attribute." );
     }
-    if ( (dn.size() <= schemabase.size()) || 
+    if ( (dn.size() < schemabase.size()) || 
          (dn.compare( dn.size()-schemabase.size(), schemabase.size(), schemabase ))  )
     {
         throw std::runtime_error( "Entry '" + dn + "' is not a child of '" + schemabase + "'." );
