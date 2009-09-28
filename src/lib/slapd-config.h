@@ -292,6 +292,7 @@ class OlcSchemaConfig : public OlcConfigEntry
         virtual void clearChangedEntry();     
         const std::string& getName() const;
         const std::vector<LDAPAttrType> getAttributeTypes() const;
+        static const std::string schemabase;
 
     protected:
         virtual void updateEntryDn( bool origEntry = false);
