@@ -544,10 +544,15 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
             if ( path->length() == 1 )
             {
                 std::string dbtype = (*i)->getType();
+                std::string suffix = (*i)->getStringValue("olcSuffix");
+                y2milestone("suffix %s, dbtype %s\n", suffix.c_str(), dbtype.c_str() );
+                if ( suffix.empty() && dbtype == "config" )
+                {
+                    suffix = "cn=config";
+                }
+                resMap.add( YCPString("suffix"), YCPString(suffix) );
                 resMap.add( YCPString( "type" ),
                             YCPString( dbtype ) );
-                resMap.add( YCPString("suffix"), 
-                            YCPString( (*i)->getStringValue("olcSuffix") ));
                 resMap.add( YCPString("rootdn"), 
                             YCPString( (*i)->getStringValue("olcRootDn") ));
                 resMap.add( YCPString("rootpw"), 
