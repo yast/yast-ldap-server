@@ -1298,11 +1298,12 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     global boolean DbAclInput( symbol handler_cmd, integer dbindex )
     {
         map db = $[];
-        if ( dbindex > 0 )
+        if ( dbindex >= 0 )
         {
             db = LdapServer::ReadDatabase(dbindex);
         }
         string suffix =  db["suffix"]:"";
+        y2milestone("suffix: %1", suffix);
         boolean updateTable = false;
 
         integer selected = (integer)UI::QueryWidget( `id( `tab_acl ), `CurrentItem );
