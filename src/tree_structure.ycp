@@ -839,6 +839,30 @@ define boolean cb_write_acl()
     return ret;
 }
 
+define boolean cb_read_sync()
+{
+    y2milestone("cb_read_sync()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    return LdapDatabase::DbSyncRead( handler_cmd, index );
+}
+
+define boolean cb_input_sync()
+{
+    y2milestone("cb_input_acl()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    y2milestone( "calling sync input handler for item '%1'", treeItem );
+    return LdapDatabase::DbSyncInput( handler_cmd, index );
+}
+
+define boolean cb_write_sync()
+{
+    y2milestone("cb_write_sync()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    return LdapDatabase::DbSyncWrite( index );
+}
 define boolean cb_input_ppolicy()
 {
     y2milestone("cb_input_ppolicy()");
@@ -987,6 +1011,15 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_input"  : ``(cb_input_acl() ),
         "help_page" : "acl_edit"
     ];
+    map<string, any> dbSync = $[
+        "name"      : _("Replication Configuration"),
+        "widget"    : LdapDatabase::GetSyncWidget(),
+        "index"     : index,
+        "cb_read"   : ``(cb_read_sync() ),
+        "cb_write"   : ``(cb_write_sync() ),
+        "cb_input"  : ``(cb_input_sync() ),
+        "help_page" : "sync_edit"
+    ];
     map<string,any> item_map = $[
         "name"      : label,
         "children"  : [ item_name + "_acl"],
@@ -998,7 +1031,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> bdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl"],
+        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl", item_name + "_sync"],
         "index"     : index,
         "widget"    : editBdbDatabase,
         "new_db"    : new_db,
@@ -1016,6 +1049,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         widget_map[item_name + "_index"] = dbIndex;
         widget_map[item_name + "_ppolicy"] = dbPpolicy;
         widget_map[item_name + "_acl"] = dbAcl;
+        widget_map[item_name + "_sync"] = dbSync;
     }
     else
     {
