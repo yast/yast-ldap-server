@@ -1041,6 +1041,15 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_write"  : ``( cb_write_db() ),
         "cb_input"  : ``( cb_input_db() )
     ];
+    map<string,any> confdb_item_map = $[
+        "name"      : label,
+        "children"  : [ item_name + "_acl", item_name + "_sync"],
+        "index"     : index,
+        "widget"    : editGenericDatabase,
+        "new_db"    : new_db,
+        "dynamic"   : true,
+        "help_page" : "database_detail_unsupported",
+    ];
     y2milestone( "adding database item '%1' as '%2'", label, item_name );
 
     if ( type == "bdb" || type == "hdb" )
@@ -1048,6 +1057,12 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         widget_map[item_name] = bdb_item_map;
         widget_map[item_name + "_index"] = dbIndex;
         widget_map[item_name + "_ppolicy"] = dbPpolicy;
+        widget_map[item_name + "_acl"] = dbAcl;
+        widget_map[item_name + "_sync"] = dbSync;
+    }
+    else if ( type == "config" )
+    {
+        widget_map[item_name] = confdb_item_map;
         widget_map[item_name + "_acl"] = dbAcl;
         widget_map[item_name + "_sync"] = dbSync;
     }
