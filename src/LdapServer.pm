@@ -1686,6 +1686,7 @@ sub ChangeDatabaseIndex
  #                      'type'  => <'self'|'users'|'anoymous'|'*'|'group'|'dn.base'|'dn.subtree'>
  #                      # if type is 'group', 'dn.base', 'dn.subtree':
  #                      'value'    => <a valid LDAP DN>
+ #                      'control'  => <'stop'|'break'|'continue'>                      '
  #                  ]
  #
  #          }

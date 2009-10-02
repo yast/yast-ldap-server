@@ -710,9 +710,9 @@
                             ),
                             `RadioButtonGroup(`id(`rbg_aclcontrol),
                                 `VBox(
-                                    `Left(`RadioButton(`id(0), _("Stop Access Control evaluation here (default)"), true )),
-                                    `Left(`RadioButton(`id(1), _("Continue with next Access Control rule (\"break\")") )),
-                                    `Left(`RadioButton(`id(2), _("Continue evaluation of this rule (\"continue\")") ))
+                                    `Left(`RadioButton(`id( "stop" ), _("Stop Access Control evaluation here (default)"), true )),
+                                    `Left(`RadioButton(`id( "break" ), _("Continue with next Access Control rule (\"break\")") )),
+                                    `Left(`RadioButton(`id( "continue" ), _("Continue evaluation of this rule (\"continue\")") ))
                                 )
                             ),
                             `HBox(
@@ -731,6 +731,7 @@
         {
             UI::ChangeWidget( `id( `cb_who), `Value, access["type"]:`nil );
             UI::ChangeWidget( `id( `cb_access), `Value, access["level"]:`nil );
+            UI::ChangeWidget( `id( `rbg_aclcontrol), `CurrentButton, access["control"]:"stop" );
             if ( access["type"]:`nil == `who_dn ||
                  access["type"]:`nil == `who_dn_subtree ||
                  access["type"]:`nil == `who_group )
@@ -770,6 +771,8 @@
                 }
 
                 res["level"] = UI::QueryWidget( `id( `cb_access ), `Value );
+                res["control"] = (string) UI::QueryWidget( `id( `rbg_aclcontrol ), `CurrentButton );
+
                 break;
             }
             else if ( ret == `cancel )
@@ -868,7 +871,7 @@
                                 `VBox(
                                     `HBox(
                                         `MinSize( 60, 7,
-                                            `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level") ) )
+                                            `Table( `id( `tab_access ),`opt(`keepSorting), `header(_("Who"), _("DN"),_("Access Level"), _("Flow Control") ) )
                                         ),
                                         `VBox(
                                             `PushButton( `id (`pb_up ), _("Up") ),
@@ -961,7 +964,13 @@
                 list itemlist = maplist (map v, accesslist,
                     {
                         pos=pos+1;
-                        return `item( `id(pos), whoId2String[v["type"]:`none,0]:"", v["value"]:"", accessId2String[v["level"]:`none,0]:"");
+                        return `item(
+                                    `id(pos),
+                                    whoId2String[v["type"]:`none,0]:"",
+                                    v["value"]:"",
+                                    accessId2String[v["level"]:`none,0]:"",
+                                    v["control"]:"stop"
+                                );
                     }
                 );
                 UI::ChangeWidget( `tab_access, `Items, itemlist) ;
@@ -1220,6 +1229,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                             accessMap["level"] = accessString2Id[access["level"]:""]:`access_none;
                             accessMap["type"] = whoString2Id[access["type"]:""]:`nil;
                             accessMap["value"] = access["value"]:"";
+                            accessMap["control"] = access["control"]:"";
                             accessList = add( accessList, accessMap );
                         }
                     );
@@ -1395,7 +1405,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         }
         return true;
     }
-    
+
     global term GetSyncWidget()
     {
         term widget =
