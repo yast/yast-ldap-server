@@ -669,6 +669,9 @@
         "manage"    : `access_manage
     ];
 
+    /*
+     * Popup to add/edit the acl "by" clauses
+     */
     global map AddAclAccess(string suffix, map access)
     {
         list itemlist = [];
@@ -704,6 +707,13 @@
                             ),
                             `Left(
                                 `ComboBox( `id(`cb_access), _("Define the Access Level"), access_itemlist)
+                            ),
+                            `RadioButtonGroup(`id(`rbg_aclcontrol),
+                                `VBox(
+                                    `Left(`RadioButton(`id(0), _("Stop Access Control evaluation here (default)"), true )),
+                                    `Left(`RadioButton(`id(1), _("Continue with next Access Control rule (\"break\")") )),
+                                    `Left(`RadioButton(`id(2), _("Continue evaluation of this rule (\"continue\")") ))
+                                )
                             ),
                             `HBox(
                                 Wizard::CancelOKButtonBox()
