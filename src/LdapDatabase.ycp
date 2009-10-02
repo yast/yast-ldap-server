@@ -1391,6 +1391,77 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         }
         return true;
     }
+    
+    global term GetSyncWidget()
+    {
+        term widget =
+            `VBox(
+                `VSpacing(1),
+                `VBox(
+                    `HBox(
+                        `CheckBox( `id( `cb_synprov_enable ),`opt(`notify ),
+                            _("Enable ldapsync provider for this database"), false 
+                        ),
+                        `HSpacing( `opt(`hstretch))
+                    ),
+                    `VSpacing(0.5),
+                    `VBox(
+                        `Left(
+                            `Label( _("Checkpoint settings") )
+                        ),
+                        `HBox(
+                            `HSquash(
+                                `IntField( `id( `if_syncprov_checkpoint_ops ),
+                                    "", 0, 2000000000,0
+                                )
+                            ),
+                            `Label( _("Operations") ),
+                            `HSquash(
+                                `IntField( `id( `if_syncprov_checkpoint_min ),
+                                    "", 0, 2000000000,0
+                                )
+                            ),
+                            `Label( _("Minutes") ),
+                            `HStretch()
+                        )
+                    ),
+                    `VSpacing(0.5),
+                    `VBox(
+                        `Left(
+                            `Label( _("Session log") )
+                        ),
+                        `HBox(
+                            `HSquash(
+                                `IntField( `id( `if_syncprov_sessionlog ),
+                                    "", 0, 2000000000, 0
+                                )
+                            ),
+                            `Label( _("Operations") ),
+                            `HStretch()
+                        )
+                    )
+                )
+            );
+        return widget;
+    }
+
+    global boolean DbSyncRead( symbol handler_cmd, integer index )
+    {
+        y2milestone("DbSyncRead %1 %2", index, handler_cmd );
+        return true;
+    }
+
+    global boolean DbSyncInput( symbol handler_cmd, integer index )
+    {
+        y2milestone("DbSyncInput %1 %2", index, handler_cmd );
+        return true;
+    }
+
+    global boolean DbSyncWrite( integer index )
+    {
+        y2milestone("DbSyncWrite %1", index );
+        return true;
+    }
 
     define symbol DbPpolicy()
     {
