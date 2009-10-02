@@ -641,7 +641,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
                 }
             }
             log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+"> control <" + control + ">" );
-            boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value) );
+            boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value, control) );
             log_it(SLAPD_LOG_INFO, " type <"+by->getType()+">" );
             m_byList.push_back(by);
         }
