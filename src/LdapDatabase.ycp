@@ -1407,7 +1407,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     `VSpacing(0.5),
                     `VBox(
                         `Left(
-                            `Label( _("Checkpoint settings") )
+                            `Label( `id( `l_sync_settings ), _("Checkpoint settings") )
                         ),
                         `HBox(
                             `HSquash(
@@ -1415,20 +1415,20 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                     "", 0, 2000000000,0
                                 )
                             ),
-                            `Label( _("Operations") ),
+                            `Label( `id( `l_sync_cp_op ), _("Operations") ),
                             `HSquash(
                                 `IntField( `id( `if_syncprov_checkpoint_min ),
                                     "", 0, 2000000000,0
                                 )
                             ),
-                            `Label( _("Minutes") ),
+                            `Label( `id( `l_sync_cp_min), _("Minutes") ),
                             `HStretch()
                         )
                     ),
                     `VSpacing(0.5),
                     `VBox(
                         `Left(
-                            `Label( _("Session log") )
+                            `Label( `id( `l_sync_slog ), _("Session log") )
                         ),
                         `HBox(
                             `HSquash(
@@ -1436,7 +1436,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                     "", 0, 2000000000, 0
                                 )
                             ),
-                            `Label( _("Operations") ),
+                            `Label( `id( `l_sync_slog_op ), _("Operations") ),
                             `HStretch()
                         )
                     )
@@ -1447,13 +1447,47 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
 
     global boolean DbSyncRead( symbol handler_cmd, integer index )
     {
-        y2milestone("DbSyncRead %1 %2", index, handler_cmd );
+        y2milestone("DbSyncRead %1 %2", handler_cmd, index );
+        UI::ChangeWidget( `cb_synprov_enable, `Value, false );
+        UI::ChangeWidget( `l_sync_settings, `Enabled , false );
+        UI::ChangeWidget( `if_syncprov_checkpoint_ops, `Enabled , false );
+        UI::ChangeWidget( `l_sync_cp_op, `Enabled , false );
+        UI::ChangeWidget( `if_syncprov_checkpoint_min, `Enabled , false );
+        UI::ChangeWidget( `l_sync_cp_min, `Enabled , false );
+        UI::ChangeWidget( `l_sync_slog, `Enabled , false );
+        UI::ChangeWidget( `l_sync_slog_op, `Enabled , false );
+        UI::ChangeWidget( `if_syncprov_sessionlog, `Enabled , false );
         return true;
     }
 
     global boolean DbSyncInput( symbol handler_cmd, integer index )
     {
-        y2milestone("DbSyncInput %1 %2", index, handler_cmd );
+        y2milestone("DbSyncInput %1 %2", handler_cmd, index);
+        if ( handler_cmd == `cb_synprov_enable )
+        {
+            if ( UI::QueryWidget( `cb_synprov_enable , `Value ) == true )
+            {
+                UI::ChangeWidget( `l_sync_settings, `Enabled , true );
+                UI::ChangeWidget( `if_syncprov_checkpoint_ops, `Enabled , true );
+                UI::ChangeWidget( `l_sync_cp_op, `Enabled , true );
+                UI::ChangeWidget( `if_syncprov_checkpoint_min, `Enabled , true );
+                UI::ChangeWidget( `l_sync_cp_min, `Enabled , true );
+                UI::ChangeWidget( `l_sync_slog, `Enabled , true );
+                UI::ChangeWidget( `l_sync_slog_op, `Enabled , true );
+                UI::ChangeWidget( `if_syncprov_sessionlog, `Enabled , true );
+            }
+            else
+            {
+                UI::ChangeWidget( `l_sync_settings, `Enabled , false );
+                UI::ChangeWidget( `if_syncprov_checkpoint_ops, `Enabled , false );
+                UI::ChangeWidget( `l_sync_cp_op, `Enabled , false );
+                UI::ChangeWidget( `if_syncprov_checkpoint_min, `Enabled , false );
+                UI::ChangeWidget( `l_sync_cp_min, `Enabled , false );
+                UI::ChangeWidget( `l_sync_slog, `Enabled , false );
+                UI::ChangeWidget( `l_sync_slog_op, `Enabled , false );
+                UI::ChangeWidget( `if_syncprov_sessionlog, `Enabled , false );
+            }
+        }
         return true;
     }
 
