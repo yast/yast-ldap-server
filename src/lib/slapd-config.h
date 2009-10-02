@@ -127,8 +127,9 @@ class OlcAclBy
     public:
         inline OlcAclBy( const std::string& level,
                   const std::string& type,
-                  const std::string& value = "" ) : 
-                        m_type(type), m_value(value)
+                  const std::string& value = "",
+                  const std::string& control = "" ) : 
+                        m_type(type), m_value(value), m_control(control)
         {
             setLevel(level);
         }
@@ -146,6 +147,11 @@ class OlcAclBy
         inline std::string getValue() const
         {
             return m_value;
+        }
+        
+        inline std::string getControl() const
+        {
+            return m_control;
         }
 
         inline void setLevel( const std::string &level )
@@ -167,11 +173,17 @@ class OlcAclBy
         {
             m_value = value;
         }
+        inline void setControl( const std::string &value )
+        {
+            m_control = value;
+        }
+
 
     private:
         std::string m_level;
         std::string m_type;
         std::string m_value;
+        std::string m_control;
 };
 
 typedef std::list<boost::shared_ptr<OlcAclBy> > OlcAclByList;

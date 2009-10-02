@@ -550,6 +550,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
             std::string type = "";
             std::string value = "";
             std::string level = "";
+            std::string control = "";
             spos = tmppos+1;
             // skip whitespaces
             tmppos = aclString.find_first_not_of("\t ", spos );
@@ -602,9 +603,30 @@ OlcAccess::OlcAccess( const std::string& aclString )
                      level != "compare" && level != "read" &&
                      level != "write" && level != "manage" )
                 {
-                    throw std::runtime_error( "Unsupported access level" );
+                    if ( level == "stop" || level == "break" || level == "continue" )
+                    {
+                        // it's ok to have no access level defined
+                        control = level;
+                        level = "";
+                    }
+                    else
+                    {
+                        throw std::runtime_error( "Unsupported access level" );
+                    }
                 }
                 log_it(SLAPD_LOG_INFO, "access: " +  level );
+                if ( control.empty() && tmppos != std::string::npos )
+                {
+                    spos = tmppos+1;
+                    tmppos = extractAlcToken( aclString, spos, false );
+                    control = aclString.substr(spos, tmppos-spos);
+                    log_it(SLAPD_LOG_INFO, "control: " +  control );
+                    if ( control != "stop" && control != "break" && control != "continue" )
+                    {
+                        control = "";
+                    }
+                    spos = tmppos+1;
+                }
                 if (tmppos != std::string::npos )
                 {
                     spos = aclString.find_first_not_of("\t ", tmppos+1 );
@@ -618,7 +640,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
                     }
                 }
             }
-            log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+">" );
+            log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+"> control <" + control + ">" );
             boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value) );
             log_it(SLAPD_LOG_INFO, " type <"+by->getType()+">" );
             m_byList.push_back(by);
@@ -737,7 +759,13 @@ std::string OlcAccess::toAclString() const
         {
             aclString << "=\"" << (*i)->getValue() << "\"";
         }
+
         aclString << " " << (*i)->getLevel();
+        std::string control = (*i)->getControl();
+        if ( !control.empty() && control != "stop" )
+        {
+            aclString << " " << (*i)->getControl();
+        }
     }
     return aclString.str();
 }
