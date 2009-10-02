@@ -624,10 +624,10 @@
         return selected;
     }
 
-    map<symbol, list<string> > whatId2String = $[
-        `dn_all     : [ _("All Entries"), "*" ],
-        `dn_subtree : [ _("All Entries in the subtree"), "subtree" ],
-        `dn_base    : [ _("The Entry with the DN"), "base" ]
+    map<string, string> whatString2Label = $[
+        "*"       : _("All Entries"),
+        "subtree" : _("All Entries in the subtree"),
+        "base"    : _("The Entry with the DN")
     ];
 
     map<symbol, list<string> > whoId2String = $[
@@ -816,9 +816,9 @@
     global map AddAclTarget(string suffix, map acl)
     {
         list itemlist = [];
-        foreach( symbol i, [ `dn_all, `dn_subtree, `dn_base ],
+        foreach( string k, string v, whatString2Label,
             {
-                itemlist = add(itemlist, `item( `id( i ), whatId2String[i,0]:"" ) );
+                itemlist = add(itemlist, `item( `id( k ), v ) );
             }
         );
         term addAclWidget =
@@ -895,20 +895,20 @@
 
         if ( acl != nil )
         {
-            UI::ChangeWidget( `id( `cb_what ), `Value, acl["target","what"]:`dn_all );
-            if ( acl["target","what"]:`nil == `dn_base )
+            UI::ChangeWidget( `id( `cb_what ), `Value, acl["target","what"]:"*" );
+            if ( acl["target","what"]:"" == "base" )
             {
                 UI::ChangeWidget( `id (`te_dn ), `Enabled, true );
                 UI::ChangeWidget( `id (`pb_dn ), `Enabled, true );
                 UI::ChangeWidget( `id (`te_dn ), `Value, acl["target","dn"]:"" );
             }
-            else if ( acl["target","what"]:`nil == `dn_subtree )
+            else if ( acl["target","what"]:"" == "subtree" )
             {
                 UI::ChangeWidget( `id (`te_dn ), `Enabled, true );
                 UI::ChangeWidget( `id (`te_dn ), `Value, acl["target","dn"]:"" );
                 UI::ChangeWidget( `id (`te_dn ), `Label, _("Subtree DN") );
             }
-            else if ( acl["target","what"]:`nil == `dn_all )
+            else if ( acl["target","what"]:"" == "*" )
             {
                 UI::ChangeWidget( `id (`te_dn ), `Enabled, false );
                 UI::ChangeWidget( `id (`pb_dn ), `Enabled, false );
@@ -941,7 +941,7 @@
         {
             UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
             UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
-            UI::ChangeWidget( `id( `cb_what ), `Value, `dn_all );
+            UI::ChangeWidget( `id( `cb_what ), `Value, "*" );
             UI::ChangeWidget( `id( `cb_filter ), `Value, false );
             UI::ChangeWidget( `id( `te_filter ), `Enabled, false );
             UI::ChangeWidget( `id( `cb_attrs ), `Value, false );
@@ -977,7 +977,7 @@
                 map what = $[];
                 what["what"] = UI::QueryWidget( `id( `cb_what ), `Value );
                 what["dn"] = UI::QueryWidget( `id( `te_dn ), `Value );
-                if ( (what["what"]:`nil == `dn_base || what["what"]:`nil == `dn_subtree ) )
+                if ( (what["what"]:"" == "base" || what["what"]:"" == "subtree" ) )
                 {
                     if ( ! LdapServer::ValidateDn( what["dn"]:"" ) )
                     {
@@ -1030,17 +1030,17 @@
             }
             else if ( ret == `cb_what )
             {
-                symbol cb_val = (symbol)UI::QueryWidget( `id(`cb_what), `Value );
-                if ( cb_val == `dn_all )
+                string cb_val = (string)UI::QueryWidget( `id(`cb_what), `Value );
+                if ( cb_val == "*" )
                 {
                     UI::ChangeWidget( `id( `te_dn ), `Enabled, false );
                     UI::ChangeWidget( `id( `pb_dn ), `Enabled, false );
                 }
-                else if ( cb_val == `dn_base || cb_val == `dn_subtree )
+                else if ( cb_val == "base" || cb_val == "subtree" )
                 {
                     UI::ChangeWidget( `id( `te_dn ), `Enabled, true );
                     UI::ChangeWidget( `id( `pb_dn ), `Enabled, true );
-                    if ( cb_val == `dn_subtree )
+                    if ( cb_val == "subtree" )
                     {
                         UI::ChangeWidget( `id( `te_dn ), `Label, _("Subtree DN") );
                     }
@@ -1196,26 +1196,19 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     resMap["access"] = [];
                     if ( size(targetMap) == 0 )
                     {
-                        resMap["target", "what"] = `dn_all;
+                        resMap["target", "what"] = "*";
                     }
                     else
                     {
                         map dnMap = targetMap["dn"]:$[];
                         if (size(dnMap) > 0)
                         {
-                           if (dnMap["style"]:"" == "subtree" )
-                           {
-                               resMap["target", "what"] = `dn_subtree;
-                           }
-                           else if (dnMap["style"]:"" == "base" )
-                           {
-                               resMap["target", "what"] = `dn_base;
-                           }
+                           resMap["target", "what"] = dnMap["style"]:"";
                            resMap["target", "dn"] = dnMap["value"]:"";
                         }
                         else
                         {
-                            resMap["target", "what"] = `dn_all;
+                            resMap["target", "what"] = "*";
                         }
                         resMap["target", "filter"] = targetMap["filter"]:"";
                         resMap["target", "attrs"] = targetMap["attrs"]:"";
@@ -1239,7 +1232,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 {
                     pos=pos+1;
                     string dn="";
-                    if ( ( v["target","what"]:`dn_all != `dn_all) && ( v["target","dn"]:"" == "" ) )
+                    if ( ( v["target","what"]:"*" != "*") && ( v["target","dn"]:"" == "" ) )
                     {
                         dn = "<Root-DSE>";
                     }
@@ -1248,7 +1241,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         dn = v["target","dn"]:"";
                     }
                     return `item( `id(pos),
-                                  whatId2String[v["target","what"]:`none,0]:"",
+                                  whatString2Label[v["target","what"]:""]:"",
                                   dn,
                                   v["target","filter"]:"",
                                   v["target","attrs"]:"All Attributes"
@@ -1273,10 +1266,10 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 y2milestone( "------------------------------" );
                 y2milestone( "ACL Target: %1", acl["target","what"]:`nil );
                 map targetmap = $[];
-                if ( acl["target","what"]:`dn_all != `dn_all )
+                if ( acl["target","what"]:"*" != "*" )
                 {
                     map dn = $[
-                        "style"    : whatId2String[ acl["target","what"]:`dn_base,1 ]:"",
+                        "style" : acl["target","what"]:"",
                         "value" : acl["target","dn"]:""
                     ];
                     targetmap["dn"] = dn;
@@ -1381,7 +1374,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 {
                     pos=pos+1;
                     string dn="";
-                    if ( ( v["target","what"]:`dn_all != `dn_all) && ( v["target","dn"]:"" == "" ) )
+                    if ( ( v["target","what"]:"*" != "*") && ( v["target","dn"]:"" == "" ) )
                     {
                         dn = "<Root-DSE>";
                     }
@@ -1390,7 +1383,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         dn = v["target","dn"]:"";
                     }
                     return `item( `id(pos),
-                                  whatId2String[v["target","what"]:`none,0]:"",
+                                  whatString2Label[v["target","what"]:""]:"",
                                   dn,
                                   v["target","filter"]:"",
                                   v["target","attrs"]:"All Attributes"
