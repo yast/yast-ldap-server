@@ -859,10 +859,21 @@ define boolean cb_input_sync()
 define boolean cb_write_sync()
 {
     y2milestone("cb_write_sync()");
+    boolean result = false;
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    return LdapDatabase::DbSyncWrite( index );
+    map<string,any> syncprov = LdapDatabase::DbSyncWrite( index );
+    if ( size(syncprov) > 0 )
+    {
+        result = LdapServer::WriteSyncProv(index, syncprov);
+    }
+    if ( ! result ) {
+        map<string, string> err = LdapServer::ReadError();
+        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+    }
+    return result;
 }
+
 define boolean cb_input_ppolicy()
 {
     y2milestone("cb_input_ppolicy()");
