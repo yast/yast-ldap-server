@@ -110,7 +110,7 @@ class OlcOverlay : public OlcConfigEntry
     public:
         static OlcOverlay* createFromLdapEntry( const LDAPEntry& le);
         OlcOverlay( const LDAPEntry &le );
-        OlcOverlay( const std::string &type, const std::string &parent );
+        OlcOverlay( const std::string &type, const std::string &parent, const std::string &oc="" );
         const std::string getType() const;
 
         void newParentDn( const std::string &parent );

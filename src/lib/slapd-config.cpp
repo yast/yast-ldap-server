@@ -371,13 +371,16 @@ OlcOverlay::OlcOverlay( const LDAPEntry& e) : OlcConfigEntry(e)
     entryIndex = splitIndexFromString( type, m_type );
 }
 
-OlcOverlay::OlcOverlay( const std::string &type, const std::string &parent )
+OlcOverlay::OlcOverlay( const std::string &type, const std::string &parent, const std::string &oc )
         : m_type(type), m_parent(parent)
 {
     std::ostringstream dnstr;
     dnstr << "olcOverlay=" << m_type << "," << parent;
     m_dbEntryChanged.setDN(dnstr.str());
-    m_dbEntryChanged.addAttribute(LDAPAttribute("objectclass", "olcPpolicyConfig"));
+    if ( !oc.empty() )
+    {
+        m_dbEntryChanged.addAttribute( LDAPAttribute("objectclass", oc) );
+    }
     m_dbEntryChanged.addAttribute(LDAPAttribute("olcoverlay", m_type));
 }
 
