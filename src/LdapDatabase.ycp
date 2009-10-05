@@ -1507,10 +1507,27 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
-    global boolean DbSyncWrite( integer index )
+    global map<string,any> DbSyncWrite( integer index )
     {
         y2milestone("DbSyncWrite %1", index );
-        return true;
+        map <string,any> syncprov = $[];
+        if( UI::QueryWidget( `cb_synprov_enable, `Value ) == true )
+        {
+            integer cp_ops = (integer) UI::QueryWidget( `if_syncprov_checkpoint_ops, `Value );
+            integer cp_min = (integer) UI::QueryWidget( `if_syncprov_checkpoint_min, `Value );
+            integer slog = (integer) UI::QueryWidget( `if_syncprov_sessionlog, `Value );
+            syncprov = add(syncprov, "enabled", true );
+            if ( cp_ops != 0 || cp_min != 0 )
+            {
+                map cp = $[ "ops" : cp_ops, "min" : cp_min ];
+                syncprov =  add( syncprov, "checkpoint", cp );
+            }
+            if ( slog > 0 )
+            {
+                syncprov = add( syncprov, "sessionlog", slog );
+            }
+        }
+        return syncprov;
     }
 
     define symbol DbPpolicy()

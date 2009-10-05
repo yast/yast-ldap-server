@@ -1301,6 +1301,52 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         }
                         ret = true;
                     }
+                    else if ( dbComponent == "syncprov" )
+                    {
+                        OlcOverlayList overlays = (*i)->getOverlays();
+                        OlcOverlayList::const_iterator j = overlays.begin();
+                        for (; j != overlays.end(); j++ )
+                        {
+                            if ( (*j)->getType() == "syncprov" )
+                            {
+                                break;
+                            }
+                        }
+                        YCPMap argMap = arg->asMap();
+                        if ( j == overlays.end() && argMap.size() == 0 )
+                        {
+                            y2milestone("Empty overlay nothing to do");
+                        }
+                        boost::shared_ptr<OlcOverlay> syncprovOlc;
+                        if ( j == overlays.end() )
+                        {
+                            boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("syncprov", (*i)->getUpdatedDn(), "olcSyncProvConfig") );
+                            syncprovOlc = tmp;
+                            syncprovOlc->setIndex(0);
+                            (*i)->addOverlay(syncprovOlc);
+                        }
+                        else
+                        {
+                            syncprovOlc = *j;
+                        }
+                        if( argMap.size() == 0 )
+                        {
+                            syncprovOlc->clearChangedEntry();
+                        }
+                        else
+                        {
+                            if( ! argMap->value(YCPString("checkpoint")).isNull() )
+                            {
+                                YCPMap cpMap = argMap->value(YCPString("checkpoint"))->asMap();
+                                int min = cpMap->value(YCPString("min"))->asInteger()->value();
+                                int ops = cpMap->value(YCPString("ops"))->asInteger()->value();
+                                std::ostringstream cpStream;
+                                cpStream << ops << " " << min;
+                                syncprovOlc->setStringValue("olcSpCheckpoint", cpStream.str());
+                            }
+                        }
+                        ret = true;
+                    }
                     else if ( dbComponent == "acl" )
                     {
                         YCPList argList = arg->asList();
