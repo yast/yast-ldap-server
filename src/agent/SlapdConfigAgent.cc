@@ -656,6 +656,34 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     }
                     return resMap;
                 }
+                else if ( dbComponent == "syncprov" )
+                {
+                    OlcOverlayList overlays = (*i)->getOverlays();
+                    OlcOverlayList::const_iterator j = overlays.begin();
+                    for (; j != overlays.end(); j++ )
+                    {
+                        if ( (*j)->getType() == "syncprov" && (*j)->getUpdatedDn() != "" )
+                        {
+                            boost::shared_ptr<OlcSyncProvOl> syncprovOlc = boost::dynamic_pointer_cast<OlcSyncProvOl>(*j);
+                            int cp_ops,cp_min;
+                            syncprovOlc->getCheckPoint(cp_ops, cp_min);
+                            if ( cp_ops || cp_min )
+                            {
+                                YCPMap cpMap;
+                                cpMap.add( YCPString("ops"), YCPInteger(cp_ops) );
+                                cpMap.add( YCPString("min"), YCPInteger(cp_min) );
+                                resMap.add( YCPString("checkpoint"), cpMap );
+                            }
+                            int slog;
+                            if ( syncprovOlc->getSessionLog(slog) )
+                            {
+                                resMap.add( YCPString("sessionlog"), YCPInteger(slog) );
+                            }
+                            break;
+                        }
+                    }
+                    return resMap;
+                }
                 else if ( dbComponent == "acl" )
                 {
                     YCPList resList;

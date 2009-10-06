@@ -1821,6 +1821,27 @@ sub AddPasswordPolicy
     return YaST::YCP::Boolean(1);
 }
 
+BEGIN { $TYPEINFO {ReadSyncProv} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub ReadSyncProv
+{
+    my ($self, $index) = @_;
+    y2milestone("ReadSyncProv ", $index);
+    my $syncprov = SCR->Read(".ldapserver.database.{".$index."}.syncprov" );
+    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    if (defined $syncprov->{'checkpoint'} )
+    {
+        $syncprov->{'checkpoint'} = {
+            "ops" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'ops'}),
+            "min" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'min'})
+        }
+    }
+    if (defined $syncprov->{'sessionlog'} )
+    {
+        $syncprov->{'sessionlog'} = YaST::YCP::Integer( $syncprov->{'sessionlog'} );
+    }
+    return $syncprov;
+}
+
 BEGIN { $TYPEINFO {WriteSyncProv} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
 sub WriteSyncProv
 {
