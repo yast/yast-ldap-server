@@ -1345,32 +1345,40 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         {
                             y2milestone("Empty overlay nothing to do");
                         }
-                        boost::shared_ptr<OlcOverlay> syncprovOlc;
-                        if ( j == overlays.end() )
-                        {
-                            boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("syncprov", (*i)->getUpdatedDn(), "olcSyncProvConfig") );
-                            syncprovOlc = tmp;
-                            syncprovOlc->setIndex(0);
-                            (*i)->addOverlay(syncprovOlc);
-                        }
                         else
                         {
-                            syncprovOlc = *j;
-                        }
-                        if( argMap.size() == 0 )
-                        {
-                            syncprovOlc->clearChangedEntry();
-                        }
-                        else
-                        {
-                            if( ! argMap->value(YCPString("checkpoint")).isNull() )
+                            boost::shared_ptr<OlcSyncProvOl> syncprovOlc;
+                            if ( j == overlays.end() )
                             {
-                                YCPMap cpMap = argMap->value(YCPString("checkpoint"))->asMap();
-                                int min = cpMap->value(YCPString("min"))->asInteger()->value();
-                                int ops = cpMap->value(YCPString("ops"))->asInteger()->value();
-                                std::ostringstream cpStream;
-                                cpStream << ops << " " << min;
-                                syncprovOlc->setStringValue("olcSpCheckpoint", cpStream.str());
+                                boost::shared_ptr<OlcSyncProvOl> tmp(new OlcSyncProvOl((*i)->getUpdatedDn()) );
+                                syncprovOlc = tmp;
+                                syncprovOlc->setIndex(0);
+                                (*i)->addOverlay(syncprovOlc);
+                            }
+                            else
+                            {
+                                syncprovOlc = boost::dynamic_pointer_cast<OlcSyncProvOl>(*j);
+                            }
+                            if( argMap.size() == 0 )
+                            {
+                                syncprovOlc->clearChangedEntry();
+                            }
+                            else
+                            {
+                                if( ! argMap->value(YCPString("checkpoint")).isNull() )
+                                {
+                                    YCPMap cpMap = argMap->value(YCPString("checkpoint"))->asMap();
+                                    syncprovOlc->setCheckPoint( cpMap->value(YCPString("ops"))->asInteger()->value(),
+                                                                cpMap->value(YCPString("min"))->asInteger()->value() );
+                                }
+                                if( ! argMap->value(YCPString("sessionlog")).isNull() )
+                                {
+                                    syncprovOlc->setSessionLog( argMap->value(YCPString("sessionlog"))->asInteger()->value() );
+                                }
+                                else
+                                {
+                                    syncprovOlc->setStringValue( "olcSpSessionlog", "" );
+                                }
                             }
                         }
                         ret = true;
