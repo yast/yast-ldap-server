@@ -361,6 +361,14 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
 
 OlcOverlay* OlcOverlay::createFromLdapEntry( const LDAPEntry& e)
 {
+    StringList oc = e.getAttributeByName("objectclass")->getValues();
+    for( StringList::const_iterator i = oc.begin(); i != oc.end(); i++ )
+    {
+        if ( strCaseIgnoreEquals(*i, "olcSyncProvConfig" ) )
+        {
+            return new OlcSyncProvOl(e);
+        }
+    }
     return new OlcOverlay(e);
 }
 
@@ -420,6 +428,58 @@ void OlcOverlay::updateEntryDn(bool origEntry )
     {
         m_dbEntry.setDN(dn.str());
         m_dbEntry.replaceAttribute(LDAPAttribute("olcOverlay", name.str()));
+    }
+}
+
+void OlcSyncProvOl::setCheckPoint( int ops, int min )
+{
+    if ( !ops && !min )
+    {
+        this->setStringValue( "olcSpCheckpoint", "" );
+    }
+    else
+    {
+        std::ostringstream oStr;
+        oStr << ops << " " << min;
+        this->setStringValue( "olcSpCheckpoint", oStr.str() );
+    }
+}
+
+void OlcSyncProvOl::getCheckPoint( int &ops, int &min) const
+{
+    ops=0;
+    min=0;
+    std::string checkpointStr =  this->getStringValue("olcSpCheckpoint");
+    if (! checkpointStr.empty() )
+    {
+        std::istringstream iStr(checkpointStr);
+        iStr >> ops >> std::skipws >> min;
+    }
+    return;
+}
+
+void OlcSyncProvOl::setSessionLog( int slog )
+{
+    if ( slog > 0 )
+    {
+        std::ostringstream oStr;
+        oStr << slog;
+        this->setStringValue( "olcSpSessionLog", oStr.str() );
+    }
+}
+
+bool OlcSyncProvOl::getSessionLog( int &slog ) const
+{
+    std::string slogStr =  this->getStringValue("olcSpSessionLog");
+    if (! slogStr.empty() )
+    {
+        std::istringstream iStr(slogStr);
+        iStr >> slog ;
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
