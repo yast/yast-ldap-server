@@ -122,6 +122,18 @@ class OlcOverlay : public OlcConfigEntry
         std::string m_parent;
 };
 
+class OlcSyncProvOl : public OlcOverlay
+{
+    public:
+        OlcSyncProvOl( const LDAPEntry &le ) : OlcOverlay( le ) {}
+        OlcSyncProvOl( const std::string &parent) : OlcOverlay("syncprov",parent,"olcSyncProvConfig") {}
+        void getCheckPoint(int &ops, int &min) const;
+        void setCheckPoint(int ops, int min);
+
+        bool getSessionLog(int &slog) const;
+        void setSessionLog(int slog);
+};
+
 class OlcAclBy
 {
     public:
