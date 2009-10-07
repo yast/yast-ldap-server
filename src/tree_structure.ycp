@@ -839,31 +839,31 @@ define boolean cb_write_acl()
     return ret;
 }
 
-define boolean cb_read_sync()
+define boolean cb_read_syncprov()
 {
-    y2milestone("cb_read_sync()");
+    y2milestone("cb_read_syncprov()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     map <string,any> sp = LdapServer::ReadSyncProv(index);
-    return LdapDatabase::DbSyncRead( handler_cmd, index, sp );
+    return LdapDatabase::DbSyncProvRead( handler_cmd, index, sp );
 }
 
-define boolean cb_input_sync()
+define boolean cb_input_syncprov()
 {
-    y2milestone("cb_input_acl()");
+    y2milestone("cb_input_syncprov()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     y2milestone( "calling sync input handler for item '%1'", treeItem );
-    return LdapDatabase::DbSyncInput( handler_cmd, index );
+    return LdapDatabase::DbSyncProvInput( handler_cmd, index );
 }
 
-define boolean cb_write_sync()
+define boolean cb_write_syncprov()
 {
-    y2milestone("cb_write_sync()");
+    y2milestone("cb_write_syncprov()");
     boolean result = false;
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    map<string,any> syncprov = LdapDatabase::DbSyncWrite( index );
+    map<string,any> syncprov = LdapDatabase::DbSyncProvWrite( index );
     result = LdapServer::WriteSyncProv(index, syncprov);
     if ( ! result ) {
         map<string, string> err = LdapServer::ReadError();
@@ -1020,14 +1020,14 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_input"  : ``(cb_input_acl() ),
         "help_page" : "acl_edit"
     ];
-    map<string, any> dbSync = $[
-        "name"      : _("Replication Configuration"),
-        "widget"    : LdapDatabase::GetSyncWidget(),
+    map<string, any> dbSyncProv = $[
+        "name"      : _("Replication Provider"),
+        "widget"    : LdapDatabase::GetSyncProvWidget(),
         "index"     : index,
-        "cb_read"   : ``(cb_read_sync() ),
-        "cb_write"   : ``(cb_write_sync() ),
-        "cb_input"  : ``(cb_input_sync() ),
-        "help_page" : "sync_edit"
+        "cb_read"   : ``(cb_read_syncprov() ),
+        "cb_write"   : ``(cb_write_syncprov() ),
+        "cb_input"  : ``(cb_input_syncprov() ),
+        "help_page" : "syncprov_edit"
     ];
     map<string,any> item_map = $[
         "name"      : label,
@@ -1040,7 +1040,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> bdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl", item_name + "_sync"],
+        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl", item_name + "_syncprov"],
         "index"     : index,
         "widget"    : editBdbDatabase,
         "new_db"    : new_db,
@@ -1052,7 +1052,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> confdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_acl", item_name + "_sync"],
+        "children"  : [ item_name + "_acl", item_name + "_syncprov"],
         "index"     : index,
         "widget"    : editGenericDatabase,
         "new_db"    : new_db,
@@ -1067,13 +1067,13 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         widget_map[item_name + "_index"] = dbIndex;
         widget_map[item_name + "_ppolicy"] = dbPpolicy;
         widget_map[item_name + "_acl"] = dbAcl;
-        widget_map[item_name + "_sync"] = dbSync;
+        widget_map[item_name + "_syncprov"] = dbSyncProv;
     }
     else if ( type == "config" )
     {
         widget_map[item_name] = confdb_item_map;
         widget_map[item_name + "_acl"] = dbAcl;
-        widget_map[item_name + "_sync"] = dbSync;
+        widget_map[item_name + "_syncprov"] = dbSyncProv;
     }
     else
     {
