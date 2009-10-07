@@ -1482,6 +1482,10 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 UI::ChangeWidget( `cb_sync_slog, `Value, true );
                 UI::ChangeWidget( `if_syncprov_sessionlog, `Value, (integer)syncprov["sessionlog"]:0 );
             }
+            else
+            {
+                UI::ChangeWidget( `if_syncprov_sessionlog, `Enabled , false );
+            }
         }
         return true;
     }
