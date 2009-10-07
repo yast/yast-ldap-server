@@ -1408,48 +1408,50 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
-    global term GetSyncWidget()
+    global term GetSyncProvWidget()
     {
         term widget =
-            `VBox(
-                `VSpacing(1),
+            `Top(
                 `VBox(
-                    `HBox(
-                        `CheckBox( `id( `cb_synprov_enable ),`opt(`notify ),
-                            _("Enable ldapsync provider for this database"), false 
-                        ),
-                        `HSpacing( `opt(`hstretch))
-                    ),
-                    `VSpacing(0.5),
-                    `Frame(  `id( `f_sync_settings ), _("Checkpoint settings"),
-                        `VBox(
-                            `HBox(
-                                `HSquash(
-                                    `IntField( `id( `if_syncprov_checkpoint_ops ),
-                                        _("Operations"), 0, 2000000000,0
-                                    )
-                                ),
-                                `HSpacing( 1 ),
-                                `HSquash(
-                                    `IntField( `id( `if_syncprov_checkpoint_min ),
-                                        _("Minutes"), 0, 2000000000,0
-                                    )
-                                ),
-                                `HStretch()
-                            )
-                        )
-                    ),
-                    `VSpacing(0.5),
-                    `Frame( `id( `f_sync_slog ), _("Session log"),
-                        `VBox(
-                            `Left(
-                                `CheckBox( `id( `cb_sync_slog ), `opt(`notify),
-                                    _("Enable Session log") )
+                    `VSpacing(1),
+                    `VBox(
+                        `HBox(
+                            `CheckBox( `id( `cb_synprov_enable ),`opt(`notify ),
+                                _("Enable ldapsync provider for this database"), false 
                             ),
-                            `Left(
-                                `HSquash(
-                                    `IntField( `id( `if_syncprov_sessionlog ),
-                                            _("Operations"), 0, 2000000000, 0
+                            `HSpacing( `opt(`hstretch))
+                        ),
+                        `VSpacing(0.5),
+                        `Frame(  `id( `f_sync_settings ), _("Checkpoint settings"),
+                            `VBox(
+                                `HBox(
+                                    `HSquash(
+                                        `IntField( `id( `if_syncprov_checkpoint_ops ),
+                                            _("Operations"), 0, 2000000000,0
+                                        )
+                                    ),
+                                    `HSpacing( 1 ),
+                                    `HSquash(
+                                        `IntField( `id( `if_syncprov_checkpoint_min ),
+                                            _("Minutes"), 0, 2000000000,0
+                                        )
+                                    ),
+                                    `HStretch()
+                                )
+                            )
+                        ),
+                        `VSpacing(0.5),
+                        `Frame( `id( `f_sync_slog ), _("Session log"),
+                            `VBox(
+                                `Left(
+                                    `CheckBox( `id( `cb_sync_slog ), `opt(`notify),
+                                        _("Enable Session log") )
+                                ),
+                                `Left(
+                                    `HSquash(
+                                        `IntField( `id( `if_syncprov_sessionlog ),
+                                                _("Operations"), 0, 2000000000, 0
+                                        )
                                     )
                                 )
                             )
@@ -1460,9 +1462,9 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return widget;
     }
 
-    global boolean DbSyncRead( symbol handler_cmd, integer index, map syncprov )
+    global boolean DbSyncProvRead( symbol handler_cmd, integer index, map syncprov )
     {
-        y2milestone("DbSyncRead %1 %2", handler_cmd, index );
+        y2milestone("DbSyncProvRead %1 %2", handler_cmd, index );
         if ( size(syncprov) == 0 )
         {
             UI::ChangeWidget( `cb_synprov_enable, `Value, false );
@@ -1490,9 +1492,9 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
-    global boolean DbSyncInput( symbol handler_cmd, integer index )
+    global boolean DbSyncProvInput( symbol handler_cmd, integer index )
     {
-        y2milestone("DbSyncInput %1 %2", handler_cmd, index);
+        y2milestone("DbSyncProvInput %1 %2", handler_cmd, index);
         if ( handler_cmd == `cb_synprov_enable )
         {
             if ( UI::QueryWidget( `cb_synprov_enable , `Value ) == true )
@@ -1517,9 +1519,9 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
-    global map<string,any> DbSyncWrite( integer index )
+    global map<string,any> DbSyncProvWrite( integer index )
     {
-        y2milestone("DbSyncWrite %1", index );
+        y2milestone("DbSyncProvWrite %1", index );
         map <string,any> syncprov = $[];
         if( UI::QueryWidget( `cb_synprov_enable, `Value ) == true )
         {
