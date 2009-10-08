@@ -872,6 +872,25 @@ define boolean cb_write_syncprov()
     return result;
 }
 
+define boolean cb_read_synccons()
+{
+    y2milestone("cb_read_synccons()");
+    return true;
+}
+
+define boolean cb_input_synccons()
+{
+    y2milestone("cb_input_synccons()");
+    return true;
+}
+
+define boolean cb_write_synccons()
+{
+    y2milestone("cb_write_synccons()");
+    boolean result = true;
+    return result;
+}
+
 define boolean cb_input_ppolicy()
 {
     y2milestone("cb_input_ppolicy()");
@@ -1029,6 +1048,15 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_input"  : ``(cb_input_syncprov() ),
         "help_page" : "syncprov_edit"
     ];
+    map<string, any> dbSyncCons = $[
+        "name"      : _("Replication Consumer"),
+        "widget"    : LdapDatabase::GetSyncConsWidget(),
+        "index"     : index,
+        "cb_read"   : ``(cb_read_synccons() ),
+        "cb_write"   : ``(cb_write_synccons() ),
+        "cb_input"  : ``(cb_input_synccons() ),
+        "help_page" : "synccons_edit"
+    ];
     map<string,any> item_map = $[
         "name"      : label,
         "children"  : [ item_name + "_acl"],
@@ -1040,7 +1068,8 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> bdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl", item_name + "_syncprov"],
+        "children"  : [ item_name + "_index", item_name + "_ppolicy", item_name + "_acl",
+                        item_name + "_syncprov", item_name + "_synccons" ],
         "index"     : index,
         "widget"    : editBdbDatabase,
         "new_db"    : new_db,
@@ -1052,7 +1081,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
     ];
     map<string,any> confdb_item_map = $[
         "name"      : label,
-        "children"  : [ item_name + "_acl", item_name + "_syncprov"],
+        "children"  : [ item_name + "_acl", item_name + "_syncprov", item_name + "_synccons" ],
         "index"     : index,
         "widget"    : editGenericDatabase,
         "new_db"    : new_db,
@@ -1068,12 +1097,14 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         widget_map[item_name + "_ppolicy"] = dbPpolicy;
         widget_map[item_name + "_acl"] = dbAcl;
         widget_map[item_name + "_syncprov"] = dbSyncProv;
+        widget_map[item_name + "_synccons"] = dbSyncCons;
     }
     else if ( type == "config" )
     {
         widget_map[item_name] = confdb_item_map;
         widget_map[item_name + "_acl"] = dbAcl;
         widget_map[item_name + "_syncprov"] = dbSyncProv;
+        widget_map[item_name + "_synccons"] = dbSyncCons;
     }
     else
     {

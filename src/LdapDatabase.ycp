@@ -1408,6 +1408,81 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
+    global term GetSyncConsWidget()
+    {
+        term widget =
+            `Top(
+                `VBox(
+                    `Left(
+                        `CheckBox( `id( `cb_syncrepl ) , _("This database is a Replication Consumer"), false )
+                    ),
+                    `Frame( _("Consumer Settings" ),
+                        `VBox(
+                            `Left(
+                                `HBox(
+                                    `ComboBox( `id( `cb_sync_prot ), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                    `HSpacing(),
+                                    `InputField( `id( `te_sync_uri ), _("Provider Name"), "" ),
+                                    `HSpacing(),
+                                    `InputField( `id( `te_sync_base ), _("Base DN"), "" )
+                                )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `HBox(
+                                    `ComboBox( `id( `cb_sync_type ), _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
+                                    `HSpacing(),
+                                    `VSquash(
+                                        `HBox(
+                                            `VBox(
+                                                `Bottom(
+                                                    `Label( _("Replication Interval") )
+                                                )
+                                            ),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_h), "Hours", 0, 23, 0)
+                                            ),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_min), "Mins", 0, 59, 0)
+                                            ),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_sec), "Secs", 0, 59, 0)
+                                            ),
+                                            `HStretch()
+                                        )
+                                    )
+                                )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `HBox(
+                                    `InputField( `id( `te_sync_binddn ), _("Authentication DN"), "" ),
+                                    `HSpacing(),
+                                    `Password( `id( `te_sync_pw ), _("Password"), "" )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        return widget;
+    }
+
+    global boolean DbSyncConsRead( symbol handler_cmd, integer index, map synccons )
+    {
+        return true;
+    }
+
+    global boolean DbSyncConsInput( symbol handler_cmd, integer index )
+    {
+        return true;
+    }
+
+    global map<string,any> DbSyncConsWrite( integer index )
+    {
+        return $[];
+    }
+
     global term GetSyncProvWidget()
     {
         term widget =
