@@ -895,8 +895,13 @@ define boolean cb_write_synccons()
     y2milestone("cb_write_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    map <string,any> synccons = LdapDatabase::DbSyncConsWrite( index );
-    boolean result = true;
+    map <string,any> syncrepl = LdapDatabase::DbSyncConsWrite( index );
+    boolean result = false;
+    result = LdapServer::WriteSyncRepl(index, syncrepl);
+    if ( ! result ) {
+        map<string, string> err = LdapServer::ReadError();
+        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+    }
     return result;
 }
 
