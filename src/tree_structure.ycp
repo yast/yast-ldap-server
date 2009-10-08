@@ -875,18 +875,27 @@ define boolean cb_write_syncprov()
 define boolean cb_read_synccons()
 {
     y2milestone("cb_read_synccons()");
-    return true;
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+//    map <string,any> sp = LdapServer::ReadSyncProv(index);
+    map <string,any> sp =  $[];
+    return LdapDatabase::DbSyncConsRead( handler_cmd, index, sp );
 }
 
 define boolean cb_input_synccons()
 {
     y2milestone("cb_input_synccons()");
-    return true;
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    return LdapDatabase::DbSyncConsInput( handler_cmd, index );
 }
 
 define boolean cb_write_synccons()
 {
     y2milestone("cb_write_synccons()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    map <string,any> synccons = LdapDatabase::DbSyncConsWrite( index );
     boolean result = true;
     return result;
 }
