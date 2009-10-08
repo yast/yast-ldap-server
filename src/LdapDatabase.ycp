@@ -1414,15 +1414,15 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             `Top(
                 `VBox(
                     `Left(
-                        `CheckBox( `id( `cb_syncrepl ) , _("This database is a Replication Consumer"), false )
+                        `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
                     ),
-                    `Frame( _("Consumer Settings" ),
+                    `Frame( `id( `f_synccons ), _("Consumer Settings" ),
                         `VBox(
                             `Left(
                                 `HBox(
                                     `ComboBox( `id( `cb_sync_prot ), _("Protocol"), [ "ldap", "ldaps" ] ),
                                     `HSpacing(),
-                                    `InputField( `id( `te_sync_uri ), _("Provider Name"), "" ),
+                                    `InputField( `id( `te_sync_target ), _("Provider Name"), "" ),
                                     `HSpacing(),
                                     `InputField( `id( `te_sync_base ), _("Base DN"), "" )
                                 )
@@ -1458,7 +1458,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                 `HBox(
                                     `InputField( `id( `te_sync_binddn ), _("Authentication DN"), "" ),
                                     `HSpacing(),
-                                    `Password( `id( `te_sync_pw ), _("Password"), "" )
+                                    `Password( `id( `te_sync_cred ), _("Password"), "" )
                                 )
                             )
                         )
@@ -1470,17 +1470,47 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
 
     global boolean DbSyncConsRead( symbol handler_cmd, integer index, map synccons )
     {
+        y2milestone("DbSyncConsRead %1 %2", handler_cmd, index);
+        UI::ChangeWidget( `f_synccons, `Enabled, false );
         return true;
     }
 
     global boolean DbSyncConsInput( symbol handler_cmd, integer index )
     {
+        y2milestone("DbSyncConsInput %1 %2", handler_cmd, index);
+        if ( handler_cmd == `cb_syncrepl )
+        {
+            if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+            {
+                UI::ChangeWidget( `f_synccons, `Enabled, true );
+            }
+            else
+            {
+                UI::ChangeWidget( `f_synccons, `Enabled, false );
+            }
+        }
         return true;
     }
 
     global map<string,any> DbSyncConsWrite( integer index )
     {
-        return $[];
+        y2milestone("DbSyncConsWrite %1", index);
+        map<string,any> result = $[];
+        if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+        {
+            string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
+            string target = (string)UI::QueryWidget( `te_sync_target, `Value );
+            string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
+            string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
+            string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
+            result = add(result, "protocol", prot );
+            result = add(result, "target", target );
+            result = add(result, "basedn", basedn );
+            result = add(result, "binddn", binddn );
+            result = add(result, "credentials", cred );
+        }
+        y2milestone("DbSyncConsWrite result: %1", result);
+        return result;
     }
 
     global term GetSyncProvWidget()
@@ -1492,7 +1522,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     `VBox(
                         `HBox(
                             `CheckBox( `id( `cb_synprov_enable ),`opt(`notify ),
-                                _("Enable ldapsync provider for this database"), false 
+                                _("Enable ldapsync provider for this database"), false
                             ),
                             `HSpacing( `opt(`hstretch))
                         ),
