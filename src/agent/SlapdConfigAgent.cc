@@ -1453,6 +1453,31 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         (*i)->replaceAccessControl(aclList);
                         ret = true;
                     }
+                    else if ( dbComponent == "syncrepl" )
+                    {   
+                        YCPMap argMap = arg->asMap();
+                        if ( argMap->size() > 0 )
+                        {
+                            std::string protocol( argMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                            std::string target( argMap->value(YCPString("target"))->asString()->value_cstr() );
+                            std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
+                            std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
+                            std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
+
+                            std::ostringstream syncreplValue;
+                            syncreplValue << "rid=001 provider=\"" << protocol << "://" << target << 
+                                    "\" type=refreshAndPersist searchbase=\"" << basedn << 
+                                    "\"  bindmethod=simple binddn=\"" << binddn << 
+                                    "\" credentials=\"" << cred << "\"";
+                            (*i)->setStringValue("olcSyncRepl", syncreplValue.str() );
+                        }
+                        else
+                        {
+                            // clear syncrepl config
+                            (*i)->setStringValue("olcSyncRepl", "" );
+                        }
+                        ret = true;
+                    }
                     else if ( dbComponent == "dbconfig" )
                     {
                         YCPList argList = arg->asList();

@@ -1868,6 +1868,21 @@ sub WriteSyncProv
     return YaST::YCP::Boolean(1);
 }
 
+BEGIN { $TYPEINFO {WriteSyncRepl} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
+sub WriteSyncRepl
+{
+    my ( $self, $dbindex, $syncrepl) = @_;
+    y2milestone("WriteSyncRepl");
+    y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return YaST::YCP::Boolean(0);
+    }
+    return YaST::YCP::Boolean(1);
+}
+
 BEGIN { $TYPEINFO {ReadSchemaList} = ["function", [ "list" , "string"] ]; }
 sub ReadSchemaList
 {
