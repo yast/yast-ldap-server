@@ -13,6 +13,7 @@
 #define BACK_CONFIG_TEST_H
 #include <LDAPConnection.h>
 #include <LDAPResult.h>
+#include <LDAPUrl.h>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -251,7 +252,8 @@ class OlcSyncRepl
         void setCredentials(std::string &value );
 
         int getRid() const;
-        std::string getProvider() const;
+        LDAPUrl getProvider() const;
+        void getProviderComponents( std::string &proto, std::string &target, int &port) const;
         std::string getType() const;
         std::string setSearchBase() const;
         std::string getBindDn() const;
@@ -259,7 +261,7 @@ class OlcSyncRepl
 
     private:
         int rid;
-        std::string provider;
+        LDAPUrl provider;
         std::string type;
         std::string searchbase;
         std::string bindmethod;
