@@ -751,6 +751,28 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         return YCPNull();
                     }
                 }
+                else if ( dbComponent == "syncrepl" )
+                {
+                    OlcSyncReplList srl = (*i)->getSyncRepl();
+                    YCPMap resMap;
+                    if ( ! srl.empty() )
+                    {
+                        boost::shared_ptr<OlcSyncRepl> sr = *srl.begin();
+                        resMap.add( YCPString(OlcSyncRepl::RID), YCPInteger( sr->getRid() ));
+                        std::string proto,host;
+                        int port;
+                        sr->getProviderComponents(proto, host, port);
+                        YCPMap providerMap;
+                        providerMap.add( YCPString("protocol"), YCPString(proto) );
+                        providerMap.add( YCPString("target"), YCPString(host) );
+                        providerMap.add( YCPString("port"), YCPInteger(port) );
+                        resMap.add( YCPString(OlcSyncRepl::PROVIDER),  providerMap );
+                        resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
+                        resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
+                        resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
+                    }
+                    return resMap;
+                }
                 else
                 {
                     lastError->add(YCPString("summary"), YCPString("Read Failed") );

@@ -292,9 +292,10 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getType() const;
 
         bool getAcl( OlcAccessList& accessList ) const;
-
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const OlcAccessList& acllist );
+
+        OlcSyncReplList getSyncRepl();
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;

@@ -1084,6 +1084,40 @@ void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
     }
 }
 
+
+OlcSyncReplList OlcDatabase::getSyncRepl()
+{
+    const LDAPAttribute* srAttr = m_dbEntryChanged.getAttributeByName("olcSyncrepl");
+    OlcSyncReplList res;
+
+    if (! srAttr )
+    {
+        return res;
+    }
+
+    StringList values = srAttr->getValues();
+    if ( values.size() != 1 )
+    {
+        log_it(SLAPD_LOG_ERR, "Multiple syncrepl statements");
+    }
+    else
+    {
+        std::string syncreplLine;
+        splitIndexFromString( *values.begin(), syncreplLine );
+        try {
+            boost::shared_ptr<OlcSyncRepl> syncrepl( new OlcSyncRepl(syncreplLine) );
+            res.push_back(syncrepl);
+        }
+        catch ( std::runtime_error e )
+        {
+            log_it(SLAPD_LOG_INFO, "Can't parse Syncrepl line");
+            log_it(SLAPD_LOG_INFO, e.what() );
+            throw;
+        }
+    }
+    return res;
+}
+
 void OlcDatabase::addOverlay(boost::shared_ptr<OlcOverlay> overlay)
 {
     m_overlays.push_back(overlay);
