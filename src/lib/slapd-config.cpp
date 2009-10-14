@@ -835,6 +835,136 @@ std::string OlcAccess::toAclString() const
     return aclString.str();
 }
 
+const static std::string ridstr="rid";
+const static std::string providerstr="provider";
+const static std::string basestr="searchbase";
+const static std::string typestr="type";
+const static std::string bindmethodstr="bindmethod";
+const static std::string binddnstr="binddn";
+const static std::string credentialsstr="credentials";
+
+OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
+{
+    if ( !syncreplLine.empty() )
+    {
+        std::string::size_type spos1=0, spos2=0;
+
+        // skip leading whitespaces
+        spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+        while ( spos2 != std::string::npos && spos2 >= spos1 )
+        {
+            {
+                spos1 = spos2;
+            }
+            spos2 = syncreplLine.find_first_of("=", spos1 );
+            std::string key = syncreplLine.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            spos1 = spos2 + 1;
+            spos2 = extractAlcToken(syncreplLine, spos1, true );
+            std::string value = syncreplLine.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            spos1 = spos2 + 1;
+            spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+            if ( key == ridstr )
+            {
+                std::istringstream s(value);
+                s >> rid;
+            }
+            else if ( key == providerstr )
+            {
+                this->setProvider(value); 
+            }
+            else if ( key == basestr )
+            {
+                this->setSearchBase(value);
+            }
+            else if ( key == typestr )
+            {
+                this->setType(value);
+            }
+            else if ( key == bindmethodstr )
+            {
+                if ( value != "simple" )
+                {
+                    log_it(SLAPD_LOG_ERR, "Bind method " + value + " is currenty unsupported" );
+                    throw std::runtime_error( "Bind method " + value + " is currenty unsupported" );
+                }
+            }
+            else if ( key == binddnstr )
+            {
+                this->setBindDn(value);
+            }
+            else if ( key == credentialsstr )
+            {
+                this->setCredentials(value);
+            }
+            else
+            {
+                otherValues.insert(make_pair(key, value));
+            }
+        }
+    }
+}
+
+void OlcSyncRepl::setRid( int value )
+{
+    rid = value;
+}
+
+void OlcSyncRepl::setProvider( std::string &value )
+{
+    provider = value;
+}
+
+void OlcSyncRepl::setType( std::string &value )
+{
+    type = value;
+}
+
+void OlcSyncRepl::setSearchBase( std::string &value )
+{
+    searchbase = value;
+}
+
+void OlcSyncRepl::setBindDn( std::string &value )
+{
+    binddn = value;
+}
+
+void OlcSyncRepl::setCredentials( std::string &value )
+{
+    credentials = value;
+}
+
+int OlcSyncRepl::getRid() const
+{
+    return rid;
+}
+
+std::string OlcSyncRepl::getProvider() const
+{
+    return provider;
+}
+
+std::string OlcSyncRepl::getType() const
+{
+    return type;
+}
+
+std::string OlcSyncRepl::setSearchBase() const
+{
+    return searchbase;
+}
+
+std::string OlcSyncRepl::getBindDn() const
+{
+    return binddn;
+}
+
+std::string OlcSyncRepl::getCredentials() const
+{
+    return credentials;
+}
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {

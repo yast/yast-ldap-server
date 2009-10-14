@@ -229,10 +229,42 @@ class OlcAccess
         std::string m_dn_type;
         bool m_all;
         OlcAclByList m_byList;
+        std::map<std::string, std::string> otherValues;
+};
+
+class OlcSyncRepl
+{
+    public:
+        OlcSyncRepl( const std::string &syncreplLine="" );
+
+        void setRid( int value );
+        void setProvider( std::string &value );
+        void setType( std::string &value );
+        void setSearchBase( std::string &value );
+        void setBindDn( std::string &value );
+        void setCredentials(std::string &value );
+
+        int getRid() const;
+        std::string getProvider() const;
+        std::string getType() const;
+        std::string setSearchBase() const;
+        std::string getBindDn() const;
+        std::string getCredentials() const;
+
+    private:
+        int rid;
+        std::string provider;
+        std::string type;
+        std::string searchbase;
+        std::string bindmethod;
+        std::string binddn;
+        std::string credentials;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
+typedef std::list<boost::shared_ptr<OlcSyncRepl> > OlcSyncReplList;
+
 class OlcDatabase : public OlcConfigEntry
 {
     public :
