@@ -1868,6 +1868,16 @@ sub WriteSyncProv
     return YaST::YCP::Boolean(1);
 }
 
+BEGIN { $TYPEINFO {ReadSyncRepl} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub ReadSyncRepl
+{
+    my ($self, $index) = @_;
+    y2milestone("ReadSyncRepl ", $index);
+    my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
+    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    return $syncrepl;
+}
+
 BEGIN { $TYPEINFO {WriteSyncRepl} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
 sub WriteSyncRepl
 {
