@@ -913,7 +913,7 @@ void OlcSyncRepl::setRid( int value )
 
 void OlcSyncRepl::setProvider( std::string &value )
 {
-    provider = value;
+    provider = LDAPUrl(value);
 }
 
 void OlcSyncRepl::setType( std::string &value )
@@ -941,9 +941,16 @@ int OlcSyncRepl::getRid() const
     return rid;
 }
 
-std::string OlcSyncRepl::getProvider() const
+LDAPUrl OlcSyncRepl::getProvider() const
 {
     return provider;
+}
+
+void OlcSyncRepl::getProviderComponents( std::string &proto, std::string &target, int &port) const
+{
+    proto = provider.getScheme();
+    target = provider.getHost();
+    port = provider.getPort();
 }
 
 std::string OlcSyncRepl::getType() const
