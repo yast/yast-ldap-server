@@ -1874,7 +1874,7 @@ sub ReadSyncRepl
     my ($self, $index) = @_;
     y2milestone("ReadSyncRepl ", $index);
     my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
-    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncrepl]) );
     return $syncrepl;
 }
 
