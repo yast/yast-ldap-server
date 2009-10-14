@@ -235,6 +235,13 @@ class OlcSyncRepl
 {
     public:
         OlcSyncRepl( const std::string &syncreplLine="" );
+        const static std::string RID;
+        const static std::string PROVIDER;
+        const static std::string BASE;
+        const static std::string TYPE;
+        const static std::string BINDMETHOD;
+        const static std::string BINDDN;
+        const static std::string CREDENTIALS;
 
         void setRid( int value );
         void setProvider( std::string &value );

@@ -835,13 +835,13 @@ std::string OlcAccess::toAclString() const
     return aclString.str();
 }
 
-const static std::string ridstr="rid";
-const static std::string providerstr="provider";
-const static std::string basestr="searchbase";
-const static std::string typestr="type";
-const static std::string bindmethodstr="bindmethod";
-const static std::string binddnstr="binddn";
-const static std::string credentialsstr="credentials";
+const std::string OlcSyncRepl::RID="rid";
+const std::string OlcSyncRepl::PROVIDER="provider";
+const std::string OlcSyncRepl::BASE="searchbase";
+const std::string OlcSyncRepl::TYPE="type";
+const std::string OlcSyncRepl::BINDMETHOD="bindmethod";
+const std::string OlcSyncRepl::BINDDN="binddn";
+const std::string OlcSyncRepl::CREDENTIALS="credentials";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
 {
@@ -865,24 +865,24 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
             log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
             spos1 = spos2 + 1;
             spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
-            if ( key == ridstr )
+            if ( key == RID )
             {
                 std::istringstream s(value);
                 s >> rid;
             }
-            else if ( key == providerstr )
+            else if ( key == PROVIDER )
             {
                 this->setProvider(value); 
             }
-            else if ( key == basestr )
+            else if ( key == BASE )
             {
                 this->setSearchBase(value);
             }
-            else if ( key == typestr )
+            else if ( key == TYPE )
             {
                 this->setType(value);
             }
-            else if ( key == bindmethodstr )
+            else if ( key == BINDMETHOD )
             {
                 if ( value != "simple" )
                 {
@@ -890,11 +890,11 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
                     throw std::runtime_error( "Bind method " + value + " is currenty unsupported" );
                 }
             }
-            else if ( key == binddnstr )
+            else if ( key == BINDDN )
             {
                 this->setBindDn(value);
             }
-            else if ( key == credentialsstr )
+            else if ( key == CREDENTIALS )
             {
                 this->setCredentials(value);
             }
