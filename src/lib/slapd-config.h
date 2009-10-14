@@ -229,7 +229,6 @@ class OlcAccess
         std::string m_dn_type;
         bool m_all;
         OlcAclByList m_byList;
-        std::map<std::string, std::string> otherValues;
 };
 
 class OlcSyncRepl
@@ -259,6 +258,7 @@ class OlcSyncRepl
         std::string bindmethod;
         std::string binddn;
         std::string credentials;
+        std::map<std::string, std::string> otherValues;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
