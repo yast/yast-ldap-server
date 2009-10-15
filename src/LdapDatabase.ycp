@@ -1555,9 +1555,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
+            string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
             string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
+            result = add(result, "type", type );
             result = add(result, "provider", provider );
             result = add(result, "basedn", basedn );
             result = add(result, "binddn", binddn );
