@@ -245,17 +245,18 @@ class OlcSyncRepl
         const static std::string CREDENTIALS;
 
         void setRid( int value );
-        void setProvider( std::string &value );
-        void setType( std::string &value );
-        void setSearchBase( std::string &value );
-        void setBindDn( std::string &value );
-        void setCredentials(std::string &value );
+        void setProvider( const std::string &value );
+        void setProvider( const LDAPUrl &value );
+        void setType( const std::string &value );
+        void setSearchBase( const std::string &value );
+        void setBindDn( const std::string &value );
+        void setCredentials( const std::string &value );
 
         int getRid() const;
         LDAPUrl getProvider() const;
         void getProviderComponents( std::string &proto, std::string &target, int &port) const;
         std::string getType() const;
-        std::string setSearchBase() const;
+        std::string getSearchBase() const;
         std::string getBindDn() const;
         std::string getCredentials() const;
 
@@ -295,7 +296,7 @@ class OlcDatabase : public OlcConfigEntry
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const OlcAccessList& acllist );
 
-        OlcSyncReplList getSyncRepl();
+        OlcSyncReplList getSyncRepl() const;
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;

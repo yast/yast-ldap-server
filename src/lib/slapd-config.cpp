@@ -912,27 +912,32 @@ void OlcSyncRepl::setRid( int value )
     rid = value;
 }
 
-void OlcSyncRepl::setProvider( std::string &value )
+void OlcSyncRepl::setProvider( const std::string &value )
 {
     provider = LDAPUrl(value);
 }
 
-void OlcSyncRepl::setType( std::string &value )
+void OlcSyncRepl::setProvider( const LDAPUrl &value )
+{
+    provider = value;
+}
+
+void OlcSyncRepl::setType( const std::string &value )
 {
     type = value;
 }
 
-void OlcSyncRepl::setSearchBase( std::string &value )
+void OlcSyncRepl::setSearchBase( const std::string &value )
 {
     searchbase = value;
 }
 
-void OlcSyncRepl::setBindDn( std::string &value )
+void OlcSyncRepl::setBindDn( const std::string &value )
 {
     binddn = value;
 }
 
-void OlcSyncRepl::setCredentials( std::string &value )
+void OlcSyncRepl::setCredentials( const std::string &value )
 {
     credentials = value;
 }
@@ -959,7 +964,7 @@ std::string OlcSyncRepl::getType() const
     return type;
 }
 
-std::string OlcSyncRepl::setSearchBase() const
+std::string OlcSyncRepl::getSearchBase() const
 {
     return searchbase;
 }
@@ -1086,7 +1091,7 @@ void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
 }
 
 
-OlcSyncReplList OlcDatabase::getSyncRepl()
+OlcSyncReplList OlcDatabase::getSyncRepl() const
 {
     const LDAPAttribute* srAttr = m_dbEntryChanged.getAttributeByName("olcSyncrepl");
     OlcSyncReplList res;
