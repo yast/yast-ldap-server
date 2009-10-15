@@ -4,6 +4,7 @@
 #include <LdifReader.h>
 #include <LdifWriter.h>
 #include <LDAPEntry.h>
+#include <LDAPUrl.h>
 #include <SaslInteraction.h>
 #include <algorithm>
 #include <exception>
@@ -1481,18 +1482,36 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         YCPMap argMap = arg->asMap();
                         if ( argMap->size() > 0 )
                         {
-                            std::string protocol( argMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                            std::string target( argMap->value(YCPString("target"))->asString()->value_cstr() );
+                            OlcSyncReplList srl = (*i)->getSyncRepl();
+                            boost::shared_ptr<OlcSyncRepl> sr;
+                            if ( srl.empty() )
+                            {   
+                                sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
+                                srl.push_back(sr);
+                            }
+                            else
+                            {
+                                sr = *srl.begin();
+                            }
+                            YCPMap providerMap = argMap->value(YCPString("provider"))->asMap();
+                            std::string protocol( providerMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                            std::string target( providerMap->value(YCPString("target"))->asString()->value_cstr() );
+                            int port = providerMap->value(YCPString("port"))->asInteger()->value();
                             std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
                             std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
                             std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
 
-                            std::ostringstream syncreplValue;
-                            syncreplValue << "rid=001 provider=\"" << protocol << "://" << target << 
-                                    "\" type=refreshAndPersist searchbase=\"" << basedn << 
-                                    "\"  bindmethod=simple binddn=\"" << binddn << 
-                                    "\" credentials=\"" << cred << "\"";
-                            (*i)->setStringValue("olcSyncRepl", syncreplValue.str() );
+                            LDAPUrl prvuri;
+                            prvuri.setScheme(protocol);
+                            prvuri.setHost(target);
+                            prvuri.setPort(port);
+
+                            sr->setProvider( prvuri );
+                            sr->setSearchBase( basedn );
+                            sr->setBindDn( binddn );
+                            sr->setCredentials( cred );
+
+                            (*i)->setSyncRepl(srl);
                         }
                         else
                         {
