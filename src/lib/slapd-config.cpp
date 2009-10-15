@@ -901,7 +901,7 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
             }
             else
             {
-                otherValues.insert(make_pair(key, value));
+                otherValues.push_back(make_pair(key, value));
             }
         }
     }
