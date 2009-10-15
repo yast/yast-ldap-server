@@ -1497,6 +1497,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             std::string protocol( providerMap->value(YCPString("protocol"))->asString()->value_cstr() );
                             std::string target( providerMap->value(YCPString("target"))->asString()->value_cstr() );
                             int port = providerMap->value(YCPString("port"))->asInteger()->value();
+                            std::string type( argMap->value(YCPString("type"))->asString()->value_cstr() );
                             std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
                             std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
                             std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
@@ -1506,6 +1507,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             prvuri.setHost(target);
                             prvuri.setPort(port);
 
+                            sr->setType( type );
                             sr->setProvider( prvuri );
                             sr->setSearchBase( basedn );
                             sr->setBindDn( binddn );
