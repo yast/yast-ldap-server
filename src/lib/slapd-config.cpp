@@ -853,9 +853,7 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
         spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
         while ( spos2 != std::string::npos && spos2 >= spos1 )
         {
-            {
-                spos1 = spos2;
-            }
+            spos1 = spos2;
             spos2 = syncreplLine.find_first_of("=", spos1 );
             std::string key = syncreplLine.substr(spos1, spos2-spos1);
             log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
@@ -863,8 +861,11 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
             spos2 = extractAlcToken(syncreplLine, spos1, true );
             std::string value = syncreplLine.substr(spos1, spos2-spos1);
             log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
-            spos1 = spos2 + 1;
-            spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+            if ( spos2 != std::string::npos )
+            {
+                spos1 = spos2 + 1;
+                spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+            }
             if ( key == RID )
             {
                 std::istringstream s(value);
