@@ -268,7 +268,7 @@ class OlcSyncRepl
         std::string bindmethod;
         std::string binddn;
         std::string credentials;
-        std::map<std::string, std::string> otherValues;
+        std::vector<std::pair<std::string, std::string> > otherValues;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
