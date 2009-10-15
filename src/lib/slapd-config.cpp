@@ -843,8 +843,9 @@ const std::string OlcSyncRepl::BINDMETHOD="bindmethod";
 const std::string OlcSyncRepl::BINDDN="binddn";
 const std::string OlcSyncRepl::CREDENTIALS="credentials";
 
-OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine)
+OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): bindmethod("simple")
 {
+    log_it(SLAPD_LOG_DEBUG, "OlcSyncRepl::OlcSyncRepl(" + syncreplLine + ")");
     if ( !syncreplLine.empty() )
     {
         std::string::size_type spos1=0, spos2=0;
