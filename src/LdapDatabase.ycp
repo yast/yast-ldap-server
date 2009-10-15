@@ -1478,7 +1478,27 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     global boolean DbSyncConsRead( symbol handler_cmd, integer index, map synccons )
     {
         y2milestone("DbSyncConsRead %1 %2", handler_cmd, index);
-        UI::ChangeWidget( `f_synccons, `Enabled, false );
+        if ( size(synccons) == 0 )
+        {
+            UI::ChangeWidget( `f_synccons, `Enabled, false );
+        }
+        else
+        {
+            UI::ChangeWidget( `f_synccons, `Enabled, true );
+            UI::ChangeWidget( `cb_syncrepl, `Value, true );
+            map<string,any> provider = synccons["provider"]:$[];
+            UI::ChangeWidget( `te_sync_target, `Value, (string)provider["target"]:"");
+            UI::ChangeWidget( `cb_sync_prot, `Value, (string)provider["protocol"]:"");
+            UI::ChangeWidget( `if_sync_port, `Value, (integer)provider["port"]:0);
+            UI::ChangeWidget( `te_sync_base, `Value, (string)synccons["searchbase"]:"");
+            UI::ChangeWidget( `cb_sync_type, `Value, (string)synccons["type"]:"");
+            if ( (string)synccons["type"]:"" == "refreshAndPersist" )
+            {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, false );
+            }
+            UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
+            UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
+        }
         return true;
     }
 
