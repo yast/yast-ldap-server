@@ -908,6 +908,27 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): bindmethod("simple")
     }
 }
 
+std::string OlcSyncRepl::toSyncReplLine() const
+{
+    std::ostringstream srlStream;
+
+    srlStream << "rid=" << rid << " "
+              << "provider=\"" << provider.getURLString() << "\" "
+              << "searchbase=\"" << this->searchbase << "\" "
+              << "type=\"" << this->type << "\" "
+              << "bindmethod=\"" << this->bindmethod << "\" "
+              << "binddn=\"" << this->binddn << "\" "
+              << "credentials=\"" << this->credentials << "\"";
+
+    std::vector<std::pair<std::string,std::string> >::const_iterator i;
+    for ( i = otherValues.begin(); i != otherValues.end(); i++ )
+    {
+        srlStream << " " << i->first << "=\"" << i->second << "\"";
+    }
+
+    return srlStream.str();
+}
+
 void OlcSyncRepl::setRid( int value )
 {
     rid = value;
@@ -1123,6 +1144,28 @@ OlcSyncReplList OlcDatabase::getSyncRepl() const
         }
     }
     return res;
+}
+
+void OlcDatabase::addSyncRepl(const std::string& value, int index )
+{
+    if ( index < 0 )
+    {
+        StringList sl = this->getStringValues( "olcSyncrepl" );
+        index = sl.size();
+    }
+    this->addIndexedStringValue( "olcSyncrepl", value, index );
+}
+
+void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
+{
+    this->setStringValue("olcSyncRepl", "" );
+
+    OlcSyncReplList::const_iterator i;
+    int j = 0;
+    for ( i = srl.begin(); i != srl.end(); i++,j++ )
+    {
+        this->addSyncRepl( (*i)->toSyncReplLine(), j );
+    }
 }
 
 void OlcDatabase::addOverlay(boost::shared_ptr<OlcOverlay> overlay)

@@ -244,6 +244,8 @@ class OlcSyncRepl
         const static std::string BINDDN;
         const static std::string CREDENTIALS;
 
+        std::string toSyncReplLine() const;
+
         void setRid( int value );
         void setProvider( const std::string &value );
         void setProvider( const LDAPUrl &value );
@@ -297,6 +299,8 @@ class OlcDatabase : public OlcConfigEntry
         virtual void replaceAccessControl( const OlcAccessList& acllist );
 
         OlcSyncReplList getSyncRepl() const;
+        void setSyncRepl( const OlcSyncReplList& srl );
+        void addSyncRepl( const std::string& value, int index=-1 );
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;
