@@ -889,6 +889,15 @@ define boolean cb_input_synccons()
     return LdapDatabase::DbSyncConsInput( handler_cmd, index );
 }
 
+define boolean cb_check_synccons()
+{
+    y2milestone("cb_check_synccons()");
+    string treeItem = current_tree_item;
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    callback_error = LdapDatabase::DbSyncConsCheck( index );
+    return callback_error == "";
+}
+
 define boolean cb_write_synccons()
 {
     y2milestone("cb_write_synccons()");
@@ -1068,6 +1077,7 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "cb_read"   : ``(cb_read_synccons() ),
         "cb_write"   : ``(cb_write_synccons() ),
         "cb_input"  : ``(cb_input_synccons() ),
+        "cb_check"  : ``( cb_check_synccons() ),
         "help_page" : "synccons_edit"
     ];
     map<string,any> item_map = $[
