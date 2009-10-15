@@ -770,6 +770,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
                         resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
                         resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
+                        resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
                     }
                     return resMap;
                 }
