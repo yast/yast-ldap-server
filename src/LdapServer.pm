@@ -1874,6 +1874,10 @@ sub ReadSyncRepl
     my ($self, $index) = @_;
     y2milestone("ReadSyncRepl ", $index);
     my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
+    if (defined $syncrepl->{'provider'}->{'port'} )
+    {
+        $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+    }
     y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncrepl]) );
     return $syncrepl;
 }
@@ -1883,6 +1887,10 @@ sub WriteSyncRepl
 {
     my ( $self, $dbindex, $syncrepl) = @_;
     y2milestone("WriteSyncRepl");
+    if (defined $syncrepl->{'provider'}->{'port'} )
+    {
+        $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+    }
     y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )
     {

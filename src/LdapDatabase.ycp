@@ -1420,20 +1420,27 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         `VBox(
                             `Left(
                                 `HBox(
-                                    `ComboBox( `id( `cb_sync_prot ), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                    `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
                                     `HSpacing(),
                                     `InputField( `id( `te_sync_target ), _("Provider Name"), "" ),
                                     `HSpacing(),
-                                    `InputField( `id( `te_sync_base ), _("Base DN"), "" )
+                                    `HSquash(
+                                        `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                    )
                                 )
                             ),
                             `VSpacing(0.3),
                             `Left(
+                                `InputField( `id( `te_sync_base ), _("Base DN"), "" )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
                                 `HBox(
-                                    `ComboBox( `id( `cb_sync_type ), _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
+                                    `ComboBox( `id( `cb_sync_type ), `opt(`notify),
+                                                _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
                                     `HSpacing(),
                                     `VSquash(
-                                        `HBox(
+                                        `HBox( `id( `hb_rep_interval ),
                                             `VBox(
                                                 `Bottom(
                                                     `Label( _("Replication Interval") )
@@ -1489,6 +1496,28 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 UI::ChangeWidget( `f_synccons, `Enabled, false );
             }
         }
+        if ( handler_cmd == `cb_sync_prot )
+        {
+                string prot = (string) UI::QueryWidget( `cb_sync_prot, `Value );
+                integer port = (integer) UI::QueryWidget( `if_sync_port, `Value );
+                if ( prot == "ldaps" && port == 389 )
+                {
+                        UI::ChangeWidget( `if_sync_port, `Value, 636 );
+                }
+                else if ( prot == "ldap" && port == 636 )
+                {
+                        UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                }
+        }
+        if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshAndPersist" )
+        {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, false );
+        }
+        else
+        {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, true );
+        }
+
         return true;
     }
 
@@ -1500,11 +1529,16 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         {
             string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
             string target = (string)UI::QueryWidget( `te_sync_target, `Value );
+            integer port = (integer)UI::QueryWidget( `if_sync_port, `Value );
+            map<string,any> provider = $[
+                    "protocol" : prot,
+                    "target"   : target,
+                    "port"     : port
+                ];
             string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
-            result = add(result, "protocol", prot );
-            result = add(result, "target", target );
+            result = add(result, "provider", provider );
             result = add(result, "basedn", basedn );
             result = add(result, "binddn", binddn );
             result = add(result, "credentials", cred );
