@@ -1541,6 +1541,25 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
+    global string DbSyncConsCheck( integer index )
+    {
+        y2milestone("DbSyncConsCheck %1", index);
+        if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+        {
+            if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshOnly" )
+            {
+                integer hours = (integer)UI::QueryWidget( `if_sync_int_h, `Value );
+                integer mins = (integer)UI::QueryWidget( `if_sync_int_min, `Value );
+                integer secs = (integer)UI::QueryWidget( `if_sync_int_sec, `Value );
+                if( hours == 0 && mins == 0 && secs == 0 )
+                {
+                    return _("Invalid Replication Interval specified");
+                }
+            }
+        }
+        return "";
+    }
+
     global map<string,any> DbSyncConsWrite( integer index )
     {
         y2milestone("DbSyncConsWrite %1", index);
@@ -1555,12 +1574,24 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
+            result = add(result, "provider", provider );
+
             string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
+            result = add(result, "type", type );
+
+            if ( type == "refreshOnly" )
+            {
+                map<string,integer> iv = $[
+                        "hours" : (integer)UI::QueryWidget( `if_sync_int_h, `Value ),
+                        "mins" : (integer)UI::QueryWidget( `if_sync_int_min, `Value ),
+                        "secs" : (integer)UI::QueryWidget( `if_sync_int_sec, `Value ),
+                    ];
+                result = add( result, "interval", iv );
+            }
+
             string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
-            result = add(result, "type", type );
-            result = add(result, "provider", provider );
             result = add(result, "basedn", basedn );
             result = add(result, "binddn", binddn );
             result = add(result, "credentials", cred );
