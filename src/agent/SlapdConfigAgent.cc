@@ -754,8 +754,8 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 }
                 else if ( dbComponent == "syncrepl" )
                 {
-                    OlcSyncReplList srl = (*i)->getSyncRepl();
                     YCPMap resMap;
+                    OlcSyncReplList srl = (*i)->getSyncRepl();
                     if ( ! srl.empty() )
                     {
                         boost::shared_ptr<OlcSyncRepl> sr = *srl.begin();
@@ -769,6 +769,19 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         providerMap.add( YCPString("port"), YCPInteger(port) );
                         resMap.add( YCPString(OlcSyncRepl::PROVIDER),  providerMap );
                         resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
+
+                        if ( sr->getType() == "refreshOnly" )
+                        {
+                            YCPMap intervalMap;
+                            int d,h,m,s;
+                            sr->getInterval(d, h, m, s);
+                            intervalMap.add( YCPString("days"), YCPInteger(d) );
+                            intervalMap.add( YCPString("hours"), YCPInteger(h) );
+                            intervalMap.add( YCPString("mins"), YCPInteger(m) );
+                            intervalMap.add( YCPString("secs"), YCPInteger(s) );
+                            resMap.add( YCPString( OlcSyncRepl::INTERVAL ), intervalMap );
+                        }
+
                         resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
                         resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
                         resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
@@ -1482,6 +1495,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         YCPMap argMap = arg->asMap();
                         if ( argMap->size() > 0 )
                         {
+                            ret = true;
                             OlcSyncReplList srl = (*i)->getSyncRepl();
                             boost::shared_ptr<OlcSyncRepl> sr;
                             if ( srl.empty() )
@@ -1513,6 +1527,34 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             sr->setBindDn( binddn );
                             sr->setCredentials( cred );
 
+                            if ( type == "refreshOnly" )
+                            {
+                                if ( argMap->value(YCPString("interval")).isNull() )
+                                {
+                                    lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+                                    lastError->add(YCPString("description"), YCPString("\"RefreshOnly needs Interval\"") );
+                                    ret = false;
+                                }
+                                else
+                                {
+                                    YCPMap ivMap =  argMap->value(YCPString("interval"))->asMap();
+                                    int days = ivMap->value(YCPString("days"))->asInteger()->value();
+                                    int hours = ivMap->value(YCPString("hours"))->asInteger()->value();
+                                    int mins = ivMap->value(YCPString("mins"))->asInteger()->value();
+                                    int secs = ivMap->value(YCPString("secs"))->asInteger()->value();
+
+                                    if ( days == 0 && hours == 0 && mins == 0 && secs == 0 )
+                                    {
+                                        lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+                                        lastError->add(YCPString("description"), YCPString("\"Syncrepl Interval is 00:00:00\"") );
+                                        ret = false;
+                                    }
+                                    else
+                                    {
+                                        sr->setInterval( days, hours, mins, secs );
+                                    }
+                                }
+                            }
                             (*i)->setSyncRepl(srl);
                         }
                         else
@@ -1520,7 +1562,6 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             // clear syncrepl config
                             (*i)->setStringValue("olcSyncRepl", "" );
                         }
-                        ret = true;
                     }
                     else if ( dbComponent == "dbconfig" )
                     {

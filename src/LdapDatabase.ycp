@@ -1447,13 +1447,16 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                                 )
                                             ),
                                             `HSquash(
-                                                `IntField( `id(`if_sync_int_h), "Hours", 0, 23, 0)
+                                                `IntField( `id(`if_sync_int_d), _("Days"), 0, 99, 0)
                                             ),
                                             `HSquash(
-                                                `IntField( `id(`if_sync_int_min), "Mins", 0, 59, 0)
+                                                `IntField( `id(`if_sync_int_h), _("Hours"), 0, 23, 0)
                                             ),
                                             `HSquash(
-                                                `IntField( `id(`if_sync_int_sec), "Secs", 0, 59, 0)
+                                                `IntField( `id(`if_sync_int_m), _("Minutes"), 0, 59, 0)
+                                            ),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_s), _("Seconds"), 0, 59, 0)
                                             ),
                                             `HStretch()
                                         )
@@ -1495,6 +1498,13 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( (string)synccons["type"]:"" == "refreshAndPersist" )
             {
                 UI::ChangeWidget( `hb_rep_interval, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `if_sync_int_d, `Value, (integer)synccons["interval","days"]:0 );
+                UI::ChangeWidget( `if_sync_int_h, `Value, (integer)synccons["interval","hours"]:0 );
+                UI::ChangeWidget( `if_sync_int_m, `Value, (integer)synccons["interval","mins"]:0 );
+                UI::ChangeWidget( `if_sync_int_s, `Value, (integer)synccons["interval","secs"]:0 );
             }
             UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
             UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
@@ -1548,10 +1558,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         {
             if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshOnly" )
             {
+                integer days = (integer)UI::QueryWidget( `if_sync_int_d, `Value );
                 integer hours = (integer)UI::QueryWidget( `if_sync_int_h, `Value );
-                integer mins = (integer)UI::QueryWidget( `if_sync_int_min, `Value );
-                integer secs = (integer)UI::QueryWidget( `if_sync_int_sec, `Value );
-                if( hours == 0 && mins == 0 && secs == 0 )
+                integer mins = (integer)UI::QueryWidget( `if_sync_int_m, `Value );
+                integer secs = (integer)UI::QueryWidget( `if_sync_int_s, `Value );
+                if(days == 0 && hours == 0 && mins == 0 && secs == 0 )
                 {
                     return _("Invalid Replication Interval specified");
                 }
@@ -1582,9 +1593,10 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( type == "refreshOnly" )
             {
                 map<string,integer> iv = $[
+                        "days" : (integer)UI::QueryWidget( `if_sync_int_d, `Value ),
                         "hours" : (integer)UI::QueryWidget( `if_sync_int_h, `Value ),
-                        "mins" : (integer)UI::QueryWidget( `if_sync_int_min, `Value ),
-                        "secs" : (integer)UI::QueryWidget( `if_sync_int_sec, `Value ),
+                        "mins" : (integer)UI::QueryWidget( `if_sync_int_m, `Value ),
+                        "secs" : (integer)UI::QueryWidget( `if_sync_int_s, `Value ),
                     ];
                 result = add( result, "interval", iv );
             }

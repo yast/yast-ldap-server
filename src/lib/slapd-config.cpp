@@ -12,6 +12,7 @@
 #include <LDAPResult.h>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <map>
 #include <vector>
@@ -842,6 +843,7 @@ const std::string OlcSyncRepl::TYPE="type";
 const std::string OlcSyncRepl::BINDMETHOD="bindmethod";
 const std::string OlcSyncRepl::BINDDN="binddn";
 const std::string OlcSyncRepl::CREDENTIALS="credentials";
+const std::string OlcSyncRepl::INTERVAL="interval";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): rid(1), bindmethod("simple")
 {
@@ -900,6 +902,28 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): rid(1), bindmethod("
             {
                 this->setCredentials(value);
             }
+            else if ( key == INTERVAL )
+            {
+                istringstream intervalStr(value);
+
+                intervalStr.exceptions( std::ios::failbit | std::ios::badbit );
+                try 
+                {
+                    intervalStr >> refreshOnlyDays;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlyHours;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlyMins;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlySecs;
+                } 
+                catch ( std::exception e)
+                {
+                    log_it(SLAPD_LOG_ERR, "Error parsing replication interval:\"" + value + "\"" );
+                    log_it(SLAPD_LOG_ERR, e.what()  );
+                    throw std::runtime_error( "Error parsing replication interval:\"" + value + "\"" );
+                }
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -915,8 +939,17 @@ std::string OlcSyncRepl::toSyncReplLine() const
     srlStream << "rid=" << rid << " "
               << "provider=\"" << provider.getURLString() << "\" "
               << "searchbase=\"" << this->searchbase << "\" "
-              << "type=\"" << this->type << "\" "
-              << "bindmethod=\"" << this->bindmethod << "\" "
+              << "type=\"" << this->type << "\" ";
+
+    if ( this->type == "refreshOnly" )
+    {
+        srlStream << "interval=\"" << std::setw(2) << std::setfill('0') << refreshOnlyDays << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlyHours << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlyMins << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlySecs << "\" ";
+    }
+    
+    srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
               << "credentials=\"" << this->credentials << "\"";
 
@@ -964,6 +997,14 @@ void OlcSyncRepl::setCredentials( const std::string &value )
     credentials = value;
 }
 
+void OlcSyncRepl::setInterval( int days, int hours, int mins, int secs )
+{
+    refreshOnlyDays = days;
+    refreshOnlyHours = hours;
+    refreshOnlyMins = mins;
+    refreshOnlySecs = secs;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -999,6 +1040,14 @@ std::string OlcSyncRepl::getBindDn() const
 std::string OlcSyncRepl::getCredentials() const
 {
     return credentials;
+}
+
+void OlcSyncRepl::getInterval( int &days, int &hours, int &mins, int &secs ) const
+{
+    days = refreshOnlyDays;
+    hours = refreshOnlyHours;
+    mins = refreshOnlyMins;
+    secs = refreshOnlySecs;
 }
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)

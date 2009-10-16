@@ -243,6 +243,7 @@ class OlcSyncRepl
         const static std::string BINDMETHOD;
         const static std::string BINDDN;
         const static std::string CREDENTIALS;
+        const static std::string INTERVAL;
 
         std::string toSyncReplLine() const;
 
@@ -253,6 +254,7 @@ class OlcSyncRepl
         void setSearchBase( const std::string &value );
         void setBindDn( const std::string &value );
         void setCredentials( const std::string &value );
+        void setInterval( int days, int hours, int mins, int secs );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -261,6 +263,7 @@ class OlcSyncRepl
         std::string getSearchBase() const;
         std::string getBindDn() const;
         std::string getCredentials() const;
+        void getInterval( int &days, int &hours, int &mins, int &secs ) const;
 
     private:
         int rid;
@@ -270,6 +273,10 @@ class OlcSyncRepl
         std::string bindmethod;
         std::string binddn;
         std::string credentials;
+        int refreshOnlyDays;
+        int refreshOnlyHours;
+        int refreshOnlyMins;
+        int refreshOnlySecs;
         std::vector<std::pair<std::string, std::string> > otherValues;
 };
 
