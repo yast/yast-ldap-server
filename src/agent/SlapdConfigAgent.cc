@@ -1561,6 +1561,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         {
                             // clear syncrepl config
                             (*i)->setStringValue("olcSyncRepl", "" );
+                            ret = true;
                         }
                     }
                     else if ( dbComponent == "dbconfig" )
