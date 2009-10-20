@@ -1427,6 +1427,13 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                         `HSpacing(),
                                         `HSquash(
                                             `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                        ),
+                                        `HSpacing(),
+                                        `VBox(
+                                            `Bottom(
+                                                `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
+                                            ),
+                                            `VSpacing(0.3)
                                         )
                                     )
                                 )
@@ -1498,6 +1505,15 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             map<string,any> provider = synccons["provider"]:$[];
             UI::ChangeWidget( `te_sync_target, `Value, (string)provider["target"]:"");
             UI::ChangeWidget( `cb_sync_prot, `Value, (string)provider["protocol"]:"");
+            if ( (string)provider["protocol"]:"" == "ldaps")
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, false );
+                UI::ChangeWidget( `cb_start_tls, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, (boolean)synccons["starttls"]:true );
+            }
             UI::ChangeWidget( `if_sync_port, `Value, (integer)provider["port"]:0);
             UI::ChangeWidget( `te_sync_base, `Value, (string)synccons["searchbase"]:"");
             UI::ChangeWidget( `cb_sync_type, `Value, (string)synccons["type"]:"");
@@ -1542,13 +1558,23 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         {
                 string prot = (string) UI::QueryWidget( `cb_sync_prot, `Value );
                 integer port = (integer) UI::QueryWidget( `if_sync_port, `Value );
-                if ( prot == "ldaps" && port == 389 )
+                if ( prot == "ldaps" )
                 {
+                    UI::ChangeWidget( `cb_start_tls, `Value, false );
+                    UI::ChangeWidget( `cb_start_tls, `Enabled, false );
+                    if ( port == 389 )
+                    {
                         UI::ChangeWidget( `if_sync_port, `Value, 636 );
+                    }
                 }
-                else if ( prot == "ldap" && port == 636 )
+                else
                 {
+                    UI::ChangeWidget( `cb_start_tls, `Value, true );
+                    UI::ChangeWidget( `cb_start_tls, `Enabled, true );
+                    if ( port == 636 )
+                    {
                         UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                    }
                 }
         }
         if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshAndPersist" )
@@ -1598,6 +1624,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "port"     : port
                 ];
             result = add(result, "provider", provider );
+            result = add(result, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
 
             string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
             result = add(result, "type", type );

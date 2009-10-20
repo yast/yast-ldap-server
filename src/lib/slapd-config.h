@@ -235,6 +235,12 @@ class OlcAccess
 class OlcSyncRepl
 {
     public:
+        enum StartTls {
+            StartTlsNo,
+            StartTlsYes,
+            StartTlsCritical
+        };
+
         OlcSyncRepl( const std::string &syncreplLine="" );
         const static std::string RID;
         const static std::string PROVIDER;
@@ -244,6 +250,7 @@ class OlcSyncRepl
         const static std::string BINDDN;
         const static std::string CREDENTIALS;
         const static std::string INTERVAL;
+        const static std::string STARTTLS;
 
         std::string toSyncReplLine() const;
 
@@ -255,6 +262,7 @@ class OlcSyncRepl
         void setBindDn( const std::string &value );
         void setCredentials( const std::string &value );
         void setInterval( int days, int hours, int mins, int secs );
+        void setStartTls( StartTls tls );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -264,6 +272,7 @@ class OlcSyncRepl
         std::string getBindDn() const;
         std::string getCredentials() const;
         void getInterval( int &days, int &hours, int &mins, int &secs ) const;
+        StartTls getStartTls() const;
 
     private:
         int rid;
@@ -278,6 +287,7 @@ class OlcSyncRepl
         int refreshOnlyMins;
         int refreshOnlySecs;
         std::vector<std::pair<std::string, std::string> > otherValues;
+        StartTls starttls;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;

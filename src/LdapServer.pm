@@ -1892,6 +1892,10 @@ sub ReadSyncRepl
         $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
         $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
     }
+    if ( defined $syncrepl->{'starttls'} )
+    {
+        $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
+    }
     return $syncrepl;
 }
 
@@ -1910,6 +1914,10 @@ sub WriteSyncRepl
         $syncrepl->{'interval'}->{'hours'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'hours'} );
         $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
         $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
+    }
+    if ( defined $syncrepl->{'starttls'} )
+    {
+        $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
     }
     y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )

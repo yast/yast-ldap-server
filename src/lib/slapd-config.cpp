@@ -844,8 +844,12 @@ const std::string OlcSyncRepl::BINDMETHOD="bindmethod";
 const std::string OlcSyncRepl::BINDDN="binddn";
 const std::string OlcSyncRepl::CREDENTIALS="credentials";
 const std::string OlcSyncRepl::INTERVAL="interval";
+const std::string OlcSyncRepl::STARTTLS="starttls";
 
-OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): rid(1), bindmethod("simple")
+OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
+        rid(1), 
+        bindmethod("simple"),
+        starttls( OlcSyncRepl::StartTlsNo )
 {
     log_it(SLAPD_LOG_DEBUG, "OlcSyncRepl::OlcSyncRepl(" + syncreplLine + ")");
     if ( !syncreplLine.empty() )
@@ -924,6 +928,17 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): rid(1), bindmethod("
                     throw std::runtime_error( "Error parsing replication interval:\"" + value + "\"" );
                 }
             }
+            else if ( key == STARTTLS )
+            {
+                if ( value == "critical" )
+                {
+                    this->setStartTls(OlcSyncRepl::StartTlsCritical);
+                }
+                else if ( value == "yes" )
+                {
+                    this->setStartTls(OlcSyncRepl::StartTlsYes);
+                }
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -948,7 +963,14 @@ std::string OlcSyncRepl::toSyncReplLine() const
                                    << std::setw(2) << std::setfill('0') << refreshOnlyMins << ":"
                                    << std::setw(2) << std::setfill('0') << refreshOnlySecs << "\" ";
     }
-    
+    if ( this->starttls == OlcSyncRepl::StartTlsYes )
+    {
+        srlStream << "starttls=yes ";
+    }
+    else if ( this->starttls == OlcSyncRepl::StartTlsCritical )
+    {
+        srlStream << "starttls=critical ";
+    }
     srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
               << "credentials=\"" << this->credentials << "\"";
@@ -1005,6 +1027,11 @@ void OlcSyncRepl::setInterval( int days, int hours, int mins, int secs )
     refreshOnlySecs = secs;
 }
 
+void OlcSyncRepl::setStartTls( OlcSyncRepl::StartTls value )
+{
+    starttls = value;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -1048,6 +1075,11 @@ void OlcSyncRepl::getInterval( int &days, int &hours, int &mins, int &secs ) con
     hours = refreshOnlyHours;
     mins = refreshOnlyMins;
     secs = refreshOnlySecs;
+}
+
+OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
+{
+    return starttls;
 }
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
