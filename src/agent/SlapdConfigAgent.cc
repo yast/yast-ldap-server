@@ -769,6 +769,10 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         providerMap.add( YCPString("port"), YCPInteger(port) );
                         resMap.add( YCPString(OlcSyncRepl::PROVIDER),  providerMap );
                         resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
+                        if ( sr->getStartTls() != OlcSyncRepl::StartTlsNo )
+                        {
+                            resMap.add( YCPString(OlcSyncRepl::STARTTLS), YCPBoolean( true ));
+                        }
 
                         if ( sr->getType() == "refreshOnly" )
                         {
@@ -1515,6 +1519,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
                             std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
                             std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
+                            bool starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
 
                             LDAPUrl prvuri;
                             prvuri.setScheme(protocol);
@@ -1526,6 +1531,15 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             sr->setSearchBase( basedn );
                             sr->setBindDn( binddn );
                             sr->setCredentials( cred );
+
+                            if ( starttls )
+                            {
+                                sr->setStartTls( OlcSyncRepl::StartTlsCritical );
+                            }
+                            else
+                            {
+                                sr->setStartTls( OlcSyncRepl::StartTlsNo );
+                            }
 
                             if ( type == "refreshOnly" )
                             {
