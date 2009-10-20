@@ -1419,19 +1419,21 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     `Frame( `id( `f_synccons ), _("Consumer Settings" ),
                         `VBox(
                             `Left(
-                                `HBox(
-                                    `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
-                                    `HSpacing(),
-                                    `InputField( `id( `te_sync_target ), _("Provider Name"), "" ),
-                                    `HSpacing(),
-                                    `HSquash(
-                                        `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                `VSquash(
+                                    `HBox(
+                                        `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                        `HSpacing(),
+                                        `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Name"), "" ),
+                                        `HSpacing(),
+                                        `HSquash(
+                                            `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                        )
                                     )
                                 )
                             ),
                             `VSpacing(0.3),
                             `Left(
-                                `InputField( `id( `te_sync_base ), _("Base DN"), "" )
+                                `InputField( `id( `te_sync_base ), `opt(`hstretch), _("Base DN"), "" )
                             ),
                             `VSpacing(0.3),
                             `Left(
@@ -1446,15 +1448,19 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                                     `Label( _("Replication Interval") )
                                                 )
                                             ),
+                                            `HSpacing(),
                                             `HSquash(
                                                 `IntField( `id(`if_sync_int_d), _("Days"), 0, 99, 0)
                                             ),
+                                            `HSpacing(),
                                             `HSquash(
                                                 `IntField( `id(`if_sync_int_h), _("Hours"), 0, 23, 0)
                                             ),
+                                            `HSpacing(),
                                             `HSquash(
                                                 `IntField( `id(`if_sync_int_m), _("Minutes"), 0, 59, 0)
                                             ),
+                                            `HSpacing(),
                                             `HSquash(
                                                 `IntField( `id(`if_sync_int_s), _("Seconds"), 0, 59, 0)
                                             ),
@@ -1466,9 +1472,9 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                             `VSpacing(0.3),
                             `Left(
                                 `HBox(
-                                    `InputField( `id( `te_sync_binddn ), _("Authentication DN"), "" ),
+                                    `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN"), "" ),
                                     `HSpacing(),
-                                    `Password( `id( `te_sync_cred ), _("Password"), "" )
+                                    `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
                                 )
                             )
                         )
