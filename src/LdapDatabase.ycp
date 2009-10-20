@@ -1520,6 +1520,12 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
             {
                 UI::ChangeWidget( `f_synccons, `Enabled, true );
+                if ( UI::QueryWidget( `te_sync_base, `Value ) == "" )
+                {
+                    map<string,any> db = LdapServer::ReadDatabase(index);
+                    string basedn =  db["suffix"]:"";
+                    UI::ChangeWidget( `te_sync_base, `Value, basedn );
+                }
             }
             else
             {
