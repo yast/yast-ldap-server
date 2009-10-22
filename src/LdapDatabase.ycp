@@ -1667,7 +1667,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
-    global string DbSyncConsCheck( integer index )
+    global boolean DbSyncConsCheck( integer index )
     {
         y2milestone("DbSyncConsCheck %1", index);
         if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
@@ -1680,11 +1680,12 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 integer secs = (integer)UI::QueryWidget( `if_sync_int_s, `Value );
                 if(days == 0 && hours == 0 && mins == 0 && secs == 0 )
                 {
-                    return _("Invalid Replication Interval specified");
+                    Popup::Error( _("Invalid Replication Interval specified") );
+                    return false;
                 }
             }
         }
-        return "";
+        return true;
     }
 
     global map<string,any> DbSyncConsWrite( integer index )
