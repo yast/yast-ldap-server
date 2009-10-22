@@ -1885,6 +1885,17 @@ sub ReadSyncRepl
     {
         $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
     }
+    if (defined $syncrepl->{'updateref'} )
+    {
+        if ( defined $syncrepl->{'updateref'}->{'port'} )
+        {
+            $syncrepl->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'updateref'}->{'port'} );
+        }
+        if ( defined $syncrepl->{'updateref'}->{'use_provider'} )
+        {
+            $syncrepl->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncrepl->{'updateref'}->{'use_provider'} );
+        }
+    }
     if ( defined $syncrepl->{'interval'} )
     {
         $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
@@ -1907,6 +1918,17 @@ sub WriteSyncRepl
     if (defined $syncrepl->{'provider'} && defined $syncrepl->{'provider'}->{'port'} )
     {
         $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+    }
+    if (defined $syncrepl->{'updateref'} )
+    {
+        if ( defined $syncrepl->{'updateref'}->{'port'} )
+        {
+            $syncrepl->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'updateref'}->{'port'} );
+        }
+        if ( defined $syncrepl->{'updateref'}->{'use_provider'} )
+        {
+            $syncrepl->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncrepl->{'updateref'}->{'use_provider'} );
+        }
     }
     if ( defined $syncrepl->{'interval'} )
     {
