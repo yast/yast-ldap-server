@@ -845,6 +845,7 @@ const std::string OlcSyncRepl::BINDDN="binddn";
 const std::string OlcSyncRepl::CREDENTIALS="credentials";
 const std::string OlcSyncRepl::INTERVAL="interval";
 const std::string OlcSyncRepl::STARTTLS="starttls";
+const std::string OlcSyncRepl::RETRY="retry";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
         rid(1), 
@@ -939,6 +940,10 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
                     this->setStartTls(OlcSyncRepl::StartTlsYes);
                 }
             }
+            else if ( key == RETRY )
+            {
+                this->setRetryString(value);
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -954,7 +959,8 @@ std::string OlcSyncRepl::toSyncReplLine() const
     srlStream << "rid=" << rid << " "
               << "provider=\"" << provider.getURLString() << "\" "
               << "searchbase=\"" << this->searchbase << "\" "
-              << "type=\"" << this->type << "\" ";
+              << "type=\"" << this->type << "\" "
+              << "retry=\"" << this->retryString << "\" ";
 
     if ( this->type == "refreshOnly" )
     {
@@ -1030,6 +1036,11 @@ void OlcSyncRepl::setInterval( int days, int hours, int mins, int secs )
 void OlcSyncRepl::setStartTls( OlcSyncRepl::StartTls value )
 {
     starttls = value;
+}
+
+void OlcSyncRepl::setRetryString( const std::string &value )
+{
+    retryString = value;
 }
 
 int OlcSyncRepl::getRid() const
