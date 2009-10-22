@@ -42,7 +42,6 @@ SaslExternalHandler::~SaslExternalHandler()
     }
 }
 
-
 bool caseIgnoreCompare( char c1, char c2)
 {
     return toupper(c1) == toupper(c2);
@@ -391,6 +390,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                     YCPString(std::string( e.what() ) ) );
             return YCPBoolean(false);
         }
+    }
+    else if ( path->component_str(0) == "remoteBindCheck" )
+    {
+        return YCPBoolean(remoteBindCheck(arg));
+    }
+    else if ( path->component_str(0) == "remoteLdapSyncCheck" )
+    {
+        return YCPBoolean(remoteSyncCheck(arg));
     }
     return YCPBoolean(true);
 }
@@ -1899,3 +1906,139 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     return YCPString(ldif.str());
 }
 
+static void initLdapParameters( const YCPValue &arg, std::string &targetUrl,
+        bool &starttls, std::string &binddn, std::string &bindpw, std::string &basedn);
+bool SlapdConfigAgent::remoteBindCheck( const YCPValue &arg )
+{
+    y2milestone("remoteBindCheck");
+    std::string targetUrl, binddn, bindpw, basedn;
+    bool starttls;
+    initLdapParameters(arg, targetUrl ,starttls, binddn, bindpw, basedn);
+    try 
+    {
+        LDAPConnection c( targetUrl );
+        if (starttls)
+        {
+            startTlsCheck(c);
+        }
+        bindCheck(c, binddn, bindpw);
+    }
+    catch( LDAPException e )
+    {
+        std::string details = e.getResultMsg();
+        if (! e.getServerMsg().empty() )
+        {
+            details += ": ";
+            details += e.getServerMsg();
+        }
+        lastError->add(YCPString("description"), YCPString( details ) );
+        y2milestone("Error connecting to the LDAP Server \"%s\". %s: %s", 
+                targetUrl.c_str(), 
+                lastError->value(YCPString("summary"))->asString()->value_cstr(),
+                details.c_str());
+        return false;
+    }
+    return true; 
+}
+
+bool SlapdConfigAgent::remoteSyncCheck( const YCPValue &arg )
+{
+    y2milestone("remoteBindCheck");
+    std::string targetUrl, binddn, bindpw, basedn;
+    bool starttls;
+    initLdapParameters(arg, targetUrl ,starttls, binddn, bindpw, basedn);
+    try 
+    {
+        LDAPConnection c( targetUrl );
+        if (starttls)
+        {
+            startTlsCheck(c);
+        }
+        bindCheck(c, binddn, bindpw);
+        syncCheck(c, basedn );
+    }
+    catch( LDAPException e )
+    {
+        std::string details = e.getResultMsg();
+        if (! e.getServerMsg().empty() )
+        {
+            details += ": ";
+            details += e.getServerMsg();
+        }
+        lastError->add(YCPString("description"), YCPString( details ) );
+        y2milestone("Error connection to the LDAP Server \"%s\". %s: %s", 
+                targetUrl.c_str(), 
+                lastError->value(YCPString("summary"))->asString()->value_cstr(),
+                details.c_str());
+        return false;
+    }
+    return true; 
+}
+
+void initLdapParameters( const YCPValue &arg, 
+        std::string &url,
+        bool &starttls,
+        std::string &binddn,
+        std::string &bindpw,
+        std::string &basedn)
+{
+    YCPMap argMap = arg->asMap();
+    YCPMap target = argMap->value(YCPString("target"))->asMap();
+    LDAPUrl targetUrl;
+    targetUrl.setScheme( target->value(YCPString("protocol"))->asString()->value_cstr() );
+    targetUrl.setHost( target->value(YCPString("target"))->asString()->value_cstr() );
+    targetUrl.setPort( target->value(YCPString("port"))->asInteger()->value() );
+    url = targetUrl.getURLString();
+    starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
+    binddn = argMap->value(YCPString("binddn"))->asString()->value_cstr();
+    bindpw = argMap->value(YCPString("credentials"))->asString()->value_cstr();
+    basedn = argMap->value(YCPString("basedn"))->asString()->value_cstr();
+}
+
+// FIXME:
+// Until the TLS parameters can't be setup correctly with LDAPC++
+// the start_tls check might return false positives
+// 
+void SlapdConfigAgent::startTlsCheck( LDAPConnection &c)
+{
+    try {
+        c.start_tls();
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("StartTLS operation failed") );
+        throw;
+    }
+}
+
+void SlapdConfigAgent::bindCheck( LDAPConnection &c, const std::string &binddn, const std::string &bindpw)
+{
+    try {
+        c.bind(binddn, bindpw);
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("LDAP authentication failed") );
+        throw;
+    }
+}
+
+void SlapdConfigAgent::syncCheck( LDAPConnection &c, const std::string &basedn )
+{
+    try{
+        // Simple LDAPSync Request Control (refreshOnly, no cookie)
+        const char ctrl[] = { 0x30, 0x03, 0x0a, 0x01, 0x01 };
+        LDAPCtrl syncCtrl( "1.3.6.1.4.1.4203.1.9.1.1", true, ctrl, sizeof(ctrl) );
+        LDAPControlSet cs;
+        cs.add(syncCtrl);
+        LDAPConstraints searchCons;
+        searchCons.setServerControls( &cs );
+        c.search(basedn, LDAPConnection::SEARCH_BASE, "(objectclass=*)", 
+            StringList(), false, &searchCons );
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("Initiating the LDAPsync Operation failed") );
+        throw;
+    }
+}

@@ -68,6 +68,14 @@ class SlapdConfigAgent : public SCRAgent {
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
         YCPString ConfigToLdif() const;
+        bool remoteBindCheck( const YCPValue &arg );
+        bool remoteSyncCheck( const YCPValue &arg );
+        void startTlsCheck( LDAPConnection &c);
+        void bindCheck( LDAPConnection &c, 
+                        const std::string &binddn, 
+                        const std::string &bindpw);
+        void syncCheck( LDAPConnection &c,
+                        const std::string &basedn );
 
     private:
         YCPMap lastError;
