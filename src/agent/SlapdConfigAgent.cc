@@ -1560,6 +1560,8 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             sr->setSearchBase( basedn );
                             sr->setBindDn( binddn );
                             sr->setCredentials( cred );
+                            // default retry (every 120 seconds)
+                            sr->setRetryString( "120 +" );
 
                             if ( starttls )
                             {
