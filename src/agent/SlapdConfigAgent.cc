@@ -789,6 +789,35 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
                         resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
                         resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
+                        std::string updateref((*i)->getStringValue("olcUpdateRef"));
+                        if (! updateref.empty() )
+                        {
+                            LDAPUrl updateUrl(updateref);
+                            YCPMap updaterefMap;
+                            std::string updateHost(updateUrl.getHost() );
+                            std::string updateProt(updateUrl.getScheme() );
+                            int updatePort(updateUrl.getPort() );
+
+                            // don't set updateref when using updateref == provideruri
+                            if ( updatePort != updatePort || 
+                                 updateHost != host ||
+                                 updateProt != proto )
+                            {
+                                updaterefMap.add( YCPString("protocol"), YCPString( updateUrl.getScheme() ) );
+                                updaterefMap.add( YCPString("target"), YCPString( updateUrl.getHost() ) );
+                                updaterefMap.add( YCPString("port"), YCPInteger( updateUrl.getPort() ) );
+                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( false ) );
+                            }
+                            else
+                            {
+                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( true ) );
+                            }
+                            resMap.add( YCPString("updateref"), updaterefMap );
+                        }
+                        else
+                        {
+                            resMap.add( YCPString("updateref"), YCPMap() );
+                        }
                     }
                     return resMap;
                 }
@@ -1570,11 +1599,26 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 }
                             }
                             (*i)->setSyncRepl(srl);
+                            if ( argMap->value(YCPString("updateref")).isNull() )
+                            {
+                                // set provider URL as updateref if no customer URI was supplied
+                                (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
+                            }
+                            else
+                            {
+                                YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
+                                LDAPUrl updaterefUrl;
+                                updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                            }
                         }
                         else
                         {
                             // clear syncrepl config
                             (*i)->setStringValue("olcSyncRepl", "" );
+                            (*i)->setStringValue("olcUpdateRef", "" );
                             ret = true;
                         }
                     }

@@ -1483,6 +1483,27 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                     `HSpacing(),
                                     `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
                                 )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `VSquash(
+                                    `HBox(
+                                        `VBox(
+                                            `Bottom(
+                                                `CheckBox( `id( `cb_update_ref ), `opt(`notify), _("Custom update referral") )
+                                            ),
+                                            `VSpacing(0.3)
+                                        ),
+                                        `HSpacing(),
+                                        `ComboBox( `id( `cb_updateref_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                        `HSpacing(),
+                                        `InputField( `id( `te_updateref_target ), `opt(`hstretch), _("Target Host"), "" ),
+                                        `HSpacing(),
+                                        `HSquash(
+                                            `IntField( `id(`if_updateref_port), "Port", 0, 65536, 389)
+                                        )
+                                    )
+                                )
                             )
                         )
                     )
@@ -1530,6 +1551,27 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             }
             UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
             UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
+            map <string,any> updateref = synccons["updateref"]:$[];
+            if (size(updateref) == 0 )
+            {
+                // no updateref
+                UI::ChangeWidget( `cb_update_ref, `Value, true );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+            else if ( (boolean)updateref["use_provider"]:true )
+            {
+                UI::ChangeWidget( `cb_update_ref, `Value, false );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
+                UI::ChangeWidget( `te_updateref_target, `Enabled, false );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_update_ref, `Value, true );
+                UI::ChangeWidget( `cb_updateref_prot, `Value, (string)updateref["protocol "]:"ldap" );
+                UI::ChangeWidget( `te_updateref_target, `Value, (string)updateref["target"]:"" );
+                UI::ChangeWidget( `if_updateref_port, `Value, (integer)updateref["port"]:389 );
+            }
         }
         return true;
     }
@@ -1574,6 +1616,42 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     if ( port == 636 )
                     {
                         UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                    }
+                }
+        }
+        if ( handler_cmd == `cb_update_ref )
+        {
+            if ( (boolean)UI::QueryWidget( `cb_update_ref, `Value ) == true )
+            {
+                UI::ChangeWidget( `te_updateref_target, `Enabled, true );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, true );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, true );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+            else
+            {
+                UI::ChangeWidget( `te_updateref_target, `Enabled, false );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, false );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+        }
+        if ( handler_cmd == `cb_updateref_prot )
+        {
+                string prot = (string) UI::QueryWidget( `cb_updateref_prot, `Value );
+                integer port = (integer) UI::QueryWidget( `if_updateref_port, `Value );
+                if ( prot == "ldaps" )
+                {
+                    if ( port == 389 )
+                    {
+                        UI::ChangeWidget( `if_updateref_port, `Value, 636 );
+                    }
+                }
+                else
+                {
+                    if ( port == 636 )
+                    {
+                        UI::ChangeWidget( `if_updateref_port, `Value, 389 );
                     }
                 }
         }
@@ -1646,6 +1724,17 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             result = add(result, "basedn", basedn );
             result = add(result, "binddn", binddn );
             result = add(result, "credentials", cred );
+            if ( (boolean) UI::QueryWidget( `cb_update_ref, `Value) )
+            {
+                map<string,any> updateref = $[];
+                if ( (string)UI::QueryWidget(`cb_updateref_prot, `Value) != "" )
+                {
+                    updateref = add(updateref, "protocol", (string)UI::QueryWidget(`cb_updateref_prot, `Value) );
+                    updateref = add(updateref, "target", (string)UI::QueryWidget(`te_updateref_target, `Value) );
+                    updateref = add(updateref, "port", (integer)UI::QueryWidget(`if_updateref_port, `Value) );
+                }
+                result = add(result, "updateref", updateref );
+            }
         }
         y2milestone("DbSyncConsWrite result: %1", result);
         return result;
