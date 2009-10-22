@@ -92,7 +92,10 @@ boolean callHandler( string item, string handler )
         {
             if( !(boolean)eval( function ) )
             {
-                Report::Error( callback_error );
+                if (callback_error != "" )
+                {
+                    Report::Error( callback_error );
+                }
                 return false;
             }
         } else {
