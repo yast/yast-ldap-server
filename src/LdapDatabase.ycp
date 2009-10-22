@@ -1684,6 +1684,44 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     return false;
                 }
             }
+            string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
+            string target = (string)UI::QueryWidget( `te_sync_target, `Value );
+            integer port = (integer)UI::QueryWidget( `if_sync_port, `Value );
+
+            // test connection
+            map<string,any> provider = $[
+                    "protocol" : prot,
+                    "target"   : target,
+                    "port"     : port
+                ];
+            map<string,any> testparm = $[];
+            testparm = add(testparm, "target", provider );
+            testparm = add(testparm, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
+            testparm = add(testparm, "binddn", (string)UI::QueryWidget(`te_sync_binddn, `Value) );
+            testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_sync_cred, `Value) );
+            testparm = add(testparm, "basedn", (string)UI::QueryWidget(`te_sync_base, `Value) );
+            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                return Popup::ContinueCancelHeadline( _("Checking LDAP connectivity to the provider failed"),
+                                               _("The test returned the following error messages:")
+                                               + "\n\n\"" +
+                                               (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                               + "\"\n\n" +
+                                               _("Do you want to still want to continue?"));
+            }
+            if(!(boolean)SCR::Execute( .ldapserver.remoteLdapSyncCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                return Popup::ContinueCancelHeadline( _("Checking the LDAPsync capabilities of the provider failed"),
+                                               _("Please verify that the target server is enabled to be a LDAPsync provider")
+                                               + "\n\n" +
+                                               _("The test returned the following error messages:")
+                                               + "\n\"" +
+                                               (string)err["summary"]:""+ "\"\n\"" + (string)err["description"]:""
+                                               + "\"\n\n" +
+                                               _("Do you want to still want to continue?"));
+            }
         }
         return true;
     }
