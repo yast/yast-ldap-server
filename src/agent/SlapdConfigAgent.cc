@@ -687,6 +687,9 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                             {
                                 resMap.add( YCPString("sessionlog"), YCPInteger(slog) );
                             }
+                            // This is just that the map is not empty (e.g. when syncprov is
+                            // configured with default values)
+                            resMap.add( YCPString("enabled"), YCPBoolean(true) );
                             break;
                         }
                     }
