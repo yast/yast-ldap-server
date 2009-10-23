@@ -433,7 +433,17 @@ class OlcConfig {
 
     public:
         OlcConfig(LDAPConnection *lc=0 );
+        inline ~OlcConfig()
+        {
+            if(m_lc)
+                delete(m_lc);
+        }
+
         bool hasConnection() const;
+        inline LDAPConnection* getLdapConnection()
+        {
+            return m_lc;
+        }
 
         boost::shared_ptr<OlcGlobalConfig> getGlobals();
         OlcDatabaseList getDatabases();
