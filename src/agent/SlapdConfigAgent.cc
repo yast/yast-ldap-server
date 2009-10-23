@@ -177,10 +177,33 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     {
         if ( ! olc.hasConnection() )
         {
-            LDAPConnection *lc = new LDAPConnection("ldapi:///");
+            std::string uri = "ldapi:///";
+            YCPMap argMap;
+            if (! arg.isNull() )
+            {
+                argMap = arg->asMap();
+                YCPMap targetMap(argMap->value(YCPString("target"))->asMap());
+                LDAPUrl target;
+                target.setScheme( targetMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                target.setHost( targetMap->value(YCPString("target"))->asString()->value_cstr() );
+                target.setPort( targetMap->value(YCPString("port"))->asInteger()->value() );
+                uri = target.getURLString();
+            }
+            LDAPConnection *lc = new LDAPConnection(uri);
             try {
-                SaslExternalHandler sih;
-                lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+                if( arg.isNull() )
+                {
+                    SaslExternalHandler sih;
+                    lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+                }
+                else
+                {
+                    if ( argMap->value(YCPString("starttls"))->asBoolean()->value() )
+                    {
+                        lc->start_tls();
+                    }
+                    lc->bind("cn=config", std::string( argMap->value(YCPString("configcred"))->asString()->value_cstr() ));
+                }
             }
             catch ( LDAPException e)
             {
@@ -196,6 +219,18 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             }
             olc = OlcConfig(lc);
         }
+        databases.clear();
+        schema.clear();
+        deleteableSchema.clear();
+        globals.reset((OlcGlobalConfig*) 0 );
+    }
+    else if ( path->component_str(0) == "reset" )
+    {
+        if (olc.hasConnection())
+        {
+           // olc.getLdapConnection()->unbind();
+        }
+        olc = OlcConfig();
         databases.clear();
         schema.clear();
         deleteableSchema.clear();
