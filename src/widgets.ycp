@@ -131,7 +131,7 @@
         );
 
     term tlsWidget =
-        `Top(
+        `HSquash(
             `VBox(
                 `Heading( _("TLS Settings") ),
                 `VBox(

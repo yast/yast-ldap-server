@@ -3,6 +3,7 @@
  * Package:	Configuration of ldap-server
  * Summary:	Wizards definitions
  * Authors:	Andreas Bauer <abauer@suse.de>
+ *              Ralf Haferkamp <rhafer@suse.de>
  *
  * $Id$
  */
