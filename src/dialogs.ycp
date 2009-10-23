@@ -163,42 +163,45 @@ string showTreeDialog( string name, boolean focus_tree )
  ** dialog functions **
  **********************/
 
-term dlg_service_initial = `HSquash(
-    `VBox(
-        `Heading( _("General Settings") ),
+term dlg_service_initial =
+    `HSquash(
         `VBox(
-            `Frame( _("&Start LDAP Server"),
-                `VBox(
-                    `RadioButtonGroup(
-                        `VBox(
-                            `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ),
-                                        Label::YesButton(),
-                                        false ) ),
-                            `Left( `RadioButton( `id( `rb_no ), `opt( `notify ),
-                                        Label::NoButton(),
-                                        true ) )
-                        )
-                    ),
-                    `Left( `CheckBox( `id( `cb_register_slp ),
-                                _("Register at an &SLP Daemon"),
-                                LdapServer::ReadSLPEnabled() )),
-                    `HStretch()
+            `Heading( _("General Settings") ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("&Start LDAP Server"),
+                    `VBox(
+                        `RadioButtonGroup(
+                            `VBox(
+                                `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ),
+                                            Label::YesButton(),
+                                            false ) ),
+                                `Left( `RadioButton( `id( `rb_no ), `opt( `notify ),
+                                            Label::NoButton(),
+                                            true ) )
+                            )
+                        ),
+                        `Left( `CheckBox( `id( `cb_register_slp ),
+                                    _("Register at an &SLP Daemon"),
+                                    LdapServer::ReadSLPEnabled() )),
+                        `HStretch()
+                    )
                 )
-            )
-        ),
-        `VSpacing(),
-        `VBox(
-            `Frame( _("Firewall Settings"),
-                `VBox(
-                    `ReplacePoint( `id( `rp_firewall ),
-                        `Empty()
-                    ),
-                    `HStretch()
+            ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("Firewall Settings"),
+                    `VBox(
+                        `ReplacePoint( `id( `rp_firewall ),
+                            `Empty()
+                        ),
+                        `HStretch()
+                    )
                 )
             )
         )
-    )
-);
+    );
+
 any EnableServiceDialog()
 {
     map <string, any> defaults = LdapServer::CreateInitialDefaults();
