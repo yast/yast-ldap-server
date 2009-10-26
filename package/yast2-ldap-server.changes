@@ -1,4 +1,16 @@
 -------------------------------------------------------------------
+Mon Oct 26 09:39:19 UTC 2009 - rhafer@novell.com
+
+- Version 2.17.22
+  * Handle attribute names case-insensitve when analyzing schema
+    (bnc#504214)
+  * Attributes can have multiple Names, Subtypes of attributes might
+    not always reference the first Name of their supertype
+    (bnc#504214)
+  * more consistency checks when importing LDIF Schema files
+    (bnc#542165)
+
+-------------------------------------------------------------------
 Tue Aug 25 13:16:18 UTC 2009 - rhafer@novell.com
 
 - Fixes for AutoYaST integration, error out on invalid profiles
