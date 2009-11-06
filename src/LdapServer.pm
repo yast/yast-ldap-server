@@ -190,6 +190,10 @@ my $auth_info = {};
 # hashes of the password policy DNs and and objects
 my $ppolicy_objects = {};
 
+# A hash containing the necessary step to setup cn=config
+# replication
+my $remoteReplicationSetupTodo = {};
+
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -2438,8 +2442,8 @@ sub ReadPpolicyDefault
     return $ppolicy_objects->{$suffix}
 }
 
-BEGIN { $TYPEINFO {SetupRemoteForReplication} = ["function",  "boolean", ["map", "string", "any"] ]; }
-sub SetupRemoteForReplication
+BEGIN { $TYPEINFO {CheckRemoteForReplication} = ["function",  "boolean", ["map", "string", "any"] ]; }
+sub CheckRemoteForReplication
 {
     my ( $self, $param) = @_;
     $param->{'target'}->{'port'} = YaST::YCP::Integer($param->{'target'}->{'port'});
@@ -2556,7 +2560,18 @@ sub SetupRemoteForReplication
             push @db_changes, $changes;
         }
     }
-    foreach my $db_change (@db_changes)
+    $remoteReplicationSetupTodo = { "dbchanges" => \@db_changes, "param" => $param };
+    return 1;
+}
+
+
+BEGIN { $TYPEINFO {SetupRemoteForReplication} = ["function",  "boolean" ]; }
+sub SetupRemoteForReplication
+{
+    my $db_changes = $remoteReplicationSetupTodo->{'dbchanges'};
+    my $param = $remoteReplicationSetupTodo->{'param'};
+
+    foreach my $db_change (@{$db_changes})
     {
         my $i = $db_change->{'index'};
         if ($db_change->{'needsyncacl'} )
@@ -2639,5 +2654,49 @@ sub SetupRemoteForReplication
 
     return 1;
 }
+
+BEGIN { $TYPEINFO{ReplicationSetupSummary} = ["function", "string" ]; }
+sub ReplicationSetupSummary {
+    # Configuration summary text for autoyast
+    my $self = shift;
+    my $db_changes = $remoteReplicationSetupTodo->{'dbchanges'};
+    my $param = $remoteReplicationSetupTodo->{'param'};
+
+    my $string = "";
+    my $nochanges = 0;
+    $string .= "<h1>"._("Applying the following changes to: \""). $param->{'target'}->{'target'}."\"</h1>" ;
+    foreach my $db_change (@{$db_changes} )
+    {
+        $string .= "<h2>"._("Database: \""). $db_change->{'suffix'}."\"</h2>" ;
+        $string .= "<il>";
+        if (! ( $db_change->{'needsyncacl'} || $db_change->{'needsyncprov'} || $db_change->{'needsyncrepl'} ))
+        {
+            $string .= "<li>"._("No modifications required.")."</li>";
+        }
+        else
+        {
+            $nochanges = 0;
+        }
+        if ( $db_change->{'needsyncacl'} )
+        {
+            $string .= "<li>"._("Adding ACL to grant \"").$param->{'binddn'}. _("\" read access for replication.")."</li>";
+        }
+        if ( $db_change->{'needsyncprov'} )
+        {
+            $string .= "<li>"._("Adding LDAPSync provider configuration to be able to act as Replication Provider.")."</li>";
+        }
+        if ( $db_change->{'needsyncrepl'} )
+        {
+            $string .= "<li>"._("Adding LDAPSync consumer configuration.")."</li>";
+        }
+        $string .= "</il>";
+    }
+    if ( $nochanges )
+    {
+        $string = "";
+    }
+    return $string;
+}
+
 1;
 # EOF
