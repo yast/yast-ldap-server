@@ -275,6 +275,58 @@ any EnableServiceDialog()
     return ret;
 }
 
+any ServerTypeDialog()
+{
+    term serverTypeWidget =
+        `HSquash(
+            `VBox(
+                `Heading( _("Please select Server type") ),
+                `VSpacing(),
+                `RadioButtonGroup(
+                    `id( `rbg_servertype ),
+                    `VBox(
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_master ),
+                                _("This will be a standalone or master server"),
+                                true
+                            )
+                        ),
+                        `VSpacing(),
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_slave ),
+                                _("This will be a replica (slave) server.\n") +
+                                _("All data including configuration will replicated from a remote server."),
+                                false
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    Wizard::SetContentsButtons( caption,
+            serverTypeWidget,
+            HELPS["server_type"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        ret = UI::UserInput();
+        y2milestone( "TlsConfigDialog: seeing return value '%1'", ret );
+        if ( ret == `next )
+        {
+            if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_slave )
+            {
+                ret = `slave_setup;
+            }
+        }
+        return ret;
+    }
+    return ret;
+}
+
 any TlsConfigDialog()
 {
     Wizard::SetContentsButtons( caption,
@@ -463,6 +515,131 @@ any TreeDialog()
                 }
             }
         }
+    }
+    return ret;
+}
+
+any SlaveSetupDialog()
+{
+    term widget =
+        `HSquash(
+            `VBox(
+                `Heading( _("Slave server setup") ),
+                `VSpacing(),
+                `VSquash(
+                    `HBox(
+                        `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                        `HSpacing(),
+                        `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Hostname"), "" ),
+                        `HSpacing(),
+                        `HSquash(
+                            `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                        ),
+                        `HSpacing(),
+                        `VBox(
+                            `Bottom(
+                                `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
+                            ),
+                            `VSpacing(0.3)
+                        )
+                    )
+                ),
+                `VSpacing(0.3),
+                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" ),
+                `VSpacing(0.3),
+                `HBox(
+                    `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN to use for replication"), "" ),
+                    `HSpacing(),
+                    `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
+                )
+            )
+        );
+
+    Wizard::SetContentsButtons( caption,
+            widget,
+            HELPS["slave_dialog"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        UI::ChangeWidget(`cb_start_tls, `Enabled, false );
+        ret = UI::UserInput();
+        y2milestone( "SlaveSetupDialog: seeing return value '%1'", ret );
+        if ( ret == `next )
+        {
+            // test connection
+            map<string,any> provider = $[
+                    "protocol" : (string)UI::QueryWidget( `cb_sync_prot, `Value ),
+                    "target"   : (string)UI::QueryWidget( `te_sync_target, `Value ),
+                    "port"     : (integer)UI::QueryWidget( `if_sync_port, `Value )
+                ];
+            map<string,any> testparm = $[];
+            testparm = add(testparm, "target", provider );
+            if ( provider["protocol"]:"ldap" == "ldap" )
+            {
+                testparm = add(testparm, "starttls", true );
+            }
+            else
+            {
+                testparm = add(testparm, "starttls", false );
+            }
+            testparm = add(testparm, "basedn", "cn=config" );
+            testparm = add(testparm, "binddn", "cn=config" );
+            testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
+            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                Popup::ErrorDetails( _("Verifying the administration Password for the \"cn=config\" Database failed"),
+                        _("The test returned the following error messages:")
+                        + "\n\n\"" +
+                        (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:"" + "\"\n" );
+                continue;
+            }
+
+            testparm["configcred"] = testparm["credentials"]:"";
+            testparm["binddn"] = (string)UI::QueryWidget(`te_sync_binddn, `Value);
+            testparm["credentials"] = (string)UI::QueryWidget(`te_sync_cred, `Value);
+            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                return Popup::ContinueCancelHeadline(
+                                               _("Verifying the Authentication DN and password for replication failed"),
+                                               _("The test returned the following error messages:")
+                                               + "\n\n\"" +
+                                               (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                               + "\"\n\n" +
+                                               _("Do you want to still want to continue?"));
+            }
+            if (!(boolean) LdapServer::SetupRemoteForReplication( testparm ) )
+            {
+                map<string,any> err = LdapServer::ReadError();
+                Popup::Error( (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
+            }
+        }
+        if ( ret == `cb_sync_prot )
+        {
+            string prot = (string) UI::QueryWidget( `cb_sync_prot, `Value );
+            integer port = (integer) UI::QueryWidget( `if_sync_port, `Value );
+            if ( prot == "ldaps" )
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, false );
+                if ( port == 389 )
+                {
+                    UI::ChangeWidget( `if_sync_port, `Value, 636 );
+                }
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, true );
+                if ( port == 636 )
+                {
+                    UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                }
+            }
+            continue;
+        }
+        return ret;
     }
     return ret;
 }

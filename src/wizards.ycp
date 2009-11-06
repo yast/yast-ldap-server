@@ -105,19 +105,28 @@ any ProposalSequence() {
 
     map aliases = $[
         "startup"   : ``( EnableServiceDialog() ),
+        "servertype" : ``( ServerTypeDialog() ),
         "tlssettings" : ``( TlsConfigDialog() ),
         "database"   : ``( ProposalDialog() ),
         "summary"   : ``(SummaryDialog() ),
         "advanced"  :  ``(MainSequence() ),
-	"write"	: ``( WriteDialog() )
+	"write"	: ``( WriteDialog() ),
+        "slavesetup" : ``( SlaveSetupDialog() )
     ];
 
     map sequence = $[
         "ws_start"  : "startup",
         "startup"   : $[
-            `next   : "tlssettings",
+            `next   : "servertype",
             `abort  : `abort,
             `finish : `abort
+        ],
+        "servertype" : $[
+            `next        : "tlssettings",
+            `slave_setup : "slavesetup"
+        ],
+        "slavesetup" : $[
+            `next : "write"
         ],
         "tlssettings" : $[
             `next   : "database"
