@@ -1670,11 +1670,14 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             else
                             {
                                 YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
-                                LDAPUrl updaterefUrl;
-                                updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                                updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
-                                updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
-                                (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                if ( updaterefMap.size() > 0 )
+                                {
+                                    LDAPUrl updaterefUrl;
+                                    updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                    updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                    updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                    (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                }
                             }
                         }
                         else
