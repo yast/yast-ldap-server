@@ -113,7 +113,14 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
         }
         else if ( path->component_str(0) == "configAsLdif" )
         {
-            return ConfigToLdif();
+            if ( arg.isNull() || !arg->asMap()->size())
+            {
+                return ConfigToLdif();
+            }
+            else
+            {
+                return ConfigToLdif(true);
+            }
         }
     } catch ( std::runtime_error e ) {
         y2error("Error during Read: %s", e.what() );
@@ -1963,24 +1970,40 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
     return YCPBoolean(false);
 }
 
-YCPString SlapdConfigAgent::ConfigToLdif() const
+YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
 {
     y2milestone("ConfigToLdif");
     std::ostringstream ldif;
-    if ( ! globals || ! schemaBase )
+    if ( ! globals )
     {
         throw std::runtime_error("Configuration not initialized. Can't create LDIF dump." );
     }
-    ldif << globals->toLdif() << std::endl;
-    ldif << schemaBase->toLdif() << std::endl;
-    OlcSchemaList::const_iterator j;
-    for ( j = schema.begin(); j != schema.end() ; j++ )
+    if ( resetCsn )
     {
-        ldif << (*j)->toLdif() << std::endl;
+        globals->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        // schemaBase entryCSN won't be resetted as it cause trouble during replication
+        // of hardcoded schema values
+    }
+    ldif << globals->toLdif() << std::endl;
+    if ( schemaBase )
+    {
+        schemaBase->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        ldif << schemaBase->toLdif() << std::endl;
+        OlcSchemaList::const_iterator j;
+        for ( j = schema.begin(); j != schema.end() ; j++ )
+        {
+            if ( resetCsn )
+                (*j)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+
+            ldif << (*j)->toLdif() << std::endl;
+        }
     }
     OlcDatabaseList::const_iterator i = databases.begin();
     for ( ; i != databases.end(); i++ )
     {
+        if ( resetCsn )
+            (*i)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        
         ldif << (*i)->toLdif() << std::endl;
     }
     return YCPString(ldif.str());
