@@ -531,6 +531,17 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
             ymap.add(YCPString("crlFile"), YCPString( tls.getCrlFile() ) );
             return ymap;
         }
+        if ( path->component_str(0) == "serverIds" )
+        {
+            YCPList resList;
+            StringList serverIds = globals->getStringValues("olcserverid");
+            for ( StringList::const_iterator i =  serverIds.begin(); 
+                  i != serverIds.end(); i++ )
+            {
+                resList.add(YCPString(*i));
+            }
+            return resList;
+        }
     }
     return YCPNull();
 }
@@ -1145,6 +1156,18 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             globals->setTlsSettings(tls);
             return YCPBoolean(true);
         }
+        if ( path->component_str(0) == "serverIds" )
+        {
+            YCPList ycpServerIds = arg->asList();
+            StringList values;
+            for ( YCPListIterator i = ycpServerIds.begin(); 
+                  i != ycpServerIds.end(); i++ )
+            {
+                values.add( (*i)->asString()->value_cstr() );
+            }
+            globals->setStringValues("olcServerId", values);
+        }
+
     }
     return YCPBoolean(false);
 }
