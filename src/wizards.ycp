@@ -111,7 +111,8 @@ any ProposalSequence() {
         "summary"   : ``(SummaryDialog() ),
         "advanced"  :  ``(MainSequence() ),
 	"write"	: ``( WriteDialog() ),
-        "slavesetup" : ``( SlaveSetupDialog() )
+        "slavesetup" : ``( SlaveSetupDialog() ),
+        "replicationsummary": ``( ReplicatonSetupSummaryDialog() )
     ];
 
     map sequence = $[
@@ -126,6 +127,9 @@ any ProposalSequence() {
             `slave_setup : "slavesetup"
         ],
         "slavesetup" : $[
+            `next : "replicationsummary"
+        ],
+        "replicationsummary" : $[
             `next : "write"
         ],
         "tlssettings" : $[

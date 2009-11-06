@@ -611,7 +611,7 @@ any SlaveSetupDialog()
                                                + "\"\n\n" +
                                                _("Do you want to still want to continue?"));
             }
-            if (!(boolean) LdapServer::SetupRemoteForReplication( testparm ) )
+            if (!(boolean) LdapServer::CheckRemoteForReplication( testparm ) )
             {
                 map<string,any> err = LdapServer::ReadError();
                 Popup::Error( (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
@@ -640,6 +640,72 @@ any SlaveSetupDialog()
             continue;
         }
         return ret;
+    }
+    return ret;
+}
+
+/**
+ * ReplicatonSummary dialog
+ * @return dialog result
+ */
+any ReplicatonSetupSummaryDialog() {
+
+    /* LdapServer summary dialog caption */
+
+    string summary = LdapServer::ReplicationSetupSummary();
+    any ret = nil;
+
+    if ( size(summary) == 0 )
+    {
+        LdapServer::SetupRemoteForReplication();
+        ret = `next;
+    }
+    else
+    {
+        string caption = _("To setup a replication some changes are required on the remote server");
+        term contents =
+            `VBox(
+                `RichText( summary )
+                //,
+                //`Right(
+                //    `PushButton( `id(`pb_advanced), _("Advanced Configuration") )
+                //)
+            );
+
+        Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
+                Label::BackButton(), Label::FinishButton());
+
+        while(true)
+        {
+
+            ret = UI::UserInput();
+
+            /* abort? */
+            if (ret == `abort || ret == `cancel )
+            {
+                if( Popup::ReallyAbort(true))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else if ( ret == `next )
+            {
+                LdapServer::SetupRemoteForReplication();
+                break;
+            }
+            else if ( ret == `back )
+            {
+                break;
+            }
+            else {
+                y2error("unexpected retcode: %1", ret);
+                continue;
+            }
+        }
     }
     return ret;
 }
