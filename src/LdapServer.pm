@@ -40,6 +40,7 @@ my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $overwriteConfig = 0;
+my $isSyncreplSlave = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
 my $registerSlp = 0;
@@ -597,7 +598,12 @@ sub Write {
             my $tmpfile = $rc->{'stdout'};
             chomp $tmpfile;
             y2milestone("using tempfile: ".$tmpfile );
-            my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+            my $overrideCsn = {};
+            if ( $isSyncreplSlave )
+            {
+                $overrideCsn = { resetCsn => 0 };
+            }
+            my $ldif = SCR->Read('.ldapserver.configAsLdif', $overrideCsn );
             y2debug($ldif);
             if ( ! $ldif )
             {
@@ -2406,7 +2412,7 @@ sub WritePpolicyDefault
 {
     my ( $self, $suffix, $dn, $ppolicy ) = @_;
     y2milestone("WritePpolicyDefault $suffix $dn");
-    y2milestone("WritePpolicyDefault ". Data::Dumper->Dump([$ppolicy]) );
+    y2debug("WritePpolicyDefault ". Data::Dumper->Dump([$ppolicy]) );
     if ( ! defined $ppolicy->{'objectClass'} )
     {
         $ppolicy->{'objectClass'} = [ "namedObject", "pwdPolicy" ];
