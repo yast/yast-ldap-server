@@ -554,7 +554,14 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
         {
             continue;
         }
-        ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
+        if ( (*i)->getSuffix().empty() && (*i)->getType() == "config" )
+        {
+            ymap.add( YCPString("suffix"), YCPString("cn=config") );
+        }
+        else
+        {
+            ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
+        }
         ymap.add( YCPString("type"), YCPString((*i)->getType()) );
         ymap.add( YCPString("index"), YCPInteger((*i)->getEntryIndex()) );
         dbList.add(ymap);
