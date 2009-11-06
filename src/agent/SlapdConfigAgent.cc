@@ -61,14 +61,19 @@ static void y2LogCallback( int level, const std::string &msg,
     y2_logger(y2level, "libslapdconfig", file, line, function, "%s", msg.c_str());
 }
 
-SlapdConfigAgent::SlapdConfigAgent()
+SlapdConfigAgent::SlapdConfigAgent() : m_lc(0)
 {
     y2milestone("SlapdConfigAgent::SlapdConfigAgent");
     OlcConfig::setLogCallback(y2LogCallback);
 }
 
 SlapdConfigAgent::~SlapdConfigAgent()
-{}
+{
+    if ( m_lc)
+    {
+        delete(m_lc);
+    }
+}
 
 YCPValue SlapdConfigAgent::Read( const YCPPath &path,
                                  const YCPValue &arg,
@@ -189,20 +194,20 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 target.setPort( targetMap->value(YCPString("port"))->asInteger()->value() );
                 uri = target.getURLString();
             }
-            LDAPConnection *lc = new LDAPConnection(uri);
+            m_lc = new LDAPConnection(uri);
             try {
                 if( arg.isNull() )
                 {
                     SaslExternalHandler sih;
-                    lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+                    m_lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
                 }
                 else
                 {
                     if ( argMap->value(YCPString("starttls"))->asBoolean()->value() )
                     {
-                        lc->start_tls();
+                        m_lc->start_tls();
                     }
-                    lc->bind("cn=config", std::string( argMap->value(YCPString("configcred"))->asString()->value_cstr() ));
+                    m_lc->bind("cn=config", std::string( argMap->value(YCPString("configcred"))->asString()->value_cstr() ));
                 }
             }
             catch ( LDAPException e)
@@ -214,10 +219,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                         YCPString(errstring) );
                 lastError->add(YCPString("description"), YCPString( details ) );
                 y2milestone("Error connection to the LDAP Server: %s", details.c_str());
-                delete(lc);
+                delete(m_lc);
+                m_lc=0;
                 return YCPBoolean(false);
             }
-            olc = OlcConfig(lc);
+            olc = OlcConfig(m_lc);
         }
         databases.clear();
         schema.clear();
@@ -231,6 +237,9 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
            // olc.getLdapConnection()->unbind();
         }
         olc = OlcConfig();
+        if ( m_lc)
+            delete m_lc;
+        m_lc=0;
         databases.clear();
         schema.clear();
         deleteableSchema.clear();

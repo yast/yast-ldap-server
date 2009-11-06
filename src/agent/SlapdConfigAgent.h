@@ -79,6 +79,7 @@ class SlapdConfigAgent : public SCRAgent {
 
     private:
         YCPMap lastError;
+        LDAPConnection *m_lc;
         OlcConfig olc;
         OlcDatabaseList databases;
         OlcSchemaList schema;
