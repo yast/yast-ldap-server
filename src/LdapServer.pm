@@ -195,6 +195,7 @@ my $ppolicy_objects = {};
 # replication
 my $remoteReplicationSetupTodo = {};
 
+my $syncreplaccount = {};
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -411,6 +412,57 @@ sub CreateBaseObjects()
         else
         {
             y2milestone("Authentication information for database $db unavailable");
+        }
+    }
+    return 1;
+}
+
+sub CreateSyncReplAccount()
+{
+    my $self = shift;
+    y2milestone("CreateSyncReplAccount()");
+    if (defined $syncreplaccount->{'syncdn'} && defined $syncreplaccount->{'syncpw'} &&
+        defined $syncreplaccount->{'basedn'} && defined $syncreplaccount->{'syncpw_hash'})
+    {
+        my $db_auth = $self->ReadAuthInfo(  $syncreplaccount->{'basedn'} );
+        if ( keys( %$db_auth ) )
+        {
+            my $oudn = "ou=system,".$syncreplaccount->{'basedn'};
+            my $ouentry = { "objectclass" => [ "organizationalUnit"],
+                         "ou" => "system" };
+            my $syncaccountentry = {
+                    "objectclass" => [ "account", "simpleSecurityObject" ],
+                    "uid" => "syncrepl",
+                    "userPassword" => $syncreplaccount->{'syncpw_hash'},
+                    "pwdPolicySubentry" => "" # To make sure that no password policies are applied 
+                                              # to this entry!
+                    };
+            my $ldapERR=undef;
+
+            if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db_auth->{'bind_dn'},
+                                              "bind_pw" => $db_auth->{'bind_pw'}}) ) {
+                $ldapERR = SCR->Read(".ldap.error");
+                y2error( "LDAP bind failed" );
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                return 0;
+            }
+            if (! SCR->Write(".ldap.add", { dn => $oudn } , $ouentry)) {
+                my $ldapERR = SCR->Read(".ldap.error");
+                y2error("Can not add base entry.");
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                return 0;
+            }
+            if (! SCR->Write(".ldap.add", { dn => $syncreplaccount->{'syncdn'} } , $syncaccountentry)) {
+                my $ldapERR = SCR->Read(".ldap.error");
+                y2error("Can not add syncaccount entry.");
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                return 0;
+            }
+            y2milestone("sync entries added");
+        }
+        else
+        {
+            y2milestone("Authentication information for database ".$syncreplaccount->{'basendn'} ." unavailable");
         }
     }
     return 1;
@@ -2312,6 +2364,20 @@ sub HashPassword
         $hashed = $cleartext;
     }
     return $hashed;
+}
+
+sub GenerateRandPassword
+{
+    my $length=12;
+    my @chars=('a'..'z','A'..'Z','0'..'9','_');
+    my $randpw;
+    foreach (1..$length) 
+    {
+            # rand @chars will generate a random 
+            # number between 0 and scalar @chars
+            $randpw .= $chars[rand @chars];
+    }
+    return $randpw;
 }
 
 BEGIN { $TYPEINFO {HaveCommonServerCertificate} = ["function", "boolean" ]; }
