@@ -2049,6 +2049,12 @@ YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
             (*i)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
         
         ldif << (*i)->toLdif() << std::endl;
+        OlcOverlayList overlays = (*i)->getOverlays();
+        OlcOverlayList::iterator k;
+        for ( k = overlays.begin(); k != overlays.end(); k++ )
+        {
+            ldif << (*k)->toLdif() << std::endl;
+        }
     }
     return YCPString(ldif.str());
 }
