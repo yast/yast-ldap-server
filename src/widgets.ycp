@@ -270,6 +270,20 @@
                 )
             )
         );
+    term editConfigDatabase =
+        `Top(
+            `VBox(
+                `Heading( _("Change Configuration Database Settings") ),
+                `VSpacing( 1 ),
+                `CheckBox( `id( `cb_conf_ldapsimplebind), `opt(`notify),
+                        _("Allow Plaintext Authentication (Simple Bind) for this Database. " ) +
+                        _("(Remote Connection needs to be encrypted)"), false ),
+                `VSpacing( 0.3 ),
+                `ReplacePoint( `id( `rp_confpw ),
+                    `PushButton( `id( `pb_changepw ), _("Change Administration Password") )
+                )
+            )
+        );
     term editGenericDatabase =
         `Top(
             `VBox(
