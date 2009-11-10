@@ -287,9 +287,17 @@ any ServerTypeDialog()
                     `VBox(
                         `Left(
                             `RadioButton(
-                                `id( `rb_master ),
-                                _("This will be a standalone or master server"),
+                                `id( `rb_standalone ),
+                                _("This will be a standalone server"),
                                 true
+                            )
+                        ),
+                        `VSpacing(),
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_master ),
+                                _("This server can act as a master server in a replication setup"),
+                                false
                             )
                         ),
                         `VSpacing(),
@@ -320,6 +328,15 @@ any ServerTypeDialog()
             if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_slave )
             {
                 ret = `slave_setup;
+                LdapServer::WriteSetupMaster(false);
+            }
+            else if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_master )
+            {
+                LdapServer::WriteSetupMaster(true);
+            }
+            else
+            {
+                LdapServer::WriteSetupMaster(false);
             }
         }
         return ret;
@@ -384,6 +401,10 @@ any ProposalDialog()
     {
         LdapServer::SetInitialDefaults(LdapDatabase::GetDatabase());
         LdapServer::WriteLdapConfBase( LdapDatabase::GetLdapConfBase() );
+        if ( LdapServer::ReadSetupMaster() )
+        {
+            ret = `mastersetup;
+        }
     }
 
     return ret;
@@ -705,6 +726,67 @@ any ReplicatonSetupSummaryDialog() {
                 y2error("unexpected retcode: %1", ret);
                 continue;
             }
+        }
+    }
+    return ret;
+}
+
+any MasterSetupDialog()
+{
+    term widget =
+        `HSquash(
+            `VSquash(
+                `VBox(
+                    `Heading( _("Repliation Master setup") ),
+                    `VSpacing( 0.5 ),
+                    `Label( _("In order to act as a Master Server for Replication, the Configuration database needs\nto be remotely accessible. Please set a password for the Configuration database." ) +
+                            _("\n(Remote access to the Configuration database will be restricted to encrypted\nLDAP Connections)")
+                    ),
+                    `VSpacing( 0.5 ),
+                    `Password( `id( `te_rootpw ), `opt( `hstretch ), _("Enter new &Password") ),
+                    `VSpacing( 0.5 ),
+                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") )
+                )
+            )
+        );
+    Wizard::SetContentsButtons( caption,
+            widget,
+            HELPS["master_setup_dialog"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        ret = UI::UserInput();
+        if ( ret == `next )
+        {
+            string pw = (string)UI::QueryWidget( `te_rootpw, `Value );
+            string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
+            if ( size(pw) == 0 )
+            {
+                Popup::Error( _("Please enter a password") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+            }
+            else if ( pw != verifypw )
+            {
+                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                pw = "";
+                verifypw ="";
+            }
+            else
+            {
+                map <string, any> defaults = LdapServer::ReadInitialDefaults();
+                defaults["configpw"] = pw;
+                LdapServer::SetInitialDefaults(defaults);
+                break;
+            }
+        }
+        else
+        {
+            break;
         }
     }
     return ret;

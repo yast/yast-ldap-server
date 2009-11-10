@@ -720,6 +720,10 @@ sub Write {
         }
         Progress->NextStage();
         $self->CreateBaseObjects();
+        if ( $setupSyncreplMaster )
+        {
+            $self->CreateSyncReplAccount();
+        }
         if ( $write_ldapconf )
         {
             y2milestone("Updating /etc/openldap/ldap.conf");
@@ -1653,6 +1657,66 @@ sub ReadFromDefaults
             $self->ChangeDatabaseIndex(1, $idx );
         }
     }
+
+    if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
+    {
+        my $confPwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'configpw'} );
+        my $changes = { "secure_only" => 1, "rootpw" => $confPwHash };
+        $self->UpdateDatabase(0 ,$changes);
+        if ( $self->ReadSetupMaster() )
+        {
+            my $syncprov = { 'enabled' => 1, 
+                             'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
+                                               'min' => YaST::YCP::Integer(10) }
+                            };
+
+            SCR->Write( ".ldapserver.database.{0}.syncprov", $syncprov );
+            SCR->Write( ".ldapserver.database.{1}.syncprov", $syncprov );
+
+            my $syncpw = GenerateRandPassword();
+            my $syncdn = "uid=syncrepl,ou=system,".$dbDefaults{'suffix'};
+            my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
+            my $fqdn = $rc->{"stdout"};
+            chomp($fqdn);
+            my $syncrepl = {
+                    "provider" => {
+                            "protocol"  => "ldap",
+                            "target"    => $fqdn,
+                            "port"      => YaST::YCP::Integer(389)
+                        },
+                    "type" => "refreshAndPersist",
+                    "binddn" => $syncdn,
+                    "credentials" => $syncpw,
+                    "basedn" => "cn=config",
+                    "starttls" => YaST::YCP::Boolean(1),
+                    "updateref" => {}
+                };
+            SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
+            $syncrepl->{'basedn'} = $dbDefaults{'suffix'};
+            SCR->Write(".ldapserver.database.{1}.syncrepl", $syncrepl );
+            $syncreplaccount->{'syncdn'} = $syncdn;
+            $syncreplaccount->{'syncpw'} = $syncpw;
+            $syncreplaccount->{'syncpw_hash'} = $self->HashPassword($dbDefaults{'pwenctype'}, $syncpw );
+            $syncreplaccount->{'basedn'} = $dbDefaults{'suffix'};
+            my @syncacl = ({
+                    'target' => {},
+                    'access' => [
+                            { 'type' => "dn.base",
+                              'value' => $syncdn,
+                              'level' => "read",
+                              'control' => "" },
+                            { 'type' => "*",
+                              'value' => "",
+                              'level' => "",
+                              'control' => "break" }
+                        ]
+                });
+            $rc = SCR->Write(".ldapserver.database.{0}.acl", \@syncacl );
+            push @syncacl, @$defaultDbAcls;
+            $defaultDbAcls = \@syncacl;
+        }
+    }
+    
     # add default ACLs
     $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
     $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
