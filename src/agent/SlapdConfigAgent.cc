@@ -623,9 +623,24 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 std::string dbtype = (*i)->getType();
                 std::string suffix = (*i)->getStringValue("olcSuffix");
                 y2milestone("suffix %s, dbtype %s\n", suffix.c_str(), dbtype.c_str() );
-                if ( suffix.empty() && dbtype == "config" )
+                if ( dbtype == "config" )
                 {
-                    suffix = "cn=config";
+                    // expose the security setting to cn=config only for now
+                    std::string secVal = (*i)->getStringValue("olcSecurity");
+                    OlcSecurity sec(secVal);
+                    if ( (sec.getSsf("ssf") >= 71) && (sec.getSsf("simple_bind") >= 128) )
+                    {
+                        resMap.add( YCPString("secure_only"), YCPBoolean(true) );
+                    }
+                    else
+                    {
+                        resMap.add( YCPString("secure_only"), YCPBoolean(false) );
+                    }
+
+                    if ( suffix.empty() )
+                    {
+                        suffix = "cn=config";
+                    }
                 }
                 resMap.add( YCPString("suffix"), YCPString(suffix) );
                 resMap.add( YCPString( "type" ),
@@ -1367,6 +1382,35 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     if ( ! val.isNull() && val->isString() )
                     {
                         (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
+                    }
+                    val = dbMap.value( YCPString("secure_only") );
+                    if ( ! val.isNull() && val->isBoolean() )
+                    {
+                        y2milestone("olcSecurity");
+                        std::string secVal = (*i)->getStringValue("olcSecurity");
+
+                        OlcSecurity sec(secVal);
+                        if ( val->asBoolean()->value() )
+                        {
+                            if ( sec.getSsf("ssf") < 71 )
+                            {
+                                sec.setSsf("ssf", 71);
+                            }
+                            if ( sec.getSsf("simple_bind") < 128 )
+                            {
+                                sec.setSsf("simple_bind", 128);
+                            }
+                        }
+                        else
+                        {
+                            sec.setSsf("ssf", 0);
+                            sec.setSsf("simple_bind", 0);
+                        }
+                        std::string newVal(sec.toSecturityVal());
+                        if ( !secVal.empty() || !newVal.empty() )
+                        {
+                            (*i)->setStringValue("olcSecurity", newVal );
+                        }
                     }
                     if ( (*i)->getType() == "bdb" || (*i)->getType() == "hdb" )
                     {
