@@ -186,7 +186,7 @@ my @added_databases = ();
 # can be used to bind against the databases
 my $auth_info = {};
 
-# contains a hash, key by database suffixed that contains
+# contains a hash, keyed by database suffixed that contains
 # hashes of the password policy DNs and and objects
 my $ppolicy_objects = {};
 
