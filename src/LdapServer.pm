@@ -1643,6 +1643,10 @@ sub ReadDatabase
     my ($self, $index) = @_;
     y2milestone("ReadDatabase ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}" );
+    if ( defined $rc->{'secure_only'} )
+    {
+        $rc->{'secure_only'} = YaST::YCP::Boolean($rc->{'secure_only'}); 
+    }
     y2debug( "Database: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
@@ -2256,6 +2260,11 @@ sub UpdateDatabase
         $changes->{'checkpoint'}->[0] = YaST::YCP::Integer( $changes->{'checkpoint'}->[0] );
         $changes->{'checkpoint'}->[1] = YaST::YCP::Integer( $changes->{'checkpoint'}->[1] );
     }
+    if ( defined $changes->{'secure_only'} )
+    {
+        $changes->{'secure_only'} = YaST::YCP::Boolean( $changes->{'secure_only'} );
+    }
+    y2milestone( Data::Dumper->Dump([$changes]) );
 
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
     return $rc;
