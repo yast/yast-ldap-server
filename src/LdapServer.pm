@@ -2497,20 +2497,8 @@ sub CheckRemoteForReplication
             else
             {
                 my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
+                y2debug("Database $i acl:".  Data::Dumper->Dump([ $acl ]) );
                 my $needacl=1;
-                my @syncacl = ({
-                        'target' => {},
-                        'access' => [
-                                { 'type' => "dn.base",
-                                  'value' => $param->{'binddn'},
-                                  'level' => "read",
-                                  'control' => "" },
-                                { 'type' => "*",
-                                  'value' => "",
-                                  'level' => "",
-                                  'control' => "break" }
-                            ]
-                    });
                 foreach my $rule ( @{$acl} )
                 {
                     my $wholedb=0;
