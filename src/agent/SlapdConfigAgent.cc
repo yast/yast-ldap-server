@@ -2031,7 +2031,9 @@ YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
     ldif << globals->toLdif() << std::endl;
     if ( schemaBase )
     {
-        schemaBase->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        if ( resetCsn )
+            schemaBase->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+
         ldif << schemaBase->toLdif() << std::endl;
         OlcSchemaList::const_iterator j;
         for ( j = schema.begin(); j != schema.end() ; j++ )
