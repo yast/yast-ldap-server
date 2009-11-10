@@ -112,6 +112,7 @@ any ProposalSequence() {
         "advanced"  :  ``(MainSequence() ),
 	"write"	: ``( WriteDialog() ),
         "slavesetup" : ``( SlaveSetupDialog() ),
+        "mastersetup" : ``( MasterSetupDialog() ),
         "replicationsummary": ``( ReplicatonSetupSummaryDialog() )
     ];
 
@@ -136,6 +137,11 @@ any ProposalSequence() {
             `next   : "database"
         ],
         "database"   : $[
+            `next   : "summary",
+            `mastersetup : "mastersetup",
+            `abort  : `abort,
+        ],
+        "mastersetup"   : $[
             `next   : "summary",
             `abort  : `abort,
         ],
