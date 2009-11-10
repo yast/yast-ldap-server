@@ -1419,10 +1419,17 @@ sub MigrateSlapdConf
     return 1;
 }
 
-BEGIN { $TYPEINFO {CreateInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
-sub CreateInitialDefaults
+##
+ # Read the settings used for creating the initial server setup. If those
+ # settings do not exist currently. A call to this function will create a
+ # proposal with useful default (by calling LdapServer::InitDbDefaults() )
+ # 
+ # @return A Map containing the setting to use when creating the initial setup
+ #
+BEGIN { $TYPEINFO {ReadInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub ReadInitialDefaults
 {
-    y2milestone("CreateInitialDefaults");
+    y2milestone("ReadInitialDefaults");
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
