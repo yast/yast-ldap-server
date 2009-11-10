@@ -41,6 +41,7 @@ my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $overwriteConfig = 0;
 my $isSyncreplSlave = 0;
+my $setupSyncreplMaster = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
 my $registerSlp = 0;
@@ -2700,6 +2701,29 @@ sub ReplicationSetupSummary {
         $string = "";
     }
     return $string;
+}
+
+##
+ # Set "true" here if we are setting up a Syncrepl Master server currently
+ # (this function is only useful for the installation wizards)
+ #
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteSetupMaster} = ["function",  "boolean", "boolean"]; }
+sub WriteSetupMaster
+{
+    my ($self, $value) = @_;
+    $setupSyncreplMaster=$value;
+}
+
+##
+ # @return true, if the current setup will creat a Syncrepl Master server
+ #         false otherwise
+ #
+BEGIN { $TYPEINFO {ReadSetupMaster} = ["function",  "boolean" ]; }
+sub ReadSetupMaster
+{
+    return $setupSyncreplMaster;
 }
 
 1;
