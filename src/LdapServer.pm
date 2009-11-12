@@ -450,13 +450,19 @@ sub CreateSyncReplAccount()
                 my $ldapERR = SCR->Read(".ldap.error");
                 y2error("Can not add base entry.");
                 y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
-                return 0;
+                if ( $ldapERR->{'code'} != 68 ) # already exists
+                {
+                    return 0;
+                }
             }
             if (! SCR->Write(".ldap.add", { dn => $syncreplaccount->{'syncdn'} } , $syncaccountentry)) {
                 my $ldapERR = SCR->Read(".ldap.error");
                 y2error("Can not add syncaccount entry.");
                 y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
-                return 0;
+                if ( $ldapERR->{'code'} != 68 ) # already exists */
+                {
+                    return 0;
+                }
             }
             y2milestone("sync entries added");
         }
