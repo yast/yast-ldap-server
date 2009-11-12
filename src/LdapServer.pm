@@ -417,6 +417,18 @@ sub CreateBaseObjects()
     return 1;
 }
 
+BEGIN { $TYPEINFO{WriteSyncReplAccount} = ["function", "boolean", ["map", "string", "string"] ]; }
+sub WriteSyncReplAccount()
+{
+    my ( $self, $account ) = shift;
+    $syncreplaccount->{'syncdn'} = $account->{'dn'};
+    $syncreplaccount->{'syncpw'} = $account->{'pw'};
+    $syncreplaccount->{'syncpw_hash'} = $self->HashPassword("SSHA", $account->{'pw'} );
+    $syncreplaccount->{'basedn'} = $account->{'dbsuffix'};
+
+    return 1;
+}
+
 sub CreateSyncReplAccount()
 {
     my $self = shift;
@@ -427,9 +439,33 @@ sub CreateSyncReplAccount()
         my $db_auth = $self->ReadAuthInfo(  $syncreplaccount->{'basedn'} );
         if ( keys( %$db_auth ) )
         {
-            my $oudn = "ou=system,".$syncreplaccount->{'basedn'};
-            my $ouentry = { "objectclass" => [ "organizationalUnit"],
-                         "ou" => "system" };
+            my $object = X500::DN->ParseRFC2253( $syncreplaccount->{'syncdn'} );
+            my $suffixDn = X500::DN->ParseRFC2253( $syncreplaccount->{'basedn'} );
+            if(! defined $object) {
+                y2error("Error while parsing dn");
+                return 0;
+            }
+            if ( $object->getRDNs() > ( $suffixDn->getRDNs()+2 ) )
+            {
+                y2error("Error while parsing dn");
+                return 0;
+            }
+            y2milestone("Number of RDNs: ". scalar($object->getRDNs() ));
+            my @attr = $object->getRDN($object->getRDNs()-2)->getAttributeTypes();
+            my $val = $object->getRDN($object->getRDNs()-2)->getAttributeValue($attr[0]);
+            my $parententry = {};
+            if( lc($attr[0]) eq "ou") {
+                $parententry = {
+                      "objectClass" => [ "organizationalUnit" ],
+                      "ou" => $val,
+                }
+            }
+            else
+            {
+                y2error("Cannot create ".$attr[0]." object");
+                return 0;
+            }
+            my $parentdn = $attr[0]."=".$val.",".$syncreplaccount->{'basedn'};
             my $syncaccountentry = {
                     "objectclass" => [ "account", "simpleSecurityObject" ],
                     "uid" => "syncrepl",
@@ -446,7 +482,7 @@ sub CreateSyncReplAccount()
                 y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
                 return 0;
             }
-            if (! SCR->Write(".ldap.add", { dn => $oudn } , $ouentry)) {
+            if (! SCR->Write(".ldap.add", { dn => $parentdn } , $parententry)) {
                 my $ldapERR = SCR->Read(".ldap.error");
                 y2error("Can not add base entry.");
                 y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
