@@ -2472,6 +2472,12 @@ sub HashPassword
     return $hashed;
 }
 
+##
+ # Generates a random password 
+ #
+ # @return A random password string
+ #
+BEGIN { $TYPEINFO {GenerateRandPassword} = ["function", "string" ] ; }
 sub GenerateRandPassword
 {
     my $length=12;
