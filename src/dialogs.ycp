@@ -801,34 +801,109 @@ any SlaveSetupDialog()
             testparm = add(testparm, "basedn", "cn=config" );
             testparm = add(testparm, "binddn", "cn=config" );
             testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
-            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
-            {
-                map<string,any> err = SCR::Error(.ldapserver);
-                Popup::ErrorDetails( _("Verifying the administration Password for the \"cn=config\" Database failed"),
-                        _("The test returned the following error messages:")
-                        + "\n\n\"" +
-                        (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:"" + "\"\n" );
-                continue;
-            }
 
-            testparm["configcred"] = testparm["credentials"]:"";
-            testparm["binddn"] = (string)UI::QueryWidget(`te_sync_binddn, `Value);
-            testparm["credentials"] = (string)UI::QueryWidget(`te_sync_cred, `Value);
-            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
-            {
-                map<string,any> err = SCR::Error(.ldapserver);
-                return Popup::ContinueCancelHeadline(
-                                               _("Verifying the Authentication DN and password for replication failed"),
-                                               _("The test returned the following error messages:")
-                                               + "\n\n\"" +
-                                               (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
-                                               + "\"\n\n" +
-                                               _("Do you want to still want to continue?"));
-            }
-            if (!(boolean) LdapServer::CheckRemoteForReplication( testparm ) )
+            if (!(boolean) LdapServer::InitRemoteConnection( testparm ) )
             {
                 map<string,any> err = LdapServer::ReadError();
-                Popup::Error( (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
+                Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" Database on the Provider Server.\n") +
+                         _("Please verify that the Provider Server allows remote connections to the  \"cn=config\" Database\nand that you entered the correct password"),
+                         _("The following error messages were returned:") + "\n\n\"" +
+                         (string)err["msg"]:"" + "\"\n\"" +
+                         (string)err["details"]:"" + "\"" );
+                continue;
+            }
+            if (!(boolean) LdapServer::VerifyTlsSetup( testparm["target"]:$[] ) )
+            {
+                map<string,any> err = LdapServer::ReadError();
+                Popup::ErrorDetails( _("Error while verifying the TLS/SSL configuration"),
+                                     (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
+                if (Popup::YesNo( _("Do you want to import a different CA/Server Certificate?") ) )
+                {
+                    WFM::CallFunction("common_cert", [] );
+                }
+                continue;
+            }
+            // Check if the syncrepl config of cn=config makes sense
+            map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
+            if ( size(syncrepl) == 0 )
+            {
+                if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
+                                           _("Click Continue to create it now.") ) )
+                {
+                    continue;
+                }
+                else
+                {
+                    ret = `cancel;
+                    break;
+                }
+            }
+            else
+            {
+                // 1. Verify that the provider uri points to the provider itself
+                map<string, any> provider = syncrepl["provider"]:$[];
+                boolean setupok=true;
+                if ( size(provider) > 0 )
+                {
+                    if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                    {
+                        y2error("Provider target names do not match: <%1> vs. <%2>",
+                                (string)provider["target"]:"",(string)testparm["target","target"]:"");
+                        setupok=false;
+                    }
+                    if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
+                    {
+                        y2error("Provider protocols do not match: <%1> vs. <%2>",
+                                (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
+                        setupok=false;
+                    }
+                    if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
+                    {
+                        y2error("Provider ports do not match: <%1> vs. <%2>",
+                                (string)provider["port"]:"",(string)testparm["target","port"]:"");
+                        setupok=false;
+                    }
+                    if ( ! setupok )
+                    {
+                        Popup::Error( _("The Replication Configuration on the master server indicates that\nis already acting as a Repliation Consumer.\n") +
+                                      _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                        ret = `cancel;
+                        break;
+                    }
+                }
+                // 2. Verify that the binddn/credential combination acutally works
+                map <string,any> bindtestparm = $[
+                            "target" : syncrepl["provider"]:$[],
+                            "starttls" : syncrepl["starttls"]:true,
+                            "basedn" : syncrepl["basedn"]:"",
+                            "binddn" : syncrepl["binddn"]:"",
+                            "credentials" : syncrepl["credentials"]:""
+                        ];
+                if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, bindtestparm ) )
+                {
+                    map<string,any> err = SCR::Error(.ldapserver);
+                    if ( Popup::ContinueCancel( _("Checking the Authentication credentials defined in the Replication Configuration on the Provider Server failed.\n") +
+                                                _("The test returned the following error messages:")
+                                                + "\n\n\"" +
+                                                (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                                + "\"\n\n" +
+                                                _("Click Continue to correct that now.") ) )
+                    {
+                        syncrepl = SyncreplAccountConfig( syncrepl );
+                        if ( syncrepl["binddn"]:"" == "cn=config" )
+                        {
+                            syncrepl["credentials"] = testparm["credentials"]:"";
+                        }
+                    }
+                    else
+                    {
+                        ret = `cancel;
+                        break;
+                    }
+                }
+                LdapServer::WriteSyncreplBaseConfig( syncrepl );
+                LdapServer::WriteAuthInfo( "cn=config", $[ "bind_dn" : "cn=config", "bind_pw" : testparm["credentials"]:"" ] );
+                break;
             }
         }
         if ( ret == `cb_sync_prot )
@@ -853,8 +928,14 @@ any SlaveSetupDialog()
             }
             continue;
         }
-        return ret;
+        break;
     }
+    if ( ret != `next )
+    {
+        // reset remote connection
+        SCR::Execute(.ldapserver.reset);
+    }
+
     return ret;
 }
 
@@ -864,63 +945,10 @@ any SlaveSetupDialog()
  */
 any ReplicatonSetupSummaryDialog() {
 
-    /* LdapServer summary dialog caption */
-
-    string summary = LdapServer::ReplicationSetupSummary();
     any ret = nil;
 
-    if ( size(summary) == 0 )
-    {
-        LdapServer::SetupRemoteForReplication();
-        ret = `next;
-    }
-    else
-    {
-        string caption = _("To setup a replication some changes are required on the remote server");
-        term contents =
-            `VBox(
-                `RichText( summary )
-                //,
-                //`Right(
-                //    `PushButton( `id(`pb_advanced), _("Advanced Configuration") )
-                //)
-            );
-
-        Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
-                Label::BackButton(), Label::FinishButton());
-
-        while(true)
-        {
-
-            ret = UI::UserInput();
-
-            /* abort? */
-            if (ret == `abort || ret == `cancel )
-            {
-                if( Popup::ReallyAbort(true))
-                {
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            else if ( ret == `next )
-            {
-                LdapServer::SetupRemoteForReplication();
-                break;
-            }
-            else if ( ret == `back )
-            {
-                break;
-            }
-            else {
-                y2error("unexpected retcode: %1", ret);
-                continue;
-            }
-        }
-    }
+    LdapServer::SetupRemoteForReplication();
+    ret = `next;
     return ret;
 }
 

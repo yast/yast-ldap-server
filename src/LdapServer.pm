@@ -192,11 +192,9 @@ my $auth_info = {};
 # hashes of the password policy DNs and and objects
 my $ppolicy_objects = {};
 
-# A hash containing the necessary step to setup cn=config
-# replication
-my $remoteReplicationSetupTodo = {};
-
 my $syncreplaccount = {};
+my $syncreplbaseconfig = {};
+
 ##
  # Read all ldap-server settings
  # @return true on success
@@ -2638,16 +2636,11 @@ sub ReadPpolicyDefault
     return $ppolicy_objects->{$suffix}
 }
 
-BEGIN { $TYPEINFO {CheckRemoteForReplication} = ["function",  "boolean", ["map", "string", "any"] ]; }
-sub CheckRemoteForReplication
+BEGIN { $TYPEINFO {SetupRemoteForReplication} = ["function",  "boolean" ]; }
+sub SetupRemoteForReplication
 {
-    my ( $self, $param) = @_;
-    $param->{'target'}->{'port'} = YaST::YCP::Integer($param->{'target'}->{'port'});
-    $param->{'starttls'} = YaST::YCP::Boolean($param->{'starttls'});
+    my ( $self ) = @_;
 
-    SCR->Execute(".ldapserver.init", $param );
-
-    my @db_changes = ();
     my $dbs = $self->ReadDatabaseList();
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
@@ -2655,39 +2648,92 @@ sub CheckRemoteForReplication
         my $suffix = $dbs->[$i+1]->{'suffix'};
         if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
         {
-            my $changes = { "index" => $i, "suffix" => $suffix };
             my $db = SCR->Read(".ldapserver.database.{".$i."}" );
             my $prv = SCR->Read(".ldapserver.database.{".$i."}.syncprov" );
+            y2debug("Database $i ". Data::Dumper->Dump([ $prv ]) );
             if ( keys %{$prv} == 0 )
             {
                 y2milestone("Database $i needs syncprov overlay");
-                $changes->{'needsyncprov'} = 1;
+                y2milestone("Enabling syncrepl provider overlay on database $i");
+                my $syncprov = { 'enabled' => 1, 
+                                 'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
+                                                  'min' => YaST::YCP::Integer(5)
+                                                }
+                                };
+                SCR->Write(".ldapserver.database.{".$i."}.syncprov", $syncprov);
             }
-            else
-            {
-                $changes->{'needsyncprov'} = 0;
-            }
+        }
+    }
 
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
             my $cons = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
+            my $needsyncrepl = 0;
             if ( keys %{$cons} == 0 )
             {
                 y2milestone("Database $i needs syncrepl config");
-                $changes->{'needsyncrepl'} = 1;
+                $needsyncrepl = 1;
             }
             else
             {
-                $changes->{'needsyncrepl'} = 0;
+                my $provider = $cons->{'provider'};
+                if ( $provider->{'target'} ne $syncreplbaseconfig->{'provider'}->{'target'} )
+                {
+                    y2milestone("Provider Hostname doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $provider->{'port'} ne $syncreplbaseconfig->{'provider'}->{'port'}->value )
+                {
+                    y2milestone("Provider Port doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $provider->{'protocol'} ne $syncreplbaseconfig->{'provider'}->{'protocol'} )
+                {
+                    y2milestone("Provider Protocol doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $cons->{'binddn'} ne $syncreplbaseconfig->{'binddn'} )
+                {
+                    y2milestone("binddn doesn't match syncreplbaseconfig");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $cons->{'credentials'} ne $syncreplbaseconfig->{'credentials'} )
+                {
+                    y2milestone("credentials don't match syncreplbaseconfig");
+                    $needsyncrepl = 1;
+                }
             }
-            if ( lc($db->{'rootdn'}) eq lc($param->{'binddn'}) )
+            if ( $needsyncrepl ) 
             {
-                y2milestone("Repl DN is rootdn of database $i. No ACL needed");
-                $changes->{'needsyncacl'} = 0;
+                y2milestone("Adding syncrepl consumer configuration for database $i");
+                $syncreplbaseconfig->{'basedn'} = $suffix;
+                SCR->Write(".ldapserver.database.{".$i."}.syncrepl", $syncreplbaseconfig );
+            }
+
+        }
+    }
+
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $db = SCR->Read(".ldapserver.database.{".$i."}" );
+            my $needsacl = 0;
+            if ( lc($db->{'rootdn'}) eq lc($syncreplbaseconfig->{'binddn'}) )
+            {
+                y2milestone("Repl DN \"".$syncreplbaseconfig->{'binddn'}. "\" is rootdn of database $i. No ACL needed");
             }
             else
             {
                 my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
                 y2debug("Database $i acl:".  Data::Dumper->Dump([ $acl ]) );
-                my $needacl=1;
+                my $needacl = 1;
                 foreach my $rule ( @{$acl} )
                 {
                     my $wholedb=0;
@@ -2716,7 +2762,7 @@ sub CheckRemoteForReplication
                         foreach my $access ( @{$rule->{'access'}} )
                         {
                             if ( $access->{'type'} eq "dn.base" && 
-                                 lc($access->{'value'}) eq lc($param->{'binddn'} ) &&
+                                 lc($access->{'value'}) eq lc($syncreplbaseconfig->{'binddn'} ) &&
                                  ($access->{'level'} eq "read" || $access->{'level'} eq "write")
                                )
                             {
@@ -2733,153 +2779,69 @@ sub CheckRemoteForReplication
                 }
                 if ( $needacl )
                 {
-                    y2milestone("Database $i needs sync-acl");
-                    $changes->{'needsyncacl'} = 1;
-                }
-                else
-                {
-                    $changes->{'needsyncacl'} = 0;
+                    y2milestone("Adding ACL for syncrepl to database $i");
+                    my @syncacl = ({
+                            'target' => {},
+                            'access' => [
+                                    { 'type' => "dn.base",
+                                      'value' => $syncreplbaseconfig->{'binddn'},
+                                      'level' => "read",
+                                      'control' => "" },
+                                    { 'type' => "*",
+                                      'value' => "",
+                                      'level' => "",
+                                      'control' => "break" }
+                                ]
+                        });
+                    my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
+                    push @syncacl, (@$acl);
+                    my $rc = SCR->Write(".ldapserver.database.{".$i."}.acl", \@syncacl );
                 }
             }
-            push @db_changes, $changes;
         }
     }
-    $remoteReplicationSetupTodo = { "dbchanges" => \@db_changes, "param" => $param };
-    return 1;
-}
-
-
-BEGIN { $TYPEINFO {SetupRemoteForReplication} = ["function",  "boolean" ]; }
-sub SetupRemoteForReplication
-{
-    my $db_changes = $remoteReplicationSetupTodo->{'dbchanges'};
-    my $param = $remoteReplicationSetupTodo->{'param'};
-
-    foreach my $db_change (@{$db_changes})
-    {
-        my $i = $db_change->{'index'};
-        if ($db_change->{'needsyncacl'} )
-        {
-            y2milestone("Adding ACL for syncrepl to database $i");
-            my @syncacl = ({
-                    'target' => {},
-                    'access' => [
-                            { 'type' => "dn.base",
-                              'value' => $param->{'binddn'},
-                              'level' => "read",
-                              'control' => "" },
-                            { 'type' => "*",
-                              'value' => "",
-                              'level' => "",
-                              'control' => "break" }
-                        ]
-                });
-            my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
-            push @syncacl, (@$acl);
-            my $rc = SCR->Write(".ldapserver.database.{".$i."}.acl", \@syncacl );
-        }
-        if ( $db_change->{'needsyncprov'} )
-        {
-            y2milestone("Enabling syncrepl provider overlay on database $i");
-            my $syncprov = { 'enabled' => 1, 
-                             'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
-                                              'min' => YaST::YCP::Integer(5)
-                                            }
-                            };
-            SCR->Write(".ldapserver.database.{".$i."}.syncprov", $syncprov);
-        }
-        if ( $db_change->{'needsyncrepl'} )
-        {
-            y2milestone("Adding syncrepl consumer configuration for database $i");
-            my $syncrepl = {
-                    "provider" => {
-                            "protocol"  => $param->{'target'}->{'protocol'},
-                            "target"    => $param->{'target'}->{'target'},
-                            "port"      => $param->{'target'}->{'port'}
-                        },
-                    "type" => "refreshAndPersist",
-                    "binddn" => $param->{'binddn'},
-                    "credentials" => $param->{'credentials'},
-                    "basedn" => $db_change->{"suffix"},
-                    "starttls" => $param->{'starttls'}
-                };
-            SCR->Write(".ldapserver.database.{".$i."}.syncrepl", $syncrepl );
-        }
-    }
-    y2milestone("Comminting changes to provider LDAP");
     SCR->Execute(".ldapserver.commitChanges" );
     SCR->Execute(".ldapserver.reset" );
     
-    # Remote should be ready now. Now create the local config stub required
-    # to initiate cn=config replication
+    $self->CreateSyncReplAccount();
     SCR->Execute(".ldapserver.initGlobals" );
-    
-    #SCR->Write(".ldapserver.global.serverIds", [ $ownServerId ] );
     my $cfgdatabase = { 'type' => 'config',
                         'rootdn' => 'cn=config' };
     my $frontenddb = { 'type' => 'frontend' };
     SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
-    my $syncrepl = {
-            "provider" => {
-                    "protocol"  => $param->{'target'}->{'protocol'},
-                    "target"    => $param->{'target'}->{'target'},
-                    "port"      => $param->{'target'}->{'port'}
-                },
-            "type" => "refreshAndPersist",
-            "binddn" => $param->{'binddn'},
-            "credentials" => $param->{'credentials'},
-            "basedn" => "cn=config",
-            "starttls" => $param->{'starttls'},
-            "updateref" => {}
-        };
-    SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
-    $overwriteConfig = 1;
-    $isSyncreplSlave = 1;
+    $syncreplbaseconfig->{'binddn'} = "cn=config";
+    $syncreplbaseconfig->{'credentials'} = $auth_info->{'cn=config'}->{'bind_pw'};
+    $syncreplbaseconfig->{'basedn'} = "cn=config";
 
+    SCR->Write(".ldapserver.database.{0}.syncrepl", $syncreplbaseconfig );
+    my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+    y2milestone($ldif);
+    $overwriteConfig = 1;
+#    $self->Write( {resetCsn => 1} );
+#    SCR->Execute(".ldapserver.reset" );
+    
     return 1;
 }
 
-BEGIN { $TYPEINFO{ReplicationSetupSummary} = ["function", "string" ]; }
-sub ReplicationSetupSummary {
-    # Configuration summary text for autoyast
-    my $self = shift;
-    my $db_changes = $remoteReplicationSetupTodo->{'dbchanges'};
-    my $param = $remoteReplicationSetupTodo->{'param'};
-
-    my $string = "";
-    my $nochanges = 0;
-    $string .= "<h1>"._("Applying the following changes to: \""). $param->{'target'}->{'target'}."\"</h1>" ;
-    foreach my $db_change (@{$db_changes} )
+BEGIN { $TYPEINFO {WriteSyncreplBaseConfig} = ["function",  "boolean", ["map", "string", "any"] ]; }
+sub WriteSyncreplBaseConfig
+{
+    my ($self, $syncrepl ) = @_;
+    $syncreplbaseconfig = $syncrepl;
+    $syncreplbaseconfig->{'provider'}->{'port'} = YaST::YCP::Integer($syncreplbaseconfig->{'provider'}->{'port'} ); 
+    $syncreplbaseconfig->{'starttls'} = YaST::YCP::Boolean($syncreplbaseconfig->{'starttls'} ); 
+    if (defined $syncreplbaseconfig->{'updateref'} )
     {
-        $string .= "<h2>"._("Database: \""). $db_change->{'suffix'}."\"</h2>" ;
-        $string .= "<il>";
-        if (! ( $db_change->{'needsyncacl'} || $db_change->{'needsyncprov'} || $db_change->{'needsyncrepl'} ))
+        if ( defined $syncreplbaseconfig->{'updateref'}->{'port'} )
         {
-            $string .= "<li>"._("No modifications required.")."</li>";
+            $syncreplbaseconfig->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncreplbaseconfig->{'updateref'}->{'port'} );
         }
-        else
+        if ( defined $syncreplbaseconfig->{'updateref'}->{'use_provider'} )
         {
-            $nochanges = 0;
+            $syncreplbaseconfig->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncreplbaseconfig->{'updateref'}->{'use_provider'} );
         }
-        if ( $db_change->{'needsyncacl'} )
-        {
-            $string .= "<li>"._("Adding ACL to grant \"").$param->{'binddn'}. _("\" read access for replication.")."</li>";
-        }
-        if ( $db_change->{'needsyncprov'} )
-        {
-            $string .= "<li>"._("Adding LDAPSync provider configuration to be able to act as Replication Provider.")."</li>";
-        }
-        if ( $db_change->{'needsyncrepl'} )
-        {
-            $string .= "<li>"._("Adding LDAPSync consumer configuration.")."</li>";
-        }
-        $string .= "</il>";
     }
-    if ( $nochanges )
-    {
-        $string = "";
-    }
-    return $string;
+    return 1;
 }
 
 ##
