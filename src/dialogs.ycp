@@ -14,6 +14,8 @@ textdomain "ldap-server";
 import "CWMFirewallInterfaces";
 import "Label";
 import "Wizard";
+import "Ldap";
+import "LdapPopup";
 import "LdapServer";
 import "HTML";
 import "Report";
@@ -538,6 +540,197 @@ any TreeDialog()
         }
     }
     return ret;
+}
+
+map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
+{
+    term widget =
+        `HSquash(
+            `VBox(
+                `RadioButtonGroup( `id(`rbg_syncaccount),
+                    `VBox(
+                        `Left(
+                            `RadioButton( `id( `rb_createaccount ), `opt(`notify), _("Create new account in the first database"), true )
+                        ),
+                        `Left(
+                            `HBox(
+                                `HSpacing(2),
+                                `VBox( `id(`vb_account_param),
+                                    `Left(
+                                        `HBox(
+                                            `InputField( `id( `if_uid ), `opt( `hstretch ), _("User Id"), "" ),
+                                            `HSpacing(0.5),
+                                            `InputField( `id( `if_basedn ), `opt( `hstretch ), _("Container Object"), "" ),
+                                            `HSpacing(0.5),
+                                            `VBox(
+                                                `VSpacing(0.5),
+                                                `PushButton( `id( `pb_select_parent ), _("Browse") )
+                                            )
+                                        )
+                                    ),
+                                    `Left(
+                                        `CheckBox( `id( `cb_random_pw ), _("Generate a random password"), true)
+                                    )
+                                )
+                            )
+                        ),
+                        `VSpacing(0.3),
+                        `Left(
+                            `RadioButton( `id( `rb_useconfig ), `opt(`notify), _("Use the \"cn=config\" account for replication") )
+                        )
+                    )
+                )
+            )
+        );
+
+    map <string,any> db = LdapServer::ReadDatabase(1);
+    string suffix = (string)db["suffix"]:"";
+    string rootdn = (string)db["rootdn"]:"";
+
+    Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetContents( _("Configure Account for Replication"), widget,
+			     "",
+			     true, true);
+
+    UI::ChangeWidget( `if_uid, `Value, "syncrepl");
+    UI::ChangeWidget( `if_basedn, `Value, "ou=system," + suffix );
+    any ret = nil;
+    map <string,string>authinfo_firstdb = $[];
+    while (true)
+    {
+        ret = UI::UserInput();
+        if ( ret == `rb_useconfig )
+        {
+            UI::ChangeWidget( `vb_account_param, `Enabled, false );
+        }
+        else if ( ret == `rb_createaccount )
+        {
+            UI::ChangeWidget( `vb_account_param, `Enabled, true );
+        }
+        else if (ret == `pb_select_parent )
+        {
+            map <string,any> client = $[
+                    "bind_dn" : rootdn,
+                    "ldap_server"  : syncrepl["provider","target"]:"",
+                    "ldap_tls" : syncrepl["starttls"]:true
+                ];
+            Ldap::Set(client);
+            Ldap::LDAPInitWithTLSCheck($[]);
+            symbol state= `cont;
+            while ( state == `cont )
+            {
+                string pw =  Ldap::GetLDAPPassword(false);
+                string err = Ldap::LDAPBind( pw );
+                if ( err != "" )
+                {
+                    if( ! Popup::YesNo( _("LDAP Authentication failed. Try again?\n") +
+                                        _("Error message: ") + err  ) )
+                    {
+                        state = `cancel;
+                    }
+                }
+                else
+                {
+                    state= `ok;
+                    authinfo_firstdb = $[
+                            "bind_dn" : rootdn,
+                            "bind_pw" : pw
+                        ];
+                }
+            }
+            if ( state == `ok )
+            {
+                string dn = LdapPopup::BrowseTree(suffix);
+                if ( dn != "" )
+                {
+                    UI::ChangeWidget( `if_basedn, `Value, dn );
+                }
+            }
+        }
+        if ( ret == `next )
+        {
+            string binddn = "";
+            string bindpw = "";
+            if ( (boolean)UI::QueryWidget( `rb_createaccount, `Value ) )
+            {
+                binddn = "uid=" + (string)UI::QueryWidget( `if_uid, `Value ) + "," + (string)UI::QueryWidget( `if_basedn , `Value);
+                if ( ! (boolean)LdapServer::ValidateDn( binddn ) )
+                {
+                    Popup::Error( "\"" + binddn + "\"" + _("is not a valid LDAP DN") );
+                    continue;
+                }
+                if ( (boolean)UI::QueryWidget( `cb_random_pw, `Value ) )
+                {
+                   bindpw = LdapServer::GenerateRandPassword();
+                }
+                else
+                {
+                    term askPwWidget =
+                        `HSquash(
+                            `VSquash(
+                                `VBox(
+                                    `Password( `id( `te_pw ), `opt(`hstretch), _("Password") ),
+                                    `HSpacing( 0.5 ),
+                                    `Password( `id( `te_valid_pw ), `opt(`hstretch), _("Validate Password") ),
+                                    `HSpacing( 0.5 ),
+                                    Wizard::CancelOKButtonBox()
+                                )
+                            )
+                        );
+                    UI::OpenDialog( `opt(`decorated), askPwWidget );
+                    any ret1 = nil;
+                    while ( true )
+                    {
+                        ret1 = UI::UserInput();
+                        if (ret1 == `cancel )
+                        {
+                            bindpw = "";
+                            break;
+                        }
+                        else if ( ret1 == `ok )
+                        {
+                            string pw = (string)UI::QueryWidget( `te_pw, `Value );
+                            string verifypw = (string)UI::QueryWidget( `te_valid_pw, `Value );
+                            if ( size(pw) == 0 )
+                            {
+                                Popup::Error( _("Please enter a password") );
+                                UI::ChangeWidget( `te_pw, `Value, "" );
+                                UI::ChangeWidget( `te_valid_pw, `Value, "" );
+                            }
+                            else if ( pw == verifypw )
+                            {
+                                bindpw = pw;
+                                break;
+                            }
+                            else
+                            {
+                                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                                UI::ChangeWidget( `te_pw, `Value, "" );
+                                UI::ChangeWidget( `te_valid_pw, `Value, "" );
+                            }
+                        }
+                    }
+                    UI::CloseDialog();
+                    if ( ret1 != `ok)
+                    {
+                        continue;
+                    }
+                }
+                LdapServer::WriteAuthInfo( suffix, authinfo_firstdb );
+                LdapServer::WriteSyncReplAccount( $[ "dn" : binddn, "pw" : bindpw, "dbsuffix" : suffix] );
+                syncrepl["binddn"] = binddn;
+                syncrepl["credentials"] = bindpw;
+            }
+            else
+            {
+                syncrepl["binddn"] = "cn=config";
+            }
+            break;
+        }
+    }
+    Wizard::CloseDialog();
+    return syncrepl;
 }
 
 any SlaveSetupDialog()
