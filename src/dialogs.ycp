@@ -759,6 +759,7 @@ any SlaveSetupDialog()
                     )
                 ),
                 `VSpacing(0.3),
+                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" )
             )
         );
 
