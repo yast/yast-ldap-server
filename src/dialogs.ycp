@@ -542,6 +542,40 @@ any TreeDialog()
     return ret;
 }
 
+string VerifyAdminPasswordPopup( map<string,any> bindparm )
+{
+    Ldap::Set(bindparm);
+    Ldap::LDAPInitWithTLSCheck($[]);
+    string pw = "";
+    symbol state= `cont;
+    while ( state == `cont )
+    {
+        pw =  Ldap::GetLDAPPassword(false);
+        if ( size(pw) == 0 )
+        {
+            state = `cancel;
+        }
+        else
+        {
+            string err = Ldap::LDAPBind( pw );
+            if ( err != "" )
+            {
+                pw = "";
+                if( ! Popup::YesNo( _("LDAP Authentication failed. Try again?\n") +
+                                    _("Error message: ") + err  ) )
+                {
+                    state = `cancel;
+                }
+            }
+            else
+            {
+                state= `ok;
+            }
+        }
+    }
+    return pw;
+}
+
 map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
 {
     term widget =
@@ -615,32 +649,10 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                     "ldap_server"  : syncrepl["provider","target"]:"",
                     "ldap_tls" : syncrepl["starttls"]:true
                 ];
-            Ldap::Set(client);
-            Ldap::LDAPInitWithTLSCheck($[]);
-            symbol state= `cont;
-            while ( state == `cont )
+            string pw = VerifyAdminPasswordPopup( client, suffix );
+            if ( size(pw) > 0 )
             {
-                string pw =  Ldap::GetLDAPPassword(false);
-                string err = Ldap::LDAPBind( pw );
-                if ( err != "" )
-                {
-                    if( ! Popup::YesNo( _("LDAP Authentication failed. Try again?\n") +
-                                        _("Error message: ") + err  ) )
-                    {
-                        state = `cancel;
-                    }
-                }
-                else
-                {
-                    state= `ok;
-                    authinfo_firstdb = $[
-                            "bind_dn" : rootdn,
-                            "bind_pw" : pw
-                        ];
-                }
-            }
-            if ( state == `ok )
-            {
+                authinfo_firstdb = $[ "bind_dn" : rootdn, "bind_pw" : pw ];
                 string dn = LdapPopup::BrowseTree(suffix);
                 if ( dn != "" )
                 {
