@@ -420,6 +420,7 @@ BEGIN { $TYPEINFO{WriteSyncReplAccount} = ["function", "boolean", ["map", "strin
 sub WriteSyncReplAccount()
 {
     my ( $self, $account ) = @_;
+    y2milestone("WriteSyncReplAccount()");
     $syncreplaccount->{'syncdn'} = $account->{'dn'};
     $syncreplaccount->{'syncpw'} = $account->{'pw'};
     $syncreplaccount->{'syncpw_hash'} = $self->HashPassword("SSHA", $account->{'pw'} );
@@ -449,7 +450,6 @@ sub CreateSyncReplAccount()
                 y2error("Error while parsing dn");
                 return 0;
             }
-            y2milestone("Number of RDNs: ". scalar($object->getRDNs() ));
             my @attr = $object->getRDN($object->getRDNs()-2)->getAttributeTypes();
             my $val = $object->getRDN($object->getRDNs()-2)->getAttributeValue($attr[0]);
             my $parententry = {};
@@ -975,7 +975,7 @@ BEGIN { $TYPEINFO{Import} = ["function", "boolean", [ "map", "any", "any" ] ]; }
 sub Import {
     my $self = shift;
     my $hash = shift;
-    y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
+    y2debug("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
     if ( (! keys( %$hash ))  || (! defined $hash->{'daemon'}) || 
          (! defined $hash->{'globals'}) || (! defined $hash->{'databases'}) )
@@ -1084,7 +1084,7 @@ sub Import {
     $defaultDbAcls = $defAclBak;
 
     my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-    y2milestone($ldif);
+    y2debug($ldif);
     return 1;
 }
 
@@ -1167,7 +1167,7 @@ sub Export {
     }
     $hash->{'databases'} = \@dbs;
 
-    y2milestone("LdapServer::Export() ". Data::Dumper->Dump([$hash]));
+    y2debug("LdapServer::Export() ". Data::Dumper->Dump([$hash]));
     return $hash;
 }
 
@@ -2006,7 +2006,7 @@ sub ReadSyncProv
     my ($self, $index) = @_;
     y2milestone("ReadSyncProv ", $index);
     my $syncprov = SCR->Read(".ldapserver.database.{".$index."}.syncprov" );
-    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    y2debug( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
     if (defined $syncprov->{'checkpoint'} )
     {
         $syncprov->{'checkpoint'} = {
@@ -2026,7 +2026,7 @@ sub WriteSyncProv
 {
     my ( $self, $dbindex, $syncprov) = @_;
     y2milestone("WriteSyncProv");
-    y2milestone("SyncProv: ".Data::Dumper->Dump([$syncprov]) );
+    y2debug("SyncProv: ".Data::Dumper->Dump([$syncprov]) );
     if (defined $syncprov->{'checkpoint'} )
     {
         $syncprov->{'checkpoint'} = {
@@ -2053,7 +2053,7 @@ sub ReadSyncRepl
     my ($self, $index) = @_;
     y2milestone("ReadSyncRepl ", $index);
     my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
-    y2milestone( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    y2debug( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! $syncrepl )
     {
         my $err = SCR->Error(".ldapserver");
@@ -2120,7 +2120,7 @@ sub WriteSyncRepl
     {
         $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
     }
-    y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    y2debug("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )
     {
         my $err = SCR->Error(".ldapserver");
@@ -2422,7 +2422,7 @@ sub UpdateDatabase
     {
         $changes->{'secure_only'} = YaST::YCP::Boolean( $changes->{'secure_only'} );
     }
-    y2milestone( Data::Dumper->Dump([$changes]) );
+    y2debug( Data::Dumper->Dump([$changes]) );
 
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
     return $rc;
