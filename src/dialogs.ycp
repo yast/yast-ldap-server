@@ -759,13 +759,6 @@ any SlaveSetupDialog()
                     )
                 ),
                 `VSpacing(0.3),
-                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" ),
-                `VSpacing(0.3),
-                `HBox(
-                    `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN to use for replication"), "" ),
-                    `HSpacing(),
-                    `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
-                )
             )
         );
 
