@@ -542,15 +542,26 @@ any TreeDialog()
     return ret;
 }
 
-string VerifyAdminPasswordPopup( map<string,any> bindparm )
+string VerifyAdminPasswordPopup( map<string,any> bindparm, string suffix )
 {
+    map<string,string> authinfo = LdapServer::ReadAuthInfo(suffix);
+    string pw = "";
+    if ( size(authinfo) > 0 )
+    {
+        if (authinfo["bind_dn"]:"1" == bindparm["bind_dn"]:"2" )
+        {
+            pw = authinfo["bind_pw"]:"";
+        }
+    }
     Ldap::Set(bindparm);
     Ldap::LDAPInitWithTLSCheck($[]);
-    string pw = "";
     symbol state= `cont;
     while ( state == `cont )
     {
-        pw =  Ldap::GetLDAPPassword(false);
+        if ( size(pw) == 0 )
+        {
+            pw =  Ldap::GetLDAPPassword(false);
+        }
         if ( size(pw) == 0 )
         {
             state = `cancel;
@@ -570,6 +581,7 @@ string VerifyAdminPasswordPopup( map<string,any> bindparm )
             else
             {
                 state= `ok;
+                LdapServer::WriteAuthInfo( suffix, $[ "bind_dn" : bindparm["bind_dn"]:"", "bind_pw" : pw ] );
             }
         }
     }
@@ -630,7 +642,6 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
     UI::ChangeWidget( `if_uid, `Value, "syncrepl");
     UI::ChangeWidget( `if_basedn, `Value, "ou=system," + suffix );
     any ret = nil;
-    map <string,string>authinfo_firstdb = $[];
     while (true)
     {
         ret = UI::UserInput();
@@ -652,7 +663,6 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
             string pw = VerifyAdminPasswordPopup( client, suffix );
             if ( size(pw) > 0 )
             {
-                authinfo_firstdb = $[ "bind_dn" : rootdn, "bind_pw" : pw ];
                 string dn = LdapPopup::BrowseTree(suffix);
                 if ( dn != "" )
                 {
@@ -729,7 +739,6 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                         continue;
                     }
                 }
-                LdapServer::WriteAuthInfo( suffix, authinfo_firstdb );
                 LdapServer::WriteSyncReplAccount( $[ "dn" : binddn, "pw" : bindpw, "dbsuffix" : suffix] );
                 syncrepl["binddn"] = binddn;
                 syncrepl["credentials"] = bindpw;
