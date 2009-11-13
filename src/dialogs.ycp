@@ -545,7 +545,7 @@ any TreeDialog()
 string VerifyAdminPasswordPopup( map<string,any> bindparm, string suffix )
 {
     map<string,string> authinfo = LdapServer::ReadAuthInfo(suffix);
-    string pw = "";
+    string pw = nil;
     if ( size(authinfo) > 0 )
     {
         if (authinfo["bind_dn"]:"1" == bindparm["bind_dn"]:"2" )
@@ -558,11 +558,11 @@ string VerifyAdminPasswordPopup( map<string,any> bindparm, string suffix )
     symbol state= `cont;
     while ( state == `cont )
     {
-        if ( size(pw) == 0 )
+        if ( pw == nil )
         {
             pw =  Ldap::GetLDAPPassword(false);
         }
-        if ( size(pw) == 0 )
+        if ( pw == nil )
         {
             state = `cancel;
         }
@@ -571,7 +571,7 @@ string VerifyAdminPasswordPopup( map<string,any> bindparm, string suffix )
             string err = Ldap::LDAPBind( pw );
             if ( err != "" )
             {
-                pw = "";
+                pw = nil;
                 if( ! Popup::YesNo( _("LDAP Authentication failed. Try again?\n") +
                                     _("Error message: ") + err  ) )
                 {
@@ -661,7 +661,7 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                     "ldap_tls" : syncrepl["starttls"]:true
                 ];
             string pw = VerifyAdminPasswordPopup( client, suffix );
-            if ( size(pw) > 0 )
+            if ( pw  != nil )
             {
                 string dn = LdapPopup::BrowseTree(suffix);
                 if ( dn != "" )
