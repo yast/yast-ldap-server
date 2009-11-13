@@ -420,7 +420,7 @@ sub CreateBaseObjects()
 BEGIN { $TYPEINFO{WriteSyncReplAccount} = ["function", "boolean", ["map", "string", "string"] ]; }
 sub WriteSyncReplAccount()
 {
-    my ( $self, $account ) = shift;
+    my ( $self, $account ) = @_;
     $syncreplaccount->{'syncdn'} = $account->{'dn'};
     $syncreplaccount->{'syncpw'} = $account->{'pw'};
     $syncreplaccount->{'syncpw_hash'} = $self->HashPassword("SSHA", $account->{'pw'} );
