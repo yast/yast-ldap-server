@@ -33,6 +33,7 @@ YaST::YCP::Import ("Service");
 YaST::YCP::Import ("SCR");
 
 my %error = ( msg => undef, details => undef );
+my $ssl_check_command = "/usr/lib/YaST2/bin/ldap-server-ssl-check";
 my $usingDefaults = 1;
 my $readConfig = 0;
 my $restartRequired = 0;
@@ -2902,6 +2903,53 @@ BEGIN { $TYPEINFO {ReadSetupMaster} = ["function",  "boolean" ]; }
 sub ReadSetupMaster
 {
     return $setupSyncreplMaster;
+}
+
+##
+ # Read the TLS Settings from the currently connected cn=config database and checks if 
+ # the local TLS Setup is suited for replicating that config, by checking if the required 
+ # Certificate and CA files a present and by trying to verify the remote servers certificate
+ # with the locally installed CA.
+ # @param A Map with the keys "target" (contains the hostname of the destination server) and
+ #        "port" (the port number to connect to).
+ #
+BEGIN { $TYPEINFO {VerifyTlsSetup} = ["function",  "boolean", ["map", "string", "any" ] ]; }
+sub VerifyTlsSetup
+{
+    my ($self, $param ) = @_;
+    my $remoteuri = "ldap://".$param->{'target'}.":".$param->{'port'};
+    my $tls = $self->ReadTlsConfig();
+    y2milestone("TlsConfig ". Data::Dumper->Dump([$tls]) );
+    if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
+    {
+        $self->SetError( _("CA Certificate File: \"") .  $tls->{"caCertFile"}. _("\" does not exist."), "");
+        return 0;
+    }
+    else
+    {
+        # Check if this is the correct CA for verifing the remote server's certificate
+        y2milestone("ssl check command: $ssl_check_command \"".$remoteuri."\" ".$tls->{"caCertFile"} );
+        my $rc = SCR->Execute( '.target.bash_output', $ssl_check_command." \"".$remoteuri."\" ".$tls->{"caCertFile"} );
+        if ( $rc->{'exit'} != 0 )
+        {
+            $self->SetError( _("Error while trying to verify the Server Certificate of the Provider server.\n").
+                             _("Please make sure that \"".$tls->{"caCertFile"}."\" constains the correct\nCA file to verify the remote Server Certificate."),
+                             $rc->{'stderr'} );
+            return 0;
+        }
+    }
+
+    if ( SCR->Read(".target.size", $tls->{"certFile"}) <= 0)
+    {
+        $self->SetError( _("Certificate File: \""). $tls->{"certFile"}. _(\" does not exist."), "" );
+        return 0;
+    }
+    if ( SCR->Read(".target.size", $tls->{"certKeyFile"}) <= 0)
+    {
+        $self->SetError( _("Certificate Key File: \""). $tls->{"certKeyFile"} . _("\" does not exist."), "");
+        return 0;
+    }
+    return 1;
 }
 
 1;
