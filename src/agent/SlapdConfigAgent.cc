@@ -239,6 +239,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     }
     else if ( path->component_str(0) == "reset" )
     {
+        y2milestone("Reseting Agent");
         if (olc.hasConnection())
         {
            // olc.getLdapConnection()->unbind();
@@ -612,6 +613,10 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     }
 
     y2milestone("Database to read: %d", dbIndex);
+    if ( databases.size() == 0 )
+    {
+        databases = olc.getDatabases();
+    }
     OlcDatabaseList::const_iterator i;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
