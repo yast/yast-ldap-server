@@ -909,6 +909,22 @@ any SlaveSetupDialog()
                         {
                             syncrepl["credentials"] = testparm["credentials"]:"";
                         }
+                        else // Get admin password if we don't have it already
+                        {
+                            map <string,any> db = LdapServer::ReadDatabase(1);
+                            string suffix = (string)db["suffix"]:"";
+                            string rootdn = (string)db["rootdn"]:"";
+                            if ( size( LdapServer::ReadAuthInfo(suffix) ) == 0 )
+                            {
+                                map <string,string> authinfo_firstdb=$[];
+                                map <string,any> client = $[
+                                        "bind_dn" : rootdn,
+                                        "ldap_server"  : syncrepl["provider","target"]:"",
+                                        "ldap_tls" : syncrepl["starttls"]:true
+                                    ];
+                                VerifyAdminPasswordPopup( client, suffix );
+                            }
+                        }
                     }
                     else
                     {
