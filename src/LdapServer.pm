@@ -2906,6 +2906,35 @@ sub ReadSetupMaster
 }
 
 ##
+ # Initializes the ldapserver agent to connect to a remote cn=config database
+ # @param A Map containing the details for the remote connections. Required keys:
+ #      "provider": A Map with the keys "protocol" (can be "ldap" or "ldaps"), 
+ #                  target (contains the hostname of the destination server) and
+ #                  port (the port number to connect to).
+ #      "starttls": A boolean to flag whether to use TLS
+ #      "credentials" : The password for the "cn=config" account
+ #
+ # @return true on success, false on failure
+ #
+BEGIN { $TYPEINFO {InitRemoteConnection} = ["function",  "boolean", ["map", "string", "any"] ]; }
+sub InitRemoteConnection
+{
+    my ( $self, $param) = @_;
+    $param->{'target'}->{'port'} = YaST::YCP::Integer($param->{'target'}->{'port'});
+    $param->{'starttls'} = YaST::YCP::Boolean($param->{'starttls'});
+
+    $param->{'configcred'} = $param->{'credentials'};
+    my $rc = SCR->Execute(".ldapserver.init", $param );
+    if ( ! $rc )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{"summary"}, $err->{"description"} );
+        SCR->Execute(".ldapserver.reset" );
+    }
+    return $rc;
+}
+
+##
  # Read the TLS Settings from the currently connected cn=config database and checks if 
  # the local TLS Setup is suited for replicating that config, by checking if the required 
  # Certificate and CA files a present and by trying to verify the remote servers certificate
