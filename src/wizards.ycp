@@ -62,22 +62,40 @@ any InstProposalSequence() {
            Label::BackButton(), Label::NextButton());
     Wizard::SetAbortButton(`abort, Label::CancelButton());
 
+    LdapServer::WriteModeInstProposal(true);
     map aliases = $[
         "startup"   : ``( EnableServiceDialog() ),
+        "servertype" : ``( ServerTypeDialog() ),
         "database"   : ``( ProposalDialog() ),
+        "mastersetup" : ``( MasterSetupDialog() ),
+        "slavesetup" : ``( SlaveSetupDialog() )
     ];
 
     map sequence = $[
         "ws_start"  : "startup",
         "startup"   : $[
-            `next   : "database",
+            `next   : "servertype",
             `abort  : `abort,
             `finish : `disable
         ],
+        "servertype" : $[
+            `next   : "database",
+            `slave_setup : "slavesetup",
+            `abort  : `abort
+        ],
+        "slavesetup" : $[
+            `next   : `next,
+            `abort  : `abort
+        ],
         "database"   : $[
+            `mastersetup : "mastersetup",
+            `next   : `next,
+            `abort  : `abort
+	],
+        "mastersetup"   : $[
             `next   : `next,
             `abort  : `abort,
-	]
+        ],
     ];
 
     y2milestone( "--> starting InstProposalSequence" );
@@ -87,6 +105,7 @@ any InstProposalSequence() {
     y2milestone( "<-- InstProposalSequence finished " );
 
     UI::CloseDialog();
+    LdapServer::WriteModeInstProposal(false);
 
     return ret;
 }

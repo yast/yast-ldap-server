@@ -331,14 +331,17 @@ any ServerTypeDialog()
             {
                 ret = `slave_setup;
                 LdapServer::WriteSetupMaster(false);
+                LdapServer::WriteSetupSlave(true);
             }
             else if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_master )
             {
                 LdapServer::WriteSetupMaster(true);
+                LdapServer::WriteSetupSlave(false);
             }
             else
             {
                 LdapServer::WriteSetupMaster(false);
+                LdapServer::WriteSetupSlave(false);
             }
         }
         return ret;
@@ -793,7 +796,22 @@ any SlaveSetupDialog()
     while ( true )
     {
         UI::ChangeWidget(`cb_start_tls, `Enabled, false );
-        ret = UI::UserInput();
+        map synbase = LdapServer::ReadSyncreplBaseConfig();
+        if ( size(synbase) > 0 )
+        {
+            UI::ChangeWidget( `cb_sync_prot, `Value, (string)synbase["provider","protocol"]:"" );
+            UI::ChangeWidget( `te_sync_target, `Value, (string)synbase["provider","target"]:"" );
+            UI::ChangeWidget( `if_sync_port, `Value, (integer)synbase["provider","port"]:389 );
+            UI::ChangeWidget( `cb_start_tls, `Value, (boolean)synbase["start_tls"]:true );
+            UI::ChangeWidget( `te_config_cred, `Value, (string)synbase["credentials"]:"");
+            LdapServer::WriteSyncreplBaseConfig( $[] );
+
+            ret = `next;
+        }
+        else
+        {
+            ret = UI::UserInput();
+        }
         y2milestone( "SlaveSetupDialog: seeing return value '%1'", ret );
         if ( ret == `next )
         {
@@ -803,6 +821,7 @@ any SlaveSetupDialog()
                     "target"   : (string)UI::QueryWidget( `te_sync_target, `Value ),
                     "port"     : (integer)UI::QueryWidget( `if_sync_port, `Value )
                 ];
+
             map<string,any> testparm = $[];
             testparm = add(testparm, "target", provider );
             if ( provider["protocol"]:"ldap" == "ldap" )
@@ -816,115 +835,38 @@ any SlaveSetupDialog()
             testparm = add(testparm, "basedn", "cn=config" );
             testparm = add(testparm, "binddn", "cn=config" );
             testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
-
-            if (!(boolean) LdapServer::InitRemoteConnection( testparm ) )
+            if (! LdapServer::ReadModeInstProposal() ) // Doing these checks during installation will 
+                                                       // most probably fail
             {
-                map<string,any> err = LdapServer::ReadError();
-                Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" Database on the Provider Server.\n") +
-                         _("Please verify that the Provider Server allows remote connections to the  \"cn=config\" Database\nand that you entered the correct password"),
-                         _("The following error messages were returned:") + "\n\n\"" +
-                         (string)err["msg"]:"" + "\"\n\"" +
-                         (string)err["details"]:"" + "\"" );
-                continue;
-            }
-            if (!(boolean) LdapServer::VerifyTlsSetup( testparm["target"]:$[] ) )
-            {
-                map<string,any> err = LdapServer::ReadError();
-                Popup::ErrorDetails( _("Error while verifying the TLS/SSL configuration"),
-                                     (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
-                if (Popup::YesNo( _("Do you want to import a different CA/Server Certificate?") ) )
+                if (!(boolean) LdapServer::InitRemoteConnection( testparm ) )
                 {
-                    WFM::CallFunction("common_cert", [] );
-                }
-                continue;
-            }
-            // Check if the syncrepl config of cn=config makes sense
-            map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
-            if ( size(syncrepl) == 0 )
-            {
-                if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
-                                           _("Click Continue to create it now.") ) )
-                {
+                    map<string,any> err = LdapServer::ReadError();
+                    Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" Database on the Provider Server.\n") +
+                             _("Please verify that the Provider Server allows remote connections to the  \"cn=config\" Database\nand that you entered the correct password"),
+                             _("The following error messages were returned:") + "\n\n\"" +
+                             (string)err["msg"]:"" + "\"\n\"" +
+                             (string)err["details"]:"" + "\"" );
                     continue;
                 }
-                else
+                if (!(boolean) LdapServer::VerifyTlsSetup( testparm["target"]:$[] ) )
                 {
-                    ret = `cancel;
-                    break;
+                    map<string,any> err = LdapServer::ReadError();
+                    Popup::ErrorDetails( _("Error while verifying the TLS/SSL configuration"),
+                                         (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
+                    if (Popup::YesNo( _("Do you want to import a different CA/Server Certificate?") ) )
+                    {
+                        WFM::CallFunction("common_cert", [] );
+                    }
+                    continue;
                 }
-            }
-            else
-            {
-                // 1. Verify that the provider uri points to the provider itself
-                map<string, any> provider = syncrepl["provider"]:$[];
-                boolean setupok=true;
-                if ( size(provider) > 0 )
+                // Check if the syncrepl config of cn=config makes sense
+                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
+                if ( size(syncrepl) == 0 )
                 {
-                    if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                    if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
+                                               _("Click Continue to create it now.") ) )
                     {
-                        y2error("Provider target names do not match: <%1> vs. <%2>",
-                                (string)provider["target"]:"",(string)testparm["target","target"]:"");
-                        setupok=false;
-                    }
-                    if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
-                    {
-                        y2error("Provider protocols do not match: <%1> vs. <%2>",
-                                (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
-                        setupok=false;
-                    }
-                    if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
-                    {
-                        y2error("Provider ports do not match: <%1> vs. <%2>",
-                                (string)provider["port"]:"",(string)testparm["target","port"]:"");
-                        setupok=false;
-                    }
-                    if ( ! setupok )
-                    {
-                        Popup::Error( _("The Replication Configuration on the master server indicates that\nis already acting as a Repliation Consumer.\n") +
-                                      _("Setting up cascaded replication of the cn=config is not supported currently.") );
-                        ret = `cancel;
-                        break;
-                    }
-                }
-                // 2. Verify that the binddn/credential combination acutally works
-                map <string,any> bindtestparm = $[
-                            "target" : syncrepl["provider"]:$[],
-                            "starttls" : syncrepl["starttls"]:true,
-                            "basedn" : syncrepl["basedn"]:"",
-                            "binddn" : syncrepl["binddn"]:"",
-                            "credentials" : syncrepl["credentials"]:""
-                        ];
-                if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, bindtestparm ) )
-                {
-                    map<string,any> err = SCR::Error(.ldapserver);
-                    if ( Popup::ContinueCancel( _("Checking the Authentication credentials defined in the Replication Configuration on the Provider Server failed.\n") +
-                                                _("The test returned the following error messages:")
-                                                + "\n\n\"" +
-                                                (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
-                                                + "\"\n\n" +
-                                                _("Click Continue to correct that now.") ) )
-                    {
-                        syncrepl = SyncreplAccountConfig( syncrepl );
-                        if ( syncrepl["binddn"]:"" == "cn=config" )
-                        {
-                            syncrepl["credentials"] = testparm["credentials"]:"";
-                        }
-                        else // Get admin password if we don't have it already
-                        {
-                            map <string,any> db = LdapServer::ReadDatabase(1);
-                            string suffix = (string)db["suffix"]:"";
-                            string rootdn = (string)db["rootdn"]:"";
-                            if ( size( LdapServer::ReadAuthInfo(suffix) ) == 0 )
-                            {
-                                map <string,string> authinfo_firstdb=$[];
-                                map <string,any> client = $[
-                                        "bind_dn" : rootdn,
-                                        "ldap_server"  : syncrepl["provider","target"]:"",
-                                        "ldap_tls" : syncrepl["starttls"]:true
-                                    ];
-                                VerifyAdminPasswordPopup( client, suffix );
-                            }
-                        }
+                        continue;
                     }
                     else
                     {
@@ -932,9 +874,99 @@ any SlaveSetupDialog()
                         break;
                     }
                 }
+                else
+                {
+                    // 1. Verify that the provider uri points to the provider itself
+                    map<string, any> provider = syncrepl["provider"]:$[];
+                    boolean setupok=true;
+                    if ( size(provider) > 0 )
+                    {
+                        if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                        {
+                            y2error("Provider target names do not match: <%1> vs. <%2>",
+                                    (string)provider["target"]:"",(string)testparm["target","target"]:"");
+                            setupok=false;
+                        }
+                        if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
+                        {
+                            y2error("Provider protocols do not match: <%1> vs. <%2>",
+                                    (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
+                            setupok=false;
+                        }
+                        if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
+                        {
+                            y2error("Provider ports do not match: <%1> vs. <%2>",
+                                    (string)provider["port"]:"",(string)testparm["target","port"]:"");
+                            setupok=false;
+                        }
+                        if ( ! setupok )
+                        {
+                            Popup::Error( _("The Replication Configuration on the master server indicates that\nis already acting as a Repliation Consumer.\n") +
+                                          _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                            ret = `cancel;
+                            break;
+                        }
+                    }
+                    // 2. Verify that the binddn/credential combination acutally works
+                    map <string,any> bindtestparm = $[
+                                "target" : syncrepl["provider"]:$[],
+                                "starttls" : syncrepl["starttls"]:true,
+                                "basedn" : syncrepl["basedn"]:"",
+                                "binddn" : syncrepl["binddn"]:"",
+                                "credentials" : syncrepl["credentials"]:""
+                            ];
+                    if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, bindtestparm ) )
+                    {
+                        map<string,any> err = SCR::Error(.ldapserver);
+                        if ( Popup::ContinueCancel( _("Checking the Authentication credentials defined in the Replication Configuration on the Provider Server failed.\n") +
+                                                    _("The test returned the following error messages:")
+                                                    + "\n\n\"" +
+                                                    (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                                    + "\"\n\n" +
+                                                    _("Click Continue to correct that now.") ) )
+                        {
+                            syncrepl = SyncreplAccountConfig( syncrepl );
+                            if ( syncrepl["binddn"]:"" == "cn=config" )
+                            {
+                                syncrepl["credentials"] = testparm["credentials"]:"";
+                            }
+                            else // Get admin password if we don't have it already
+                            {
+                                map <string,any> db = LdapServer::ReadDatabase(1);
+                                string suffix = (string)db["suffix"]:"";
+                                string rootdn = (string)db["rootdn"]:"";
+                                if ( size( LdapServer::ReadAuthInfo(suffix) ) == 0 )
+                                {
+                                    map <string,string> authinfo_firstdb=$[];
+                                    map <string,any> client = $[
+                                            "bind_dn" : rootdn,
+                                            "ldap_server"  : syncrepl["provider","target"]:"",
+                                            "ldap_tls" : syncrepl["starttls"]:true
+                                        ];
+                                    VerifyAdminPasswordPopup( client, suffix );
+                                }
+                            }
+                        }
+                        else
+                        {
+                            ret = `cancel;
+                            break;
+                        }
+                    }
+                }
                 LdapServer::WriteSyncreplBaseConfig( syncrepl );
                 LdapServer::WriteAuthInfo( "cn=config", $[ "bind_dn" : "cn=config", "bind_pw" : testparm["credentials"]:"" ] );
                 break;
+            }
+            else // we were called during the Installation Proposal
+            {
+                map<string,any> syncrepl = $[
+                        "provider" : testparm["target"]:$[],
+                        "starttls" : testparm["starttls"]:true,
+                        "binddn"   : testparm["binddn"]:"cn=config",
+                        "credentials" : testparm["credentials"]:""
+                    ];
+                LdapServer::WriteSyncreplBaseConfig( syncrepl );
             }
         }
         if ( ret == `cb_sync_prot )
