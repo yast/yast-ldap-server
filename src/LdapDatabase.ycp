@@ -1440,10 +1440,6 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                             ),
                             `VSpacing(0.3),
                             `Left(
-                                `InputField( `id( `te_sync_base ), `opt(`hstretch), _("Base DN"), "" )
-                            ),
-                            `VSpacing(0.3),
-                            `Left(
                                 `HBox(
                                     `ComboBox( `id( `cb_sync_type ), `opt(`notify),
                                                 _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
@@ -1536,7 +1532,6 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 UI::ChangeWidget( `cb_start_tls, `Value, (boolean)synccons["starttls"]:true );
             }
             UI::ChangeWidget( `if_sync_port, `Value, (integer)provider["port"]:0);
-            UI::ChangeWidget( `te_sync_base, `Value, (string)synccons["searchbase"]:"");
             UI::ChangeWidget( `cb_sync_type, `Value, (string)synccons["type"]:"");
             if ( (string)synccons["type"]:"" == "refreshAndPersist" )
             {
@@ -1584,12 +1579,6 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
             {
                 UI::ChangeWidget( `f_synccons, `Enabled, true );
-                if ( UI::QueryWidget( `te_sync_base, `Value ) == "" )
-                {
-                    map<string,any> db = LdapServer::ReadDatabase(index);
-                    string basedn =  db["suffix"]:"";
-                    UI::ChangeWidget( `te_sync_base, `Value, basedn );
-                }
             }
             else
             {
@@ -1694,12 +1683,14 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
+            map db = LdapServer::ReadDatabase(index);
+            string suffix = (string)db["suffix"]:"";
             map<string,any> testparm = $[];
             testparm = add(testparm, "target", provider );
             testparm = add(testparm, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
             testparm = add(testparm, "binddn", (string)UI::QueryWidget(`te_sync_binddn, `Value) );
             testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_sync_cred, `Value) );
-            testparm = add(testparm, "basedn", (string)UI::QueryWidget(`te_sync_base, `Value) );
+            testparm = add(testparm, "basedn", suffix );
             if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
             {
                 map<string,any> err = SCR::Error(.ldapserver);
@@ -1756,8 +1747,8 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     ];
                 result = add( result, "interval", iv );
             }
-
-            string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
+            map db = LdapServer::ReadDatabase(index);
+            string basedn = (string)db["suffix"]:"";
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
             result = add(result, "basedn", basedn );
