@@ -326,32 +326,6 @@
         return ret;
     }
 
-    define symbol DbSyncProv()
-    {
-        string caption = _("Syncprov settings");
-        term contents = `Label("");
-        Wizard::SetContentsButtons(caption, contents, "",
-                Label::BackButton(), Label::NextButton());
-        symbol ret = `next;
-        while(true) {
-            ret = (symbol)UI::UserInput();
-            if (ret == `abort || ret == `cancel )
-            {
-                if(Popup::ReallyAbort(true))
-                {
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            if (ret == `next )
-                break;
-        }
-        return ret;
-    }
-
     global boolean DbPpolicyRead( integer dbindex )
     {
         map<string,any> ppolicy_map = ppolicyNew;
@@ -1946,7 +1920,6 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     {
         map aliases = $[
             "basics" : ``( AddDbBasic(false) ),
-            "syncprov" : ``( DbSyncProv() ),
             "ppolicy" : ``( DbPpolicy() )
         ];
 
