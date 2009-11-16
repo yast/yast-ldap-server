@@ -41,8 +41,9 @@ my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $overwriteConfig = 0;
-my $isSyncreplSlave = 0;
+my $setupSyncreplSlave = 0;
 my $setupSyncreplMaster = 0;
+my $modeInstProposal = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
 my $registerSlp = 0;
@@ -297,6 +298,20 @@ sub Read {
         
     Progress->Finish();
     return 1;
+}
+
+BEGIN { $TYPEINFO {WriteModeInstProposal} = ["function",  "boolean", "boolean"]; }
+sub WriteModeInstProposal
+{
+    my ( $self, $value ) = @_;
+    $modeInstProposal=$value;
+    return 1;
+}
+
+BEGIN { $TYPEINFO {ReadModeInstProposal} = ["function",  "boolean" ]; }
+sub ReadModeInstProposal
+{
+    return $modeInstProposal;
 }
 
 ##
@@ -697,7 +712,7 @@ sub Write {
             chomp $tmpfile;
             y2milestone("using tempfile: ".$tmpfile );
             my $overrideCsn = {};
-            if ( $isSyncreplSlave )
+            if ( $setupSyncreplSlave )
             {
                 $overrideCsn = { resetCsn => 0 };
             }
@@ -2828,8 +2843,18 @@ sub WriteSyncreplBaseConfig
 {
     my ($self, $syncrepl ) = @_;
     $syncreplbaseconfig = $syncrepl;
-    $syncreplbaseconfig->{'provider'}->{'port'} = YaST::YCP::Integer($syncreplbaseconfig->{'provider'}->{'port'} ); 
-    $syncreplbaseconfig->{'starttls'} = YaST::YCP::Boolean($syncreplbaseconfig->{'starttls'} ); 
+
+    if ( defined $syncreplbaseconfig->{'provider'} )
+    {
+        if ( defined $syncreplbaseconfig->{'provider'}->{'port'} )
+        { 
+            $syncreplbaseconfig->{'provider'}->{'port'} = YaST::YCP::Integer($syncreplbaseconfig->{'provider'}->{'port'} ); 
+        }
+    }
+    if ( defined $syncreplbaseconfig->{'starttls'} )
+    {
+        $syncreplbaseconfig->{'starttls'} = YaST::YCP::Boolean($syncreplbaseconfig->{'starttls'} );
+    }
     if (defined $syncreplbaseconfig->{'updateref'} )
     {
         if ( defined $syncreplbaseconfig->{'updateref'}->{'port'} )
@@ -2842,6 +2867,37 @@ sub WriteSyncreplBaseConfig
         }
     }
     return 1;
+}
+
+BEGIN { $TYPEINFO {ReadSyncreplBaseConfig} = ["function",  ["map", "string", "any"] ]; }
+sub ReadSyncreplBaseConfig
+{
+    my ($self, $syncrepl ) = @_;
+    return $syncreplbaseconfig;
+    return 1;
+}
+
+##
+ # Set "true" here if we are setting up a Syncrepl Slave server currently
+ # (this function is only useful for the installation wizards)
+ #
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteSetupSlave} = ["function",  "boolean", "boolean"]; }
+sub WriteSetupSlave
+{
+    my ($self, $value) = @_;
+    $setupSyncreplSlave=$value;
+}
+
+##
+ # @return true, if the current setup will creat a Syncrepl Slave server
+ #         false otherwise
+ #
+BEGIN { $TYPEINFO {ReadSetupSlave} = ["function",  "boolean" ]; }
+sub ReadSetupSlave
+{
+    return $setupSyncreplSlave;
 }
 
 ##
