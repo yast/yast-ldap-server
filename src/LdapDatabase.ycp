@@ -1482,9 +1482,9 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return widget;
     }
 
-    global boolean DbSyncConsRead( symbol handler_cmd, integer index, map synccons )
+    global boolean DbSyncConsRead( integer index, map synccons )
     {
-        y2milestone("DbSyncConsRead %1 %2", handler_cmd, index);
+        y2milestone("DbSyncConsRead %1", index);
         if ( size(synccons) == 0 )
         {
             UI::ChangeWidget( `f_synccons, `Enabled, false );

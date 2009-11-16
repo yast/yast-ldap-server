@@ -1031,7 +1031,7 @@ define boolean cb_read_synccons()
     }
     else
     {
-        return LdapDatabase::DbSyncConsRead( handler_cmd, index, sr );
+        return LdapDatabase::DbSyncConsRead( index, sr );
     }
 }
 
