@@ -556,6 +556,28 @@ define boolean cb_input_databases()
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
+            map <string,any> syncrepl = LdapDatabase::GetSyncRepl();
+            if ( size(syncrepl) > 0 )
+            {
+                list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
+                integer dbindex=0;
+                foreach( map<string,string> db, dblist, {
+                    if (db["suffix"]:"" == newDb["suffix"]:"" )
+                    {
+                        dbindex=tointeger(db["index"]:"0");
+                        break;
+                    }
+                });
+                if (dbindex > 0)
+                {
+                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl ) )
+                    {
+                        map<string, string> err = LdapServer::ReadError();
+                        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+                        return false;
+                    }
+                }
+            }
             map <string,any> ppolicy = LdapDatabase::GetPpolicy();
             if ( size(ppolicy) > 0 )
             {

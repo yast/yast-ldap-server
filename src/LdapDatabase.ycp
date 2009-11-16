@@ -14,6 +14,7 @@
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
     map <string, any> ppolicyNew = $[];
+    map <string, any> syncReplNew = $[];
     list <map> acllist = [];
 
     string ldapconf_basedn = "";
@@ -1386,12 +1387,14 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     {
         term widget =
             `Top(
-                `VBox(
-                    `Left(
-                        `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
-                    ),
-                    `Frame( `id( `f_synccons ), _("Consumer Settings" ),
-                        `VBox(
+                `HSquash(
+                    `VBox(
+                        `VSpacing(0.5),
+                        `Left(
+                            `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
+                        ),
+                        `VSpacing(0.3),
+                        `VBox( `id( `f_synccons ),
                             `Left(
                                 `VSquash(
                                     `HBox(
@@ -1657,7 +1660,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
-            map db = LdapServer::ReadDatabase(index);
+            map db = baseDb;
+            if ( index >= 0)
+            {
+                db = LdapServer::ReadDatabase(index);
+            }
             string suffix = (string)db["suffix"]:"";
             map<string,any> testparm = $[];
             testparm = add(testparm, "target", provider );
@@ -1721,7 +1728,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     ];
                 result = add( result, "interval", iv );
             }
-            map db = LdapServer::ReadDatabase(index);
+            map db = baseDb;
+            if ( index >= 0)
+            {
+                db = LdapServer::ReadDatabase(index);
+            }
             string basedn = (string)db["suffix"]:"";
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
@@ -1916,17 +1927,72 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return ret;
     }
 
+    define symbol DbSyncRepl()
+    {
+        string caption = _("Replication settings");
+        term contents = GetSyncConsWidget();
+        Wizard::SetContentsButtons(caption, contents, HELPS["syncrepl_edit"]:"",
+                Label::BackButton(), Label::NextButton());
+        symbol ret = `next;
+        DbSyncConsRead(-1, $[] );
+        while(true) {
+            ret = (symbol)UI::UserInput();
+            if (ret == `abort || ret == `cancel )
+            {
+                if(Popup::ReallyAbort(true))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else if (ret == `next )
+            {
+                if ( DbSyncConsCheck(-1) )
+                {
+                    syncReplNew = DbSyncConsWrite(-1);
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else if (ret == `back )
+            {
+                break;
+            }
+            else
+            {
+                DbSyncConsInput(ret, -1 );
+            }
+        }
+        if ( size(syncReplNew) > 0)
+        {
+            ret = `syncrepl;
+        }
+        return ret;
+    }
+
     global define any AddDbWizard()
     {
         map aliases = $[
             "basics" : ``( AddDbBasic(false) ),
+            "syncrepl" : ``( DbSyncRepl() ),
             "ppolicy" : ``( DbPpolicy() )
         ];
 
         map sequence = $[
             "ws_start" : "basics",
             "basics" : $[
-                `next  : "ppolicy",
+                `next  : "syncrepl",
+                `abort : `abort
+            ],
+            "syncrepl" : $[
+                `next : "ppolicy",
+                `syncrepl : "last",
                 `abort : `abort
             ],
             "ppolicy" : $[
@@ -1952,6 +2018,10 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     global define map<string,any> GetPpolicy()
     {
         return ppolicyNew;
+    }
+    global define map<string,any> GetSyncRepl()
+    {
+        return syncReplNew;
     }
     global define boolean GetCreateDir()
     {
