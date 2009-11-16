@@ -1929,10 +1929,6 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 `next  : "ppolicy",
                 `abort : `abort
             ],
-            "syncprov" : $[
-                `next : "ppolicy",
-                `abort : `abort
-            ],
             "ppolicy" : $[
                 `next : `next,
                 `abort : `abort
