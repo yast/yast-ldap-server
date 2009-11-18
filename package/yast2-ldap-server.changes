@@ -1,4 +1,14 @@
 -------------------------------------------------------------------
+Tue Nov 17 14:32:13 UTC 2009 - rhafer@novell.com
+
+- Version 2.17.23:
+  added support to configure syncrepl replication (fate#6170)
+  * Installation Wizard is able to setup Master and Slave Servers 
+    for replication (including cn=config replication)
+  * After Installation it is possible to configure the replication
+    settings per database.
+
+-------------------------------------------------------------------
 Mon Oct 26 09:39:19 UTC 2009 - rhafer@novell.com
 
 - Version 2.17.22
