@@ -1429,9 +1429,16 @@ sub WriteTlsConfig
         }
     }
     my $oldtls = $self->ReadTlsConfig();
-    if ( $oldtls->{'certKeyFile'} ne $tls->{'certKeyFile'} ||
-         $oldtls->{'certFile'} ne $tls->{'certFile'} ||
-         $oldtls->{'caCertFile'} ne $tls->{'caCertFile'})
+    if ( ref($oldtls) eq "HASH" )
+    {
+        if( $oldtls->{'certKeyFile'} ne $tls->{'certKeyFile'} ||
+            $oldtls->{'certFile'} ne $tls->{'certFile'} ||
+            $oldtls->{'caCertFile'} ne $tls->{'caCertFile'} )
+        {
+            $restartRequired = 1;
+        }
+    }
+    elsif ( $tls->{'tls_active'} )
     {
         $restartRequired = 1;
     }
