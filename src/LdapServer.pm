@@ -1672,121 +1672,132 @@ sub ReadFromDefaults
     my $frontenddb = { 'type' => 'frontend' };
 
     $self->InitGlobals();
-    SCR->Execute('.ldapserver.initSchema' );
-    my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
-    if ( ! $rc ) {
-        my $err = SCR->Error(".ldapserver");
-        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
-        $self->SetError( $err->{'summary'}, $err->{'description'} );
-        return $rc;
-    }
-    $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/cosine.ldif" );
-    if ( ! $rc ) {
-        my $err = SCR->Error(".ldapserver");
-        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
-        $self->SetError( $err->{'summary'}, $err->{'description'} );
-        return $rc;
-    }
-    $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/inetorgperson.ldif" );
-    if ( ! $rc ) {
-        my $err = SCR->Error(".ldapserver");
-        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
-        $self->SetError( $err->{'summary'}, $err->{'description'} );
-        return $rc;
-    }
-    $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/rfc2307bis.schema" );
-    if ( ! $rc ) {
-        my $err = SCR->Error(".ldapserver");
-        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
-        $self->SetError( $err->{'summary'}, $err->{'description'} );
-        return $rc;
-    }
-    $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/yast.schema" );
-    if ( ! $rc ) {
-        my $err = SCR->Error(".ldapserver");
-        y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
-        $self->SetError( $err->{'summary'}, $err->{'description'} );
-        return $rc;
-    }
-
-    SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
-    if ( $dbDefaults{'defaultIndex'} == 1 || 
-         ( ref($dbDefaults{'defaultIndex'}) eq "YaST::YCP::Boolean" &&
-           $dbDefaults{'defaultIndex'}->value == 1 ) 
-       )
+   
+    if ( $self->ReadSetupSlave() )
     {
-        foreach my $idx ( @$defaultIndexes )
-        {
-            $self->ChangeDatabaseIndex(1, $idx );
-        }
+        SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
+        SCR->Write(".ldapserver.database.{0}.syncrepl", $syncreplbaseconfig );
+        my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+        y2debug($ldif);
     }
-
-    if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
+    else    #master or standalone
     {
-        my $confPwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'configpw'} );
-        my $changes = { "secure_only" => 1, "rootpw" => $confPwHash };
-        $self->UpdateDatabase(0 ,$changes);
-        if ( $self->ReadSetupMaster() )
-        {
-            my $syncprov = { 'enabled' => 1, 
-                             'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
-                                               'min' => YaST::YCP::Integer(10) }
-                            };
-
-            SCR->Write( ".ldapserver.database.{0}.syncprov", $syncprov );
-            SCR->Write( ".ldapserver.database.{1}.syncprov", $syncprov );
-
-            my $syncpw = GenerateRandPassword();
-            my $syncdn = "uid=syncrepl,ou=system,".$dbDefaults{'suffix'};
-            my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
-            my $fqdn = $rc->{"stdout"};
-            chomp($fqdn);
-            my $syncrepl = {
-                    "provider" => {
-                            "protocol"  => "ldap",
-                            "target"    => $fqdn,
-                            "port"      => YaST::YCP::Integer(389)
-                        },
-                    "type" => "refreshAndPersist",
-                    "binddn" => $syncdn,
-                    "credentials" => $syncpw,
-                    "basedn" => "cn=config",
-                    "starttls" => YaST::YCP::Boolean(1),
-                    "updateref" => {}
-                };
-            SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
-            $syncrepl->{'basedn'} = $dbDefaults{'suffix'};
-            SCR->Write(".ldapserver.database.{1}.syncrepl", $syncrepl );
-            $syncreplaccount->{'syncdn'} = $syncdn;
-            $syncreplaccount->{'syncpw'} = $syncpw;
-            $syncreplaccount->{'syncpw_hash'} = $self->HashPassword($dbDefaults{'pwenctype'}, $syncpw );
-            $syncreplaccount->{'basedn'} = $dbDefaults{'suffix'};
-            my @syncacl = ({
-                    'target' => {},
-                    'access' => [
-                            { 'type' => "dn.base",
-                              'value' => $syncdn,
-                              'level' => "read",
-                              'control' => "" },
-                            { 'type' => "*",
-                              'value' => "",
-                              'level' => "",
-                              'control' => "break" }
-                        ]
-                });
-            $rc = SCR->Write(".ldapserver.database.{0}.acl", \@syncacl );
-            push @syncacl, @$defaultDbAcls;
-            $defaultDbAcls = \@syncacl;
+        SCR->Execute('.ldapserver.initSchema' );
+        my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
+        if ( ! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return $rc;
         }
+        $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/cosine.ldif" );
+        if ( ! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return $rc;
+        }
+        $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/inetorgperson.ldif" );
+        if ( ! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return $rc;
+        }
+        $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/rfc2307bis.schema" );
+        if ( ! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return $rc;
+        }
+        $rc = SCR->Write(".ldapserver.schema.addFromSchemafile", "/etc/openldap/schema/yast.schema" );
+        if ( ! $rc ) {
+            my $err = SCR->Error(".ldapserver");
+            y2error("Adding Schema failed: ".$err->{'summary'}." ".$err->{'description'});
+            $self->SetError( $err->{'summary'}, $err->{'description'} );
+            return $rc;
+        }
+
+        SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
+        if ( $dbDefaults{'defaultIndex'} == 1 || 
+             ( ref($dbDefaults{'defaultIndex'}) eq "YaST::YCP::Boolean" &&
+               $dbDefaults{'defaultIndex'}->value == 1 ) 
+           )
+        {
+            foreach my $idx ( @$defaultIndexes )
+            {
+                $self->ChangeDatabaseIndex(1, $idx );
+            }
+        }
+
+        if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
+        {
+            my $confPwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'configpw'} );
+            my $changes = { "secure_only" => 1, "rootpw" => $confPwHash };
+            $self->UpdateDatabase(0 ,$changes);
+            if ( $self->ReadSetupMaster() )
+            {
+                my $syncprov = { 'enabled' => 1, 
+                                 'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
+                                                   'min' => YaST::YCP::Integer(10) }
+                                };
+
+                SCR->Write( ".ldapserver.database.{0}.syncprov", $syncprov );
+                SCR->Write( ".ldapserver.database.{1}.syncprov", $syncprov );
+
+                my $syncpw = GenerateRandPassword();
+                my $syncdn = "uid=syncrepl,ou=system,".$dbDefaults{'suffix'};
+                my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
+                my $fqdn = $rc->{"stdout"};
+                chomp($fqdn);
+                my $syncrepl = {
+                        "provider" => {
+                                "protocol"  => "ldap",
+                                "target"    => $fqdn,
+                                "port"      => YaST::YCP::Integer(389)
+                            },
+                        "type" => "refreshAndPersist",
+                        "binddn" => $syncdn,
+                        "credentials" => $syncpw,
+                        "basedn" => "cn=config",
+                        "starttls" => YaST::YCP::Boolean(1),
+                        "updateref" => {}
+                    };
+                SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
+                $syncrepl->{'basedn'} = $dbDefaults{'suffix'};
+                SCR->Write(".ldapserver.database.{1}.syncrepl", $syncrepl );
+                $syncreplaccount->{'syncdn'} = $syncdn;
+                $syncreplaccount->{'syncpw'} = $syncpw;
+                $syncreplaccount->{'syncpw_hash'} = $self->HashPassword($dbDefaults{'pwenctype'}, $syncpw );
+                $syncreplaccount->{'basedn'} = $dbDefaults{'suffix'};
+                my @syncacl = ({
+                        'target' => {},
+                        'access' => [
+                                { 'type' => "dn.base",
+                                  'value' => $syncdn,
+                                  'level' => "read",
+                                  'control' => "" },
+                                { 'type' => "*",
+                                  'value' => "",
+                                  'level' => "",
+                                  'control' => "break" }
+                            ]
+                    });
+                $rc = SCR->Write(".ldapserver.database.{0}.acl", \@syncacl );
+                push @syncacl, @$defaultDbAcls;
+                $defaultDbAcls = \@syncacl;
+            }
+        }
+        
+        # add default ACLs
+        $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
+        $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
+        push @added_databases, $dbDefaults{'suffix'};
+        $self->WriteAuthInfo( $dbDefaults{'suffix'}, 
+                            { bind_dn => $dbDefaults{'rootdn'},
+                              bind_pw => $dbDefaults{'rootpw_clear'} } );
     }
-    
-    # add default ACLs
-    $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
-    $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
-    push @added_databases, $dbDefaults{'suffix'};
-    $self->WriteAuthInfo( $dbDefaults{'suffix'}, 
-                        { bind_dn => $dbDefaults{'rootdn'},
-                          bind_pw => $dbDefaults{'rootpw_clear'} } );
     $usingDefaults = 0;
     $readConfig = 1;
     return 1;
@@ -2826,22 +2837,10 @@ sub SetupRemoteForReplication
     SCR->Execute(".ldapserver.reset" );
     
     $self->CreateSyncReplAccount();
-    SCR->Execute(".ldapserver.initGlobals" );
-    my $cfgdatabase = { 'type' => 'config',
-                        'rootdn' => 'cn=config' };
-    my $frontenddb = { 'type' => 'frontend' };
-    SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
     $syncreplbaseconfig->{'binddn'} = "cn=config";
     $syncreplbaseconfig->{'credentials'} = $auth_info->{'cn=config'}->{'bind_pw'};
     $syncreplbaseconfig->{'basedn'} = "cn=config";
 
-    SCR->Write(".ldapserver.database.{0}.syncrepl", $syncreplbaseconfig );
-    my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-    y2milestone($ldif);
-    $overwriteConfig = 1;
-#    $self->Write( {resetCsn => 1} );
-#    SCR->Execute(".ldapserver.reset" );
-    
     return 1;
 }
 

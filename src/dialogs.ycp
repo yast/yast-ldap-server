@@ -1011,6 +1011,7 @@ any ReplicatonSetupSummaryDialog() {
     any ret = nil;
 
     LdapServer::SetupRemoteForReplication();
+    LdapServer::ReadFromDefaults();
     ret = `next;
     return ret;
 }

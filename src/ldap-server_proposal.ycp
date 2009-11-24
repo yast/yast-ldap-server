@@ -213,6 +213,7 @@ without installing the required packages."));
 
             return ret;
         }
+
         if ( LdapServer::ReadSetupSlave() )
         {
             Wizard::CreateDialog();
@@ -221,7 +222,7 @@ without installing the required packages."));
             Wizard::CloseDialog();
             if ( slave_ret == `next )
             {
-                LdapServer::SetupRemoteForReplication(); 
+                LdapServer::SetupRemoteForReplication();
             }
             else
             {
@@ -229,7 +230,6 @@ without installing the required packages."));
                 return ret;
             }
         }
-
         LdapServer::ReadFromDefaults();
         map <string,any> defaults = LdapServer::ReadInitialDefaults();
         Progress::set(false);
