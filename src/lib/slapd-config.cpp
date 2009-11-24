@@ -2076,7 +2076,7 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 void OlcConfig::waitForBackgroundTasks()
 {
     try {
-        LDAPModification mod( LDAPAttribute("objectClass", "olcConfig"), LDAPModification::OP_ADD );
+        LDAPModification mod( LDAPAttribute("objectClass", "olcGlobal"), LDAPModification::OP_ADD );
         LDAPModList ml;
         ml.addModification(mod);
         m_lc->modify( "cn=config", &ml );
