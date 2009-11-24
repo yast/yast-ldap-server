@@ -1090,6 +1090,10 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
     if ( path->length() == 0 ) {
         return YCPNull();
     } else {
+        if ( ! globals )
+        {
+            throw std::runtime_error("Configuration not initialized." );
+        }
         if ( path->component_str(0) == "loglevel" )
         {
             y2milestone("Write loglevel");
