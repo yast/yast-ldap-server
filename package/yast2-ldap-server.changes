@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Tue Nov 24 16:51:31 UTC 2009 - rhafer@novell.com
+
+- fixed installation proposal for syncrepl slave setups 
+  (bnc558019)
+- added a workaround to avoid slapd restart problems after
+  configurations changes that required a restart (bnc#558059)
+
+-------------------------------------------------------------------
 Tue Nov 17 14:32:13 UTC 2009 - rhafer@novell.com
 
 - Version 2.17.23:
