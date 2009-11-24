@@ -87,17 +87,20 @@ if(func == "MakeProposal") {
     {
         string rootPWString = "";
         defaults = LdapServer::ReadInitialDefaults();
-        if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
+        if (! LdapServer::ReadSetupSlave() )
         {
-            rootPWString = _("[root password]");
-        } else
-        {
-            rootPWString = _("[manually set]");
-        }
-        if( defaults["rootpw_clear"]:"" == "" )
-        {
-            warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
-            warning_level = `blocker;
+            if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
+            {
+                rootPWString = _("[root password]");
+            } else
+            {
+                rootPWString = _("[manually set]");
+            }
+            if( defaults["rootpw_clear"]:"" == "" )
+            {
+                warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
+                warning_level = `blocker;
+            }
         }
         // Try to get Firewall status
         string fw_text = "";
