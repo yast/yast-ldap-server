@@ -35,6 +35,7 @@ YaST::YCP::Import ("SCR");
 my %error = ( msg => undef, details => undef );
 my $ssl_check_command = "/usr/lib/YaST2/bin/ldap-server-ssl-check";
 my $usingDefaults = 1;
+my $fqdn = "";
 my $readConfig = 0;
 my $restartRequired = 0;
 my $configured = 0;
@@ -321,6 +322,28 @@ BEGIN { $TYPEINFO{ReadLdapconfBase} = ["function", "string"]; }
 sub ReadLdapconfBase()
 {
     return $ldapconf_base;
+}
+
+##
+ # @return the full qualified hostname of the machine or "" if not set
+ #
+BEGIN { $TYPEINFO{ReadHostnameFQ} = ["function", "string"]; }
+sub ReadHostnameFQ()
+{
+    if ( $fqdn eq "" )
+    {
+        my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
+        if ( $rc->{'stdout'} eq "" )
+        {
+            y2milestone("could determine fqdn, hostname -f returned: ". $rc->{'stderr'} );
+        }
+        else
+        {
+            $fqdn = $rc->{'stdout'};
+            chomp($fqdn);
+        }
+    }
+    return $fqdn;
 }
 
 ##
@@ -1598,6 +1621,7 @@ sub InitDbDefaults
     my $domain = $rc->{"stdout"};
     if ( $domain eq "" )
     {
+        y2milestone("\"hostname -d\" returned: \"". $rc->{'stderr'} . "\" falling back to default");
         $domain = "site";
     }
     chomp($domain);
@@ -1748,13 +1772,17 @@ sub ReadFromDefaults
 
                 my $syncpw = GenerateRandPassword();
                 my $syncdn = "uid=syncrepl,ou=system,".$dbDefaults{'suffix'};
-                my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
-                my $fqdn = $rc->{"stdout"};
-                chomp($fqdn);
+                my $hostname = $self->ReadHostnameFQ();
+                if ( $hostname eq "" )
+                {
+                    $self->SetError( _("Could not determine own full qualified hostname"), 
+                         _("A master server for replication cannot work correctly without knowing the own full qualified hostname") );
+                    return 0;
+                }
                 my $syncrepl = {
                         "provider" => {
                                 "protocol"  => "ldap",
-                                "target"    => $fqdn,
+                                "target"    => $hostname,
                                 "port"      => YaST::YCP::Integer(389)
                             },
                         "type" => "refreshAndPersist",
