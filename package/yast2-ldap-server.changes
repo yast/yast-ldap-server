@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Fri Nov 27 10:35:03 UTC 2009 - rhafer@novell.com
+
+- Refuse to setup master server in Proposal in the local hostname
+  does not resolve (bnc#557773)
+- Proposal summary show information about server type and
+  repliation setting now (bnc#557763)
+
+-------------------------------------------------------------------
 Tue Nov 24 16:51:31 UTC 2009 - rhafer@novell.com
 
 - fixed installation proposal for syncrepl slave setups 
