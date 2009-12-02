@@ -354,6 +354,7 @@ any ServerTypeDialog()
                 LdapServer::WriteSetupMaster(false);
                 LdapServer::WriteSetupSlave(false);
             }
+            SCR::Execute(.ldapserver.reset);
         }
         return ret;
     }

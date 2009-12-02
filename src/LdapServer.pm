@@ -2864,6 +2864,7 @@ sub SetupRemoteForReplication
     SCR->Execute(".ldapserver.commitChanges" );
     SCR->Execute(".ldapserver.reset" );
     
+    $globals_initialized = 0;
     $self->CreateSyncReplAccount();
     $syncreplbaseconfig->{'binddn'} = "cn=config";
     $syncreplbaseconfig->{'credentials'} = $auth_info->{'cn=config'}->{'bind_pw'};
