@@ -252,6 +252,7 @@ class OlcSyncRepl
         const static std::string INTERVAL;
         const static std::string STARTTLS;
         const static std::string RETRY;
+        const static std::string TLS_REQCERT;
 
         std::string toSyncReplLine() const;
 
@@ -265,6 +266,7 @@ class OlcSyncRepl
         void setInterval( int days, int hours, int mins, int secs );
         void setStartTls( StartTls tls );
         void setRetryString( const std::string &value );
+        void setTlsReqCert( const std::string &value );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -275,6 +277,7 @@ class OlcSyncRepl
         std::string getCredentials() const;
         void getInterval( int &days, int &hours, int &mins, int &secs ) const;
         StartTls getStartTls() const;
+        std::string getTlsReqCert() const;
 
     private:
         int rid;
@@ -285,6 +288,7 @@ class OlcSyncRepl
         std::string binddn;
         std::string credentials;
         std::string retryString;
+        std::string tlsReqCert;
         int refreshOnlyDays;
         int refreshOnlyHours;
         int refreshOnlyMins;

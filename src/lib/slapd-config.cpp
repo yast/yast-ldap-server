@@ -846,6 +846,7 @@ const std::string OlcSyncRepl::CREDENTIALS="credentials";
 const std::string OlcSyncRepl::INTERVAL="interval";
 const std::string OlcSyncRepl::STARTTLS="starttls";
 const std::string OlcSyncRepl::RETRY="retry";
+const std::string OlcSyncRepl::TLS_REQCERT="tls_reqcert";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
         rid(1), 
@@ -944,6 +945,10 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
             {
                 this->setRetryString(value);
             }
+            else if ( key == TLS_REQCERT )
+            {
+                this->setTlsReqCert(value);
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -976,6 +981,10 @@ std::string OlcSyncRepl::toSyncReplLine() const
     else if ( this->starttls == OlcSyncRepl::StartTlsCritical )
     {
         srlStream << "starttls=critical ";
+    }
+    if (! this->tlsReqCert.empty() )
+    {
+        srlStream << "tls_reqcert=" << tlsReqCert  << " ";
     }
     srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
@@ -1043,6 +1052,11 @@ void OlcSyncRepl::setRetryString( const std::string &value )
     retryString = value;
 }
 
+void OlcSyncRepl::setTlsReqCert( const std::string &value )
+{
+    tlsReqCert = value;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -1093,6 +1107,10 @@ OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
     return starttls;
 }
 
+std::string OlcSyncRepl::getTlsReqCert() const
+{
+    return tlsReqCert;
+}
 
 OlcSecurity::OlcSecurity(const std::string &securityVal)
 {
