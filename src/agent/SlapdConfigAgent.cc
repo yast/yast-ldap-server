@@ -1697,7 +1697,10 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             LDAPUrl prvuri;
                             prvuri.setScheme(protocol);
                             prvuri.setHost(target);
-                            prvuri.setPort(port);
+                            if ( ( protocol == "ldap" && port != 389 ) || ( protocol == "ldaps" && port != 636 ) )
+                            {
+                                prvuri.setPort(port);
+                            }
 
                             sr->setType( type );
                             sr->setProvider( prvuri );
