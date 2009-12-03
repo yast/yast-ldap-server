@@ -191,7 +191,7 @@ void OlcConfigEntry::setStringValues(const std::string &type, const StringList &
 
 void OlcConfigEntry::setStringValue(const std::string &type, const std::string &value)
 {
-    log_it(SLAPD_LOG_INFO,"setStringValue() " + type + " " + value);
+    log_it(SLAPD_LOG_DEBUG,"setStringValue() " + type + " " + value);
     if ( value.empty() )
     {
         m_dbEntryChanged.delAttribute(type);
@@ -290,7 +290,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( deleted ) 
                 {
                     delValues.add(*j);
-                    log_it(SLAPD_LOG_INFO,"Value deleted: " + *j );
+                    log_it(SLAPD_LOG_DEBUG,"Value deleted: " + *j );
                 }
             }
             j = changedAttr->getValues().begin();
@@ -308,7 +308,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( added ) 
                 {
                     addValues.add(*j);
-                    log_it(SLAPD_LOG_INFO,"Value added: " + *j);
+                    log_it(SLAPD_LOG_DEBUG,"Value added: " + *j);
                 }
             }
             bool replace = false;
@@ -1206,11 +1206,11 @@ OlcSecurity::OlcSecurity(const std::string &securityVal)
             spos1 = spos2;
             spos2 = securityVal.find_first_of("=", spos1 );
             std::string key = securityVal.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            log_it(SLAPD_LOG_DEBUG, "Key: <" + key + ">");
             spos1 = spos2 + 1;
             spos2 = extractAlcToken(securityVal, spos1, false );
             std::string value = securityVal.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            log_it(SLAPD_LOG_DEBUG, "Value: <" + value + ">");
             if ( spos2 != std::string::npos )
             {
                 spos1 = spos2 + 1;
