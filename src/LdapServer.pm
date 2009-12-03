@@ -1815,6 +1815,12 @@ sub ReadFromDefaults
                 $rc = SCR->Write(".ldapserver.database.{0}.acl", \@syncacl );
                 push @syncacl, @$defaultDbAcls;
                 $defaultDbAcls = \@syncacl;
+
+                my @newlimits = ( { 'selector' => "dn.exact=\"$syncdn\"",
+                                    'limits'   => [ { 'type'  => "size.soft",
+                                                      'value' => "unlimited" } ] } );
+                SCR->Write(".ldapserver.database.{0}.limits", \@newlimits );
+                SCR->Write(".ldapserver.database.{1}.limits", \@newlimits );
             }
         }
         
@@ -2857,6 +2863,54 @@ sub SetupRemoteForReplication
                     my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
                     push @syncacl, (@$acl);
                     my $rc = SCR->Write(".ldapserver.database.{".$i."}.acl", \@syncacl );
+                }
+            }
+        }
+    }
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $db = SCR->Read(".ldapserver.database.{".$i."}" );
+            my $needslimit = 1;
+            if ( lc($db->{'rootdn'}) eq lc($syncreplbaseconfig->{'binddn'}) )
+            {
+                y2milestone("Repl DN \"".$syncreplbaseconfig->{'binddn'}. "\" is rootdn of database $i. No limit needed");
+            }
+            else
+            {
+                my $limits = SCR->Read(".ldapserver.database.{".$i."}.limits" );
+                y2debug("Database $i limits:".  Data::Dumper->Dump([ $limits ]) );
+                foreach my $limit (@$limits)
+                {
+                    if ( $limit->{'selector'} eq "dn.exact=\"".$syncreplbaseconfig->{'binddn'}."\"" )
+                    {
+                        my $limitvals = $limit->{'limits'};
+                        foreach my $val (@$limitvals )
+                        {
+                            if ( $val->{'type'} eq "size.soft" && $val->{'value'} eq "unlimited" )
+                            {
+                                y2milestone("limit already present, no need to add");
+                                $needslimit = 0;
+                                last;
+                            }
+                        }
+                        if (! $needslimit )
+                        {
+                            last;
+                        }
+                    }
+                }
+                if ($needslimit)
+                {
+                    y2milestone("Setting sizelimit for syncrepuser to unlimited.");
+                    my @newlimits = ( { 'selector' => "dn.exact=\"".$syncreplbaseconfig->{'binddn'}."\"",
+                                        'limits'   => [ { 'type'  => "size.soft",
+                                                          'value' => "unlimited" } ] } );
+                    push @newlimits, @$limits;
+                    SCR->Write(".ldapserver.database.{".$i."}.limits", \@newlimits );
                 }
             }
         }

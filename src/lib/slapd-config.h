@@ -232,6 +232,25 @@ class OlcAccess
         OlcAclByList m_byList;
 };
 
+typedef std::list<std::pair<std::string,std::string> > pairlist;
+class OlcLimits
+{
+    public:
+        inline OlcLimits() {}
+
+        OlcLimits( const std::string &limitsString);
+        void setSelector( const std::string &value );
+        void setLimits ( const pairlist&value );
+        
+        std::string getSelector() const;
+        pairlist getLimits() const;
+
+        std::string toLimitsString() const;
+    private:
+        std::string m_selector;
+        pairlist m_limits;
+};
+
 class OlcSyncRepl
 {
     public:
@@ -312,6 +331,7 @@ class OlcSecurity
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
+typedef std::list<boost::shared_ptr<OlcLimits> > OlcLimitList;
 typedef std::list<boost::shared_ptr<OlcSyncRepl> > OlcSyncReplList;
 
 class OlcDatabase : public OlcConfigEntry
@@ -334,6 +354,9 @@ class OlcDatabase : public OlcConfigEntry
         bool getAcl( OlcAccessList& accessList ) const;
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const OlcAccessList& acllist );
+        
+        bool getLimits( OlcLimitList& limitList ) const;
+        void replaceLimits( const OlcLimitList& limits );
 
         OlcSyncReplList getSyncRepl() const;
         void setSyncRepl( const OlcSyncReplList& srl );
