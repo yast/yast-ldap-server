@@ -836,6 +836,86 @@ std::string OlcAccess::toAclString() const
     return aclString.str();
 }
 
+OlcLimits::OlcLimits( const std::string& limitString )
+{
+    std::string::size_type spos = 0;
+    std::string::size_type tmppos = 0;
+    // limits look like this:  <selector> <limit> [<limit> [...]]
+
+    // split of the selector pattern
+    tmppos = limitString.find_first_not_of("\t ", spos );
+    spos = tmppos;
+    tmppos = limitString.find_first_of("\t\" ", spos );
+    // skip quoted whitespaces
+    while ( limitString[tmppos] == '"'  && limitString[tmppos-1] != '\\')
+    {
+        tmppos = extractAlcToken( limitString, tmppos, true );
+        tmppos = limitString.find_first_of("\t\" ", tmppos+1 );
+    }
+    m_selector = limitString.substr(spos, tmppos-spos );
+    log_it(SLAPD_LOG_DEBUG, "selector: <"+m_selector+">" );
+
+    // now the list of <limits> follows
+    spos = tmppos;
+    if ( spos != std::string::npos )
+    {
+        spos = limitString.find_first_not_of("\t ", spos );
+    }
+    while ( spos != std::string::npos )
+    {
+        tmppos = extractAlcToken( limitString, spos, false );
+        std::string tmp = limitString.substr( spos, tmppos-spos ); 
+        log_it(SLAPD_LOG_DEBUG, "limit: <"+tmp+">" );
+        std::string::size_type delimpos = tmp.find( '=' );
+        if ( delimpos == std::string::npos )
+        {
+            throw std::runtime_error( "error while parsing limits statement" );
+        }
+        m_limits.push_back( make_pair(tmp.substr(0, delimpos), tmp.substr( delimpos+1 ) ));
+        if ( tmppos != std::string::npos )
+        {
+            spos = limitString.find_first_not_of("\t ", tmppos+1 );
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+void OlcLimits::setSelector( const std::string &value )
+{
+    m_selector = value;
+}
+
+void OlcLimits::setLimits ( const pairlist &value )
+{
+    m_limits = value;
+}
+
+std::string OlcLimits::getSelector() const
+{
+    return m_selector;
+}
+
+pairlist OlcLimits::getLimits() const
+{
+    return m_limits;
+}
+
+std::string OlcLimits::toLimitsString() const
+{
+    std::ostringstream limitStr;
+    limitStr << m_selector;
+
+    pairlist::const_iterator i;
+    for ( i=m_limits.begin(); i != m_limits.end(); i++ )
+    {
+        limitStr << " " << i->first << "=" << i->second ;
+    }
+    return limitStr.str();
+}
+
 const std::string OlcSyncRepl::RID="rid";
 const std::string OlcSyncRepl::PROVIDER="provider";
 const std::string OlcSyncRepl::BASE="searchbase";
@@ -1315,6 +1395,54 @@ void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
     }
 }
 
+bool OlcDatabase::getLimits(OlcLimitList &limitList) const
+{
+    const LDAPAttribute* limitsAttr = m_dbEntryChanged.getAttributeByName("olcLimits");
+    log_it(SLAPD_LOG_INFO, "OlcDatabase::getLimits()");
+    limitList.clear();
+    bool ret = true;
+    if ( limitsAttr )
+    {
+        StringList values = limitsAttr->getValues();
+        StringList::const_iterator i;
+        for ( i =  values.begin(); i != values.end(); i++ )
+        {
+            log_it(SLAPD_LOG_DEBUG, "limits VALUE: " + *i );
+            std::string limitString;
+            splitIndexFromString( *i, limitString );
+            try {
+                boost::shared_ptr<OlcLimits> limit( new OlcLimits(limitString) );
+                limitList.push_back(limit);
+            }
+            catch ( std::runtime_error e )
+            {
+                log_it(SLAPD_LOG_INFO, "Can't parse Limit");
+                log_it(SLAPD_LOG_INFO, e.what() );
+                limitList.clear();
+                ret = false;
+                break;
+            }
+        }
+    }
+    else
+    {
+        log_it(SLAPD_LOG_INFO, "no limit set");
+    }
+    return ret;
+}
+
+void OlcDatabase::replaceLimits( const OlcLimitList& limits )
+{
+    this->setStringValue( "olcLimits", "" );
+    OlcLimitList::const_iterator i;
+    int j = 0;
+
+    for ( i = limits.begin(); i != limits.end(); i++ )
+    {
+        this->addIndexedStringValue( "olcLimits", (*i)->toLimitsString(), j );
+        j++;
+    }
+}
 
 OlcSyncReplList OlcDatabase::getSyncRepl() const
 {

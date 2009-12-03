@@ -851,6 +851,37 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         return YCPNull();
                     }
                 }
+                else if ( dbComponent == "limits" )
+                {
+                    YCPList resList;
+                    OlcLimitList limitList;
+                    if ( (*i)->getLimits(limitList) )
+                    {
+                        OlcLimitList::const_iterator j;
+                        for ( j = limitList.begin(); j != limitList.end(); j++ )
+                        {
+                            YCPMap limitMap;
+                            YCPList limitVals;
+                            pairlist limits = (*j)->getLimits();
+                            pairlist::const_iterator k ;
+                            for ( k = limits.begin(); k != limits.end(); k++ )
+                            {
+                                YCPMap valMap;
+                                valMap.add(YCPString("type"), YCPString(k->first) );
+                                valMap.add(YCPString("value"), YCPString(k->second) );
+                                limitVals.add(valMap);
+                            }
+                            limitMap.add( YCPString("selector"), YCPString( (*j)->getSelector().c_str() ) );
+                            limitMap.add( YCPString("limits"), limitVals);
+                            resList.add(limitMap);
+                        }
+                        return resList;
+                    }
+                    else
+                    {
+                        return YCPNull();
+                    }
+                }
                 else if ( dbComponent == "syncrepl" )
                 {
                     YCPMap resMap;
@@ -1665,6 +1696,30 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             aclList.push_back(acl);
                         }
                         (*i)->replaceAccessControl(aclList);
+                        ret = true;
+                    }
+                    else if ( dbComponent == "limits" )
+                    {
+                        YCPList argList = arg->asList();
+                        OlcLimitList limitList;
+                        for ( int j = 0; j < argList->size(); j++ )
+                        {
+                            boost::shared_ptr<OlcLimits> limit( new OlcLimits() );
+                            YCPMap limitMap = argList->value(j)->asMap();
+                            limit->setSelector(limitMap->value(YCPString("selector"))->asString()->value_cstr() );
+
+                            YCPList ycpLimitValues = limitMap->value(YCPString("limits"))->asList();
+                            pairlist limitVals;
+                            for ( int k=0; k < ycpLimitValues->size(); k++ )
+                            {
+                                YCPMap valMap = ycpLimitValues->value(k)->asMap();
+                                limitVals.push_back( make_pair(valMap->value(YCPString("type"))->asString()->value_cstr(),
+                                                               valMap->value(YCPString("value"))->asString()->value_cstr() ) );
+                            }
+                            limit->setLimits(limitVals);
+                            limitList.push_back(limit);
+                        }
+                        (*i)->replaceLimits(limitList);
                         ret = true;
                     }
                     else if ( dbComponent == "syncrepl" )
