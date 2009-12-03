@@ -2882,7 +2882,7 @@ sub SetupRemoteForReplication
             else
             {
                 my $limits = SCR->Read(".ldapserver.database.{".$i."}.limits" );
-                y2debug("Database $i limits:".  Data::Dumper->Dump([ $limits ]) );
+                y2milestone("Database $i limits:".  Data::Dumper->Dump([ $limits ]) );
                 foreach my $limit (@$limits)
                 {
                     if ( $limit->{'selector'} eq "dn.exact=\"".$syncreplbaseconfig->{'binddn'}."\"" )
