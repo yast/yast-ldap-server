@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Dec  4 14:56:30 UTC 2009 - rhafer@novell.com
+
+- create indexes on entryUUID and entryCSN when setting up 
+  replication (bnc#560754)
+
+-------------------------------------------------------------------
 Thu Dec  3 15:50:15 UTC 2009 - rhafer@novell.com
 
 - increase the sizelimit for the syncrepl user to unlimtied When 
