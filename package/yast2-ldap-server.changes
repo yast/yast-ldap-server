@@ -1,19 +1,20 @@
 -------------------------------------------------------------------
 Fri Dec  4 14:56:30 UTC 2009 - rhafer@novell.com
 
+- Version 2.17.25
 - create indexes on entryUUID and entryCSN when setting up 
   replication (bnc#560754)
 
 -------------------------------------------------------------------
 Thu Dec  3 15:50:15 UTC 2009 - rhafer@novell.com
 
-- increase the sizelimit for the syncrepl user to unlimtied When 
+- increase the sizelimit for the syncrepl user to unlimited when 
   setting up a master or preparing a remote master (bnc#557966)
 
 -------------------------------------------------------------------
 Thu Dec  3 08:50:27 UTC 2009 - rhafer@novell.com
 
-- Always check server certficates of the master on syncrepl clients
+- Always verify server certficates of the master on syncrepl clients
   (tls_reqcert demand), (bnc#558397)
 - Reset ldapserver agent after going back to the server type
   selection dialog in the ProposalWizard (bnc#559912)
