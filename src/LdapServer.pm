@@ -1762,6 +1762,10 @@ sub ReadFromDefaults
             $self->UpdateDatabase(0 ,$changes);
             if ( $self->ReadSetupMaster() )
             {
+                # create helpful indexes for syncrepl
+                $self->ChangeDatabaseIndex(1, { "name" => "entryUUID", "eq" => 1 } );
+                $self->ChangeDatabaseIndex(1, { "name" => "entryCSN", "eq" => 1 } );
+
                 my $syncprov = { 'enabled' => 1, 
                                  'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
                                                    'min' => YaST::YCP::Integer(10) }
@@ -2111,6 +2115,25 @@ sub WriteSyncProv
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return YaST::YCP::Boolean(0);
     }
+
+    ## Update indexes if the database supports it and if not deleting syncrepl
+    if ( keys %$syncprov )
+    {
+        my $db = $self->ReadDatabase( $dbindex );
+            if ( $db->{'type'} eq "bdb" || $db->{'type'} eq "hdb" )
+            {
+            my $indexes = SCR->Read(".ldapserver.database.{".$dbindex."}.indexes" );
+            y2milestone("indexes: ". Data::Dumper->Dump([$indexes]));
+            if ( ! $indexes->{'entrycsn'}->{'eq'} )
+            {
+                $self->ChangeDatabaseIndex($dbindex, { "name" => "entryCSN", "eq" => 1 } );
+            }
+            if ( ! $indexes->{'entryUUID'}->{'eq'} )
+            {
+                $self->ChangeDatabaseIndex($dbindex, { "name" => "entryUUID", "eq" => 1 } );
+            }
+        }
+    }
     return YaST::YCP::Boolean(1);
 }
 
@@ -2193,6 +2216,25 @@ sub WriteSyncRepl
         my $err = SCR->Error(".ldapserver");
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return YaST::YCP::Boolean(0);
+    }
+    
+    ## Update indexes if the database supports it and if not deleting syncrepl
+    if ( keys %$syncrepl )
+    {
+        my $db = $self->ReadDatabase( $dbindex );
+            if ( $db->{'type'} eq "bdb" || $db->{'type'} eq "hdb" )
+            {
+            my $indexes = SCR->Read(".ldapserver.database.{".$dbindex."}.indexes" );
+            y2milestone("indexes: ". Data::Dumper->Dump([$indexes]));
+            if ( ! $indexes->{'entrycsn'}->{'eq'} )
+            {
+                $self->ChangeDatabaseIndex($dbindex, { "name" => "entryCSN", "eq" => 1 } );
+            }
+            if ( ! $indexes->{'entryUUID'}->{'eq'} )
+            {
+                $self->ChangeDatabaseIndex($dbindex, { "name" => "entryUUID", "eq" => 1 } );
+            }
+        }
     }
     return YaST::YCP::Boolean(1);
 }
