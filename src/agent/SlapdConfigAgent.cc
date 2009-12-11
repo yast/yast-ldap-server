@@ -2270,7 +2270,8 @@ void SlapdConfigAgent::syncCheck( LDAPConnection &c, const std::string &basedn )
     try{
         // Simple LDAPSync Request Control (refreshOnly, no cookie)
         const char ctrl[] = { 0x30, 0x03, 0x0a, 0x01, 0x01 };
-        LDAPCtrl syncCtrl( "1.3.6.1.4.1.4203.1.9.1.1", true, ctrl, sizeof(ctrl) );
+        std::string ctrlStr(ctrl, sizeof(ctrl) );
+        LDAPCtrl syncCtrl( std::string("1.3.6.1.4.1.4203.1.9.1.1"), true, ctrlStr );
         LDAPControlSet cs;
         cs.add(syncCtrl);
         LDAPConstraints searchCons;
