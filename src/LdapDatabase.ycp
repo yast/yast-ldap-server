@@ -1992,7 +1992,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             ],
             "syncrepl" : $[
                 `next : "ppolicy",
-                `syncrepl : "last",
+                `syncrepl : `next,
                 `abort : `abort
             ],
             "ppolicy" : $[
