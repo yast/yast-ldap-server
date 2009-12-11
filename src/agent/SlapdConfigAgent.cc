@@ -1734,6 +1734,25 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             {   
                                 sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
                                 srl.push_back(sr);
+
+                                // find available rid (rid must be unique accross the server)
+                                OlcDatabaseList::const_iterator k;
+                                int largest_rid=0;
+                                for ( k = databases.begin(); k != databases.end() ; k++ )
+                                {
+                                    OlcSyncReplList srl1 = (*k)->getSyncRepl();
+                                    if ( srl1.empty() )
+                                    {
+                                        continue;
+                                    }
+                                    boost::shared_ptr<OlcSyncRepl> sr1;
+                                    int currid = (*srl1.begin())->getRid();
+                                    if ( currid > largest_rid )
+                                    {
+                                        largest_rid=currid;
+                                    }
+                                }
+                                sr->setRid(largest_rid+1);
                             }
                             else
                             {
