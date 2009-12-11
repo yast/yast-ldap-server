@@ -1,6 +1,9 @@
 -------------------------------------------------------------------
-Fri Dec 11 12:30:01 UTC 2009 - rhafer@novell.com
+Fri Dec 11 14:57:50 UTC 2009 - rhafer@novell.com
 
+- Version 2.17.26
+- Fixed the syncrepl client check. The LDAPSync Control was not
+  initialized correctly (bnc#563955)
 - make sure the syncrepl rid is unique accross the server, when 
   setting up a new syncrepl client (bnc#561857)
 - fixed the Add Database Wizard workflow. It was not possible to
