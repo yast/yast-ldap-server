@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Dec 16 15:31:42 UTC 2009 - rhafer@novell.com
+
+- Version 2.17.27
+- fixed the creation/modifcation of the Update Referral settings
+  for slave databases (bnc#565164)
+
+-------------------------------------------------------------------
 Fri Dec 11 14:57:50 UTC 2009 - rhafer@novell.com
 
 - Version 2.17.26
