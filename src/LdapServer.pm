@@ -1794,6 +1794,7 @@ sub ReadFromDefaults
                         "credentials" => $syncpw,
                         "basedn" => "cn=config",
                         "starttls" => YaST::YCP::Boolean(1),
+                        "syncrepl" => { 'use_provider' => YaST::YCP::Boolean(1) }
                     };
                 SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
                 $syncrepl->{'basedn'} = $dbDefaults{'suffix'};
