@@ -1833,11 +1833,23 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
                                 if ( updaterefMap.size() > 0 )
                                 {
-                                    LDAPUrl updaterefUrl;
-                                    updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                                    updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
-                                    updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
-                                    (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                    if ( !updaterefMap->value(YCPString("use_provider")).isNull() &&
+                                         updaterefMap->value(YCPString("use_provider"))->asBoolean()->value() )
+                                    {
+                                        (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
+                                    }
+                                    else
+                                    {
+                                        LDAPUrl updaterefUrl;
+                                        updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                        updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                        updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                        (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                    }
+                                }
+                                else
+                                {
+                                    (*i)->setStringValue("olcUpdateRef", "" );
                                 }
                             }
                         }

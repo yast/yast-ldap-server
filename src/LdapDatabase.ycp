@@ -1556,6 +1556,20 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
             {
                 UI::ChangeWidget( `f_synccons, `Enabled, true );
+                if ( (boolean)UI::QueryWidget( `cb_update_ref, `Value ) == true )
+                {
+                    UI::ChangeWidget( `te_updateref_target, `Enabled, true );
+                    UI::ChangeWidget( `cb_updateref_prot, `Enabled, true );
+                    UI::ChangeWidget( `if_updateref_port, `Enabled, true );
+                    UI::ChangeWidget( `te_updateref_target, `Value, "" );
+                }
+                else
+                {
+                    UI::ChangeWidget( `te_updateref_target, `Enabled, false );
+                    UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
+                    UI::ChangeWidget( `if_updateref_port, `Enabled, false );
+                    UI::ChangeWidget( `te_updateref_target, `Value, "" );
+                }
             }
             else
             {
@@ -1742,7 +1756,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if ( (boolean) UI::QueryWidget( `cb_update_ref, `Value) )
             {
                 map<string,any> updateref = $[];
-                if ( (string)UI::QueryWidget(`cb_updateref_prot, `Value) != "" )
+                if ( (string)UI::QueryWidget(`te_updateref_target, `Value) != "" )
                 {
                     updateref = add(updateref, "protocol", (string)UI::QueryWidget(`cb_updateref_prot, `Value) );
                     updateref = add(updateref, "target", (string)UI::QueryWidget(`te_updateref_target, `Value) );
