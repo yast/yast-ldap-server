@@ -134,6 +134,47 @@ Access Control Rule</p>") +
 (DN, filter and Attributes) matches the entry being access. You might need to order the rules according
 to your needs. You can use the <b>Up</b> and <b>Down</b> buttons for that</p>"),
 
+    "syncprov_edit" :
+        _("<h3>Replication Provider Settings</h3>") +
+        _("<p>Check the <b>Enable ldapsync provider for this database</b> checkbox, if you want to 
+be able to replicate the currently selected database to another server.</p>") +
+        _("<h4>Checkpoint Settings</h4>") +
+        _("<p>Here you can specify how often the synchronization state indicator (stored in the
+\"<i>contextCSN</i>\"-Attribute) is written to the database. It is synced out to the database if
+\"<i>Operations</i>\" write operations or more than \"<i>Minutes</i>\" have passed since the 
+last time the indicator was written. By default (both values are '0') the state indicator is only
+written after a clean shutdown. Writing it more often can result in faster startup times after an 
+unclean shutdown but might result in a small performance hit in environments with many LDAP Write
+Operations.</p>")+
+        _("<h4>Session log</h4>") +
+        _("<p>Configures an in-memory session log for recording information about write operations
+made on the database. Specify how many write operation should be recorded in the session log. 
+Configuring a session log does only make sense when \"<i>refreshOnly</i>\" replication is used. In 
+such a case it can speed up replication and reduce the load on the master server.</p>"),
+
+    "synccons_edit" :
+        _("<h3>Replication Consumer Settings</h3>") +
+        _("<h4>Provider</h4>") +
+        _("Enter the connection details for the replication connection to the master server here. For that, select the
+protocol to use (<b>ldap</b> or <b>ldaps</b>) and enter the fully qualified hostname of the master server here. It is
+important to use the fully qualified hostname here to be able to verify the master server's TLS/SSL certificate. Adjust
+the port number if the master server is using non-standard ldap ports.") +
+        _("<h4>Replication Type</h4>") +
+        _("<p>OpenLDAP supports different modes of replication:</p>") +
+        _("<p><b>refreshOnly</b>: The slave server will periodically open a new connection, trigger a 
+synchronization and close the connection again. The intervall how often this synchronization happens can be configured
+through the <b>Replication Interval</b> settings.</p>") +
+        _("<p><b>refreshAndPersist</b>: The slave server will open a persistent connection to the master server for
+synchronization. Updated entries on the master server are immediately sent to the slave through that connection.</p>") +
+        _("<h4>Authentication</h4>") +
+        _("<p>Specify a DN and password here that the slave server should use to authenticate against the master.
+The specified DN needs to have read access to all entries in the replicated database on the master.</p>") +
+        _("<h4>Update Referral</h4>") +
+        _("<p>As the slave database is readonly. The slave server will answer write operations with an LDAP referral.
+This referral by default points the client to the master server. You can configure a differen update referral here.
+This is e.g. useful in a cascaded replication setup i.e. when the provider for the slave server is as slave server
+itself. </p>"),
+
     /* Read dialog help */
     "read" :
         _("<p><b><big>Initializing LDAP Server Configuration</big></b><br>Please wait...<br></p>") +
@@ -156,14 +197,24 @@ is safe to do so.  </p> "),
 created. Click <b>Finish</b> to write that configuration and leave the LDAP
 Server module</p>"),
 
-    /* Configuration Startup Dialog 1/2 */
+    /* Configuration Wizard Step 1 */
     "service_dialog" :
         _("<p>With <b>Start LDAP Server Yes or No</b>, start or stop the LDAP server.</p> ") +
         _("<p>If <b>Yes</b> is selected, you can click <b>Next</b> to start the configuration wizard</p>")+
-    /* Configuration Startup Dialog 2/2 */
         _("<p>If the Firewall is enabled you can open the required network ports
 for OpenLDAP by checking the corresponding Checkbox.</p>"),
 
+    /* Configuration Wizard Step 2 */
+    "server_type" :
+        _("<p>Select the type of LDAP Server you want to setup. The following scenarios are available:</p>") +
+        _("<p><b>Standalone Server</b>: Setup a single standalone OpenLDAP Server with no preparations for
+replication</p>") +
+        _("<p><b>Replication Master (Provider)</b>: Create an OpenLDAP setup that is prepared to act as a master server
+(provider) in a replication setup.</p>") +
+        _("<p><b>Replication Slave (Consumer)</b>: Setup an OpenLDAP slave server that replicates all its data,
+including configuration, from a master server.</p>"),
+
+    /* Configuration Wizard Step 3 */
     "tls_dialog" :
         _("<h3>TLS Settings</h3>") +
 
@@ -232,7 +283,16 @@ Database holds the configuration of the LDAP Server itself.</p>") +
         /* Tree Item Dialog "databases" 2/2 */
         _("<p>To add a new database, press <b>Add Database...</b>.</p>") +
         _("<p>To delete a database, select a database from the List and press <b>Delete Database...</b>.
-You can not delete the \"config\" and \"frontend\" databases.</p>")
+You can not delete the \"config\" and \"frontend\" databases.</p>"),
+
+    "master_setup_dialog" :
+        _("<p>Enter a password for the configuration database (\"<i>cn=config</i>\") here. This is required to make
+the configuration database accessible remotely.</p>"),
+
+    "slave_dialog" :
+        _("<p>To setup a slave server some details need to be queried from the master server. Please enter the master
+server's hostname adjust the protocol (either \"<i>ldap</i>\" or \"<i>ldaps</i>\") and port number as needed and enter the password
+for the master's configuration database (\"<i>cn=config</i>\").</p>"),
 ];
 
 /* EOF */

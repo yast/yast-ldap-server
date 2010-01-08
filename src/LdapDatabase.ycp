@@ -1945,7 +1945,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     {
         string caption = _("Replication settings");
         term contents = GetSyncConsWidget();
-        Wizard::SetContentsButtons(caption, contents, HELPS["syncrepl_edit"]:"",
+        Wizard::SetContentsButtons(caption, contents, HELPS["synccons_edit"]:"",
                 Label::BackButton(), Label::NextButton());
         symbol ret = `next;
         DbSyncConsRead(-1, $[] );
