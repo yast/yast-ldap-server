@@ -136,7 +136,7 @@ to your needs. You can use the <b>Up</b> and <b>Down</b> buttons for that</p>"),
 
     "syncprov_edit" :
         _("<h3>Replication Provider Settings</h3>") +
-        _("<p>Check the <b>Enable ldapsync provider for this database</b> checkbox, if you want to 
+        _("<p>Select the \"<b>Enable ldapsync provider for this database</b>\" checkbox, if you want to 
 be able to replicate the currently selected database to another server.</p>") +
         _("<h4>Checkpoint Settings</h4>") +
         _("<p>Here you can specify how often the synchronization state indicator (stored in the
@@ -154,6 +154,8 @@ such a case it can speed up replication and reduce the load on the master server
 
     "synccons_edit" :
         _("<h3>Replication Consumer Settings</h3>") +
+        _("<p>Select the \"<b>This database is a Replication Consumer</b>\" if you want the database to be a replica
+of a database on another server.</p>") +
         _("<h4>Provider</h4>") +
         _("Enter the connection details for the replication connection to the master server here. For that, select the
 protocol to use (<b>ldap</b> or <b>ldaps</b>) and enter the fully qualified hostname of the master server here. It is
