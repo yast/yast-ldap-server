@@ -20,9 +20,8 @@ X-SuSE-YaST-AutoInstRequires=lan,ca_mgm
 X-SuSE-YaST-AutoInstSchema=ldap-server.rnc
 
 Icon=yast-ldap-server
-Exec=/sbin/yast2 ldap-server 
+Exec=xdg-su -c "/sbin/yast2 ldap-server"
 
 Name=LDAP Server
 GenericName=Configure an LDAP Server
-X-KDE-SubstituteUID=true
 StartupNotify=true
