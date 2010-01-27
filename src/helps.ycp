@@ -149,7 +149,7 @@ Operations.</p>")+
         _("<h4>Session log</h4>") +
         _("<p>Configures an in-memory session log for recording information about write operations
 made on the database. Specify how many write operation should be recorded in the session log. 
-Configuring a session log does only make sense when \"<i>refreshOnly</i>\" replication is used. In 
+Configuring a session log is only useful for \"<i>refreshOnly</i>\" replication. In 
 such a case it can speed up replication and reduce the load on the master server.</p>"),
 
     "synccons_edit" :
