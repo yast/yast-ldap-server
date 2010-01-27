@@ -1947,6 +1947,54 @@ sub ChangeDatabaseAcl
 {
     my ($self, $dbIndex, $acllist ) = @_;
     y2debug("ChangeDatabaseAcl: ".Data::Dumper->Dump([$acllist]) );
+
+    # Check whether this is a slave database, if yes locate the 
+    # syncrepl related ACL and move it to the top. This is to ensure
+    # that syncrepl clients have read access to everything
+    my $syncrepl = $self->ReadSyncRepl( $dbIndex );
+    if ( $syncrepl && scalar(keys %{$syncrepl}) && $syncrepl->{'binddn'} ne "" )
+    {
+        my $acllist_sorted=[];
+        my $syncacl={};
+        my $found=0;
+
+        foreach my $rule ( @{$acllist} )
+        {
+            if ( !$found && (keys %{$rule->{'target'}} == 0) )
+            {
+                # this rule matches all db entries, check if it gives
+                # read access to the syncrepl id
+                foreach my $access ( @{$rule->{'access'}} )
+                {
+                    if ( $access->{'type'} eq "dn.base" && 
+                         lc($access->{'value'}) eq lc($syncrepl->{'binddn'} ) &&
+                         ($access->{'level'} eq "read" || $access->{'level'} eq "write")
+                       )
+                    {
+                        y2milestone("Found syncrepl ACL, moving to first position");
+                        $syncacl=$rule;
+                        $found=1;
+                        last;
+                    }
+                }
+                if( $found )
+                {
+                    next;
+                }
+            }
+            push @{$acllist_sorted}, $rule;
+        }
+        if ( $found ) 
+        {
+            # push syncrepl acl on top
+            push @{$acllist_sorted}, $syncacl;
+            $acllist = [ $syncacl ];
+            push @{$acllist}, @{$acllist_sorted};
+        }
+    }
+
+
+
     my $rc = SCR->Write(".ldapserver.database.{".$dbIndex."}.acl", $acllist );
     if ( ! $rc )
     {
