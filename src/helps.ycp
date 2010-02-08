@@ -293,7 +293,7 @@ the configuration database accessible remotely.</p>"),
 
     "slave_dialog" :
         _("<p>To setup a slave server some details need to be queried from the master server. Please enter the master
-server's hostname adjust the protocol (either \"<i>ldap</i>\" or \"<i>ldaps</i>\") and port number as needed and enter the password
+server's hostname, adjust the protocol (either \"<i>ldap</i>\" or \"<i>ldaps</i>\") and port number as needed and enter the password
 for the master's configuration database (\"<i>cn=config</i>\").</p>"),
 ];
 
