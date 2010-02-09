@@ -1686,6 +1686,7 @@ sub ChangeDatabaseIndex
  #                      'type'  => <'self'|'users'|'anoymous'|'*'|'group'|'dn.base'|'dn.subtree'>
  #                      # if type is 'group', 'dn.base', 'dn.subtree':
  #                      'value'    => <a valid LDAP DN>
+ #                      'control'  => <'stop'|'break'|'continue'>                      '
  #                  ]
  #
  #          }
@@ -1816,6 +1817,53 @@ sub AddPasswordPolicy
             push @ppAcl, (@$acl );
             $self->ChangeDatabaseAcl( $dbIndex, \@ppAcl );
         }
+    }
+    return YaST::YCP::Boolean(1);
+}
+
+BEGIN { $TYPEINFO {ReadSyncProv} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub ReadSyncProv
+{
+    my ($self, $index) = @_;
+    y2milestone("ReadSyncProv ", $index);
+    my $syncprov = SCR->Read(".ldapserver.database.{".$index."}.syncprov" );
+    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    if (defined $syncprov->{'checkpoint'} )
+    {
+        $syncprov->{'checkpoint'} = {
+            "ops" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'ops'}),
+            "min" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'min'})
+        }
+    }
+    if (defined $syncprov->{'sessionlog'} )
+    {
+        $syncprov->{'sessionlog'} = YaST::YCP::Integer( $syncprov->{'sessionlog'} );
+    }
+    return $syncprov;
+}
+
+BEGIN { $TYPEINFO {WriteSyncProv} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
+sub WriteSyncProv
+{
+    my ( $self, $dbindex, $syncprov) = @_;
+    y2milestone("WriteSyncProv");
+    y2milestone("SyncProv: ".Data::Dumper->Dump([$syncprov]) );
+    if (defined $syncprov->{'checkpoint'} )
+    {
+        $syncprov->{'checkpoint'} = {
+            "ops" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'ops'}),
+            "min" => YaST::YCP::Integer( $syncprov->{'checkpoint'}->{'min'})
+        }
+    }
+    if (defined $syncprov->{'sessionlog'} )
+    {
+        $syncprov->{'sessionlog'} = YaST::YCP::Integer( $syncprov->{'sessionlog'} );
+    }
+    if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncprov", $syncprov ) )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return YaST::YCP::Boolean(0);
     }
     return YaST::YCP::Boolean(1);
 }

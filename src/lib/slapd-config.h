@@ -110,7 +110,7 @@ class OlcOverlay : public OlcConfigEntry
     public:
         static OlcOverlay* createFromLdapEntry( const LDAPEntry& le);
         OlcOverlay( const LDAPEntry &le );
-        OlcOverlay( const std::string &type, const std::string &parent );
+        OlcOverlay( const std::string &type, const std::string &parent, const std::string &oc="" );
         const std::string getType() const;
 
         void newParentDn( const std::string &parent );
@@ -122,13 +122,26 @@ class OlcOverlay : public OlcConfigEntry
         std::string m_parent;
 };
 
+class OlcSyncProvOl : public OlcOverlay
+{
+    public:
+        OlcSyncProvOl( const LDAPEntry &le ) : OlcOverlay( le ) {}
+        OlcSyncProvOl( const std::string &parent) : OlcOverlay("syncprov",parent,"olcSyncProvConfig") {}
+        void getCheckPoint(int &ops, int &min) const;
+        void setCheckPoint(int ops, int min);
+
+        bool getSessionLog(int &slog) const;
+        void setSessionLog(int slog);
+};
+
 class OlcAclBy
 {
     public:
         inline OlcAclBy( const std::string& level,
                   const std::string& type,
-                  const std::string& value = "" ) : 
-                        m_type(type), m_value(value)
+                  const std::string& value = "",
+                  const std::string& control = "" ) : 
+                        m_type(type), m_value(value), m_control(control)
         {
             setLevel(level);
         }
@@ -146,6 +159,11 @@ class OlcAclBy
         inline std::string getValue() const
         {
             return m_value;
+        }
+        
+        inline std::string getControl() const
+        {
+            return m_control;
         }
 
         inline void setLevel( const std::string &level )
@@ -167,11 +185,17 @@ class OlcAclBy
         {
             m_value = value;
         }
+        inline void setControl( const std::string &value )
+        {
+            m_control = value;
+        }
+
 
     private:
         std::string m_level;
         std::string m_type;
         std::string m_value;
+        std::string m_control;
 };
 
 typedef std::list<boost::shared_ptr<OlcAclBy> > OlcAclByList;

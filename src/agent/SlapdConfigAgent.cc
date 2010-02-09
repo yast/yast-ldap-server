@@ -656,6 +656,34 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     }
                     return resMap;
                 }
+                else if ( dbComponent == "syncprov" )
+                {
+                    OlcOverlayList overlays = (*i)->getOverlays();
+                    OlcOverlayList::const_iterator j = overlays.begin();
+                    for (; j != overlays.end(); j++ )
+                    {
+                        if ( (*j)->getType() == "syncprov" && (*j)->getUpdatedDn() != "" )
+                        {
+                            boost::shared_ptr<OlcSyncProvOl> syncprovOlc = boost::dynamic_pointer_cast<OlcSyncProvOl>(*j);
+                            int cp_ops,cp_min;
+                            syncprovOlc->getCheckPoint(cp_ops, cp_min);
+                            if ( cp_ops || cp_min )
+                            {
+                                YCPMap cpMap;
+                                cpMap.add( YCPString("ops"), YCPInteger(cp_ops) );
+                                cpMap.add( YCPString("min"), YCPInteger(cp_min) );
+                                resMap.add( YCPString("checkpoint"), cpMap );
+                            }
+                            int slog;
+                            if ( syncprovOlc->getSessionLog(slog) )
+                            {
+                                resMap.add( YCPString("sessionlog"), YCPInteger(slog) );
+                            }
+                            break;
+                        }
+                    }
+                    return resMap;
+                }
                 else if ( dbComponent == "acl" )
                 {
                     YCPList resList;
@@ -1264,7 +1292,7 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             if ( j == overlays.end() )
                             {
                                 y2milestone("New Overlay added");
-                                boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getUpdatedDn()));
+                                boost::shared_ptr<OlcOverlay> tmp(new OlcOverlay("ppolicy", (*i)->getUpdatedDn(), "olcPPolicyConfig") );
                                 ppolicyOlc = tmp;
                                 ppolicyOlc->setIndex( overlays.size() );
                                 (*i)->addOverlay(ppolicyOlc);
@@ -1295,6 +1323,60 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 else
                                 {
                                     ppolicyOlc->setStringValue("olcPpolicyHashCleartext", "FALSE");
+                                }
+                            }
+                        }
+                        ret = true;
+                    }
+                    else if ( dbComponent == "syncprov" )
+                    {
+                        OlcOverlayList overlays = (*i)->getOverlays();
+                        OlcOverlayList::const_iterator j = overlays.begin();
+                        for (; j != overlays.end(); j++ )
+                        {
+                            if ( (*j)->getType() == "syncprov" )
+                            {
+                                break;
+                            }
+                        }
+                        YCPMap argMap = arg->asMap();
+                        if ( j == overlays.end() && argMap.size() == 0 )
+                        {
+                            y2milestone("Empty overlay nothing to do");
+                        }
+                        else
+                        {
+                            boost::shared_ptr<OlcSyncProvOl> syncprovOlc;
+                            if ( j == overlays.end() )
+                            {
+                                boost::shared_ptr<OlcSyncProvOl> tmp(new OlcSyncProvOl((*i)->getUpdatedDn()) );
+                                syncprovOlc = tmp;
+                                syncprovOlc->setIndex(0);
+                                (*i)->addOverlay(syncprovOlc);
+                            }
+                            else
+                            {
+                                syncprovOlc = boost::dynamic_pointer_cast<OlcSyncProvOl>(*j);
+                            }
+                            if( argMap.size() == 0 )
+                            {
+                                syncprovOlc->clearChangedEntry();
+                            }
+                            else
+                            {
+                                if( ! argMap->value(YCPString("checkpoint")).isNull() )
+                                {
+                                    YCPMap cpMap = argMap->value(YCPString("checkpoint"))->asMap();
+                                    syncprovOlc->setCheckPoint( cpMap->value(YCPString("ops"))->asInteger()->value(),
+                                                                cpMap->value(YCPString("min"))->asInteger()->value() );
+                                }
+                                if( ! argMap->value(YCPString("sessionlog")).isNull() )
+                                {
+                                    syncprovOlc->setSessionLog( argMap->value(YCPString("sessionlog"))->asInteger()->value() );
+                                }
+                                else
+                                {
+                                    syncprovOlc->setStringValue( "olcSpSessionlog", "" );
                                 }
                             }
                         }
