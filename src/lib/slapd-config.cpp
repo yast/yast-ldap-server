@@ -361,6 +361,14 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
 
 OlcOverlay* OlcOverlay::createFromLdapEntry( const LDAPEntry& e)
 {
+    StringList oc = e.getAttributeByName("objectclass")->getValues();
+    for( StringList::const_iterator i = oc.begin(); i != oc.end(); i++ )
+    {
+        if ( strCaseIgnoreEquals(*i, "olcSyncProvConfig" ) )
+        {
+            return new OlcSyncProvOl(e);
+        }
+    }
     return new OlcOverlay(e);
 }
 
@@ -371,13 +379,16 @@ OlcOverlay::OlcOverlay( const LDAPEntry& e) : OlcConfigEntry(e)
     entryIndex = splitIndexFromString( type, m_type );
 }
 
-OlcOverlay::OlcOverlay( const std::string &type, const std::string &parent )
+OlcOverlay::OlcOverlay( const std::string &type, const std::string &parent, const std::string &oc )
         : m_type(type), m_parent(parent)
 {
     std::ostringstream dnstr;
     dnstr << "olcOverlay=" << m_type << "," << parent;
     m_dbEntryChanged.setDN(dnstr.str());
-    m_dbEntryChanged.addAttribute(LDAPAttribute("objectclass", "olcPpolicyConfig"));
+    if ( !oc.empty() )
+    {
+        m_dbEntryChanged.addAttribute( LDAPAttribute("objectclass", oc) );
+    }
     m_dbEntryChanged.addAttribute(LDAPAttribute("olcoverlay", m_type));
 }
 
@@ -417,6 +428,58 @@ void OlcOverlay::updateEntryDn(bool origEntry )
     {
         m_dbEntry.setDN(dn.str());
         m_dbEntry.replaceAttribute(LDAPAttribute("olcOverlay", name.str()));
+    }
+}
+
+void OlcSyncProvOl::setCheckPoint( int ops, int min )
+{
+    if ( !ops && !min )
+    {
+        this->setStringValue( "olcSpCheckpoint", "" );
+    }
+    else
+    {
+        std::ostringstream oStr;
+        oStr << ops << " " << min;
+        this->setStringValue( "olcSpCheckpoint", oStr.str() );
+    }
+}
+
+void OlcSyncProvOl::getCheckPoint( int &ops, int &min) const
+{
+    ops=0;
+    min=0;
+    std::string checkpointStr =  this->getStringValue("olcSpCheckpoint");
+    if (! checkpointStr.empty() )
+    {
+        std::istringstream iStr(checkpointStr);
+        iStr >> ops >> std::skipws >> min;
+    }
+    return;
+}
+
+void OlcSyncProvOl::setSessionLog( int slog )
+{
+    if ( slog > 0 )
+    {
+        std::ostringstream oStr;
+        oStr << slog;
+        this->setStringValue( "olcSpSessionLog", oStr.str() );
+    }
+}
+
+bool OlcSyncProvOl::getSessionLog( int &slog ) const
+{
+    std::string slogStr =  this->getStringValue("olcSpSessionLog");
+    if (! slogStr.empty() )
+    {
+        std::istringstream iStr(slogStr);
+        iStr >> slog ;
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
@@ -550,6 +613,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
             std::string type = "";
             std::string value = "";
             std::string level = "";
+            std::string control = "";
             spos = tmppos+1;
             // skip whitespaces
             tmppos = aclString.find_first_not_of("\t ", spos );
@@ -602,9 +666,30 @@ OlcAccess::OlcAccess( const std::string& aclString )
                      level != "compare" && level != "read" &&
                      level != "write" && level != "manage" )
                 {
-                    throw std::runtime_error( "Unsupported access level" );
+                    if ( level == "stop" || level == "break" || level == "continue" )
+                    {
+                        // it's ok to have no access level defined
+                        control = level;
+                        level = "";
+                    }
+                    else
+                    {
+                        throw std::runtime_error( "Unsupported access level" );
+                    }
                 }
                 log_it(SLAPD_LOG_INFO, "access: " +  level );
+                if ( control.empty() && tmppos != std::string::npos )
+                {
+                    spos = tmppos+1;
+                    tmppos = extractAlcToken( aclString, spos, false );
+                    control = aclString.substr(spos, tmppos-spos);
+                    log_it(SLAPD_LOG_INFO, "control: " +  control );
+                    if ( control != "stop" && control != "break" && control != "continue" )
+                    {
+                        control = "";
+                        tmppos = spos-1;
+                    }
+                }
                 if (tmppos != std::string::npos )
                 {
                     spos = aclString.find_first_not_of("\t ", tmppos+1 );
@@ -618,9 +703,8 @@ OlcAccess::OlcAccess( const std::string& aclString )
                     }
                 }
             }
-            log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+">" );
-            boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value) );
-            log_it(SLAPD_LOG_INFO, " type <"+by->getType()+">" );
+            log_it(SLAPD_LOG_INFO, "level <"+level+"> type <"+type+"> value <"+value+"> control <" + control + ">" );
+            boost::shared_ptr<OlcAclBy> by( new OlcAclBy(level, type, value, control) );
             m_byList.push_back(by);
         }
     }
@@ -737,7 +821,13 @@ std::string OlcAccess::toAclString() const
         {
             aclString << "=\"" << (*i)->getValue() << "\"";
         }
+
         aclString << " " << (*i)->getLevel();
+        std::string control = (*i)->getControl();
+        if ( !control.empty() && control != "stop" )
+        {
+            aclString << " " << (*i)->getControl();
+        }
     }
     return aclString.str();
 }
