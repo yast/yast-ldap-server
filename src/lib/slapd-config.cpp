@@ -861,11 +861,11 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
             spos1 = spos2;
             spos2 = syncreplLine.find_first_of("=", spos1 );
             std::string key = syncreplLine.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            log_it(SLAPD_LOG_DEBUG, "Key: <" + key + ">");
             spos1 = spos2 + 1;
             spos2 = extractAlcToken(syncreplLine, spos1, true );
             std::string value = syncreplLine.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            log_it(SLAPD_LOG_DEBUG, "Value: <" + value + ">");
             if ( spos2 != std::string::npos )
             {
                 spos1 = spos2 + 1;
@@ -1089,6 +1089,99 @@ OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
 {
     return starttls;
 }
+
+
+OlcSecurity::OlcSecurity(const std::string &securityVal)
+{
+    log_it(SLAPD_LOG_DEBUG, "OlcSecurity::OlcSecurity(" + securityVal + ")");
+    if ( !securityVal.empty() )
+    {
+        std::string::size_type spos1=0, spos2=0;
+
+        // skip leading whitespaces
+        spos2 = securityVal.find_first_not_of("\t ", spos1 );
+        while ( spos2 != std::string::npos && spos2 >= spos1 )
+        {
+            spos1 = spos2;
+            spos2 = securityVal.find_first_of("=", spos1 );
+            std::string key = securityVal.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            spos1 = spos2 + 1;
+            spos2 = extractAlcToken(securityVal, spos1, false );
+            std::string value = securityVal.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            if ( spos2 != std::string::npos )
+            {
+                spos1 = spos2 + 1;
+                spos2 = securityVal.find_first_not_of("\t ", spos1 );
+            }
+
+            int ival;
+            std::istringstream s(value);
+            s >> ival;
+            this->setSsf(key, ival);
+        }
+    }
+}
+
+std::string OlcSecurity::toSecturityVal() const
+{
+    std::ostringstream secValStream;
+    bool first=true;
+    std::map<std::string, int>::const_iterator i;
+    for ( i=secMap.begin(); i != secMap.end(); i++ )
+    {
+        if (!first)
+            secValStream << " ";
+        else
+            first = false;
+
+        secValStream << i->first << "=" << i->second;
+    }
+    
+    return secValStream.str();;
+}
+
+int OlcSecurity::getSsf(const std::string& key) const
+{
+    std::map<std::string, int>::const_iterator i = secMap.find(key);
+    
+    if ( i != secMap.end() )
+    {
+        return i->second;
+    }
+    return 0;
+}
+
+void OlcSecurity::setSsf(const std::string& key, int value)
+{
+    std::map<std::string, int>::iterator i = secMap.find(key);
+    
+    if ( i != secMap.end() )
+    {
+        if ( value > 0)
+            i->second = value;
+        else
+            secMap.erase(i);
+    }
+    else
+    {
+        if ( ( key == "ssf" ) || ( key == "transport" ) || ( key == "tls" ) ||
+             ( key == "sasl" ) || ( key == "update_ssf" ) || ( key == "update_transport" ) ||
+             ( key == "update_tls" ) || ( key == "update_sasl" ) || ( key == "simple_bind" )
+           )
+        {
+            if ( value > 0 )
+                secMap.insert(make_pair(key, value));
+        }
+        else
+        {
+            log_it(SLAPD_LOG_ERR, "Unknown security setting: <" + key + ">");
+        }
+    }
+}
+
+
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {

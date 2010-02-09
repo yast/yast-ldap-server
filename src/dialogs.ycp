@@ -14,6 +14,8 @@ textdomain "ldap-server";
 import "CWMFirewallInterfaces";
 import "Label";
 import "Wizard";
+import "Ldap";
+import "LdapPopup";
 import "LdapServer";
 import "HTML";
 import "Report";
@@ -163,45 +165,48 @@ string showTreeDialog( string name, boolean focus_tree )
  ** dialog functions **
  **********************/
 
-term dlg_service_initial = `HSquash(
-    `VBox(
-        `Heading( _("General Settings") ),
+term dlg_service_initial =
+    `HSquash(
         `VBox(
-            `Frame( _("&Start LDAP Server"),
-                `VBox(
-                    `RadioButtonGroup(
-                        `VBox(
-                            `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ),
-                                        Label::YesButton(),
-                                        false ) ),
-                            `Left( `RadioButton( `id( `rb_no ), `opt( `notify ),
-                                        Label::NoButton(),
-                                        true ) )
-                        )
-                    ),
-                    `Left( `CheckBox( `id( `cb_register_slp ),
-                                _("Register at an &SLP Daemon"),
-                                LdapServer::ReadSLPEnabled() )),
-                    `HStretch()
+            `Heading( _("General Settings") ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("&Start LDAP Server"),
+                    `VBox(
+                        `RadioButtonGroup(
+                            `VBox(
+                                `Left( `RadioButton( `id( `rb_yes ), `opt( `notify ),
+                                            Label::YesButton(),
+                                            false ) ),
+                                `Left( `RadioButton( `id( `rb_no ), `opt( `notify ),
+                                            Label::NoButton(),
+                                            true ) )
+                            )
+                        ),
+                        `Left( `CheckBox( `id( `cb_register_slp ),
+                                    _("Register at an &SLP Daemon"),
+                                    LdapServer::ReadSLPEnabled() )),
+                        `HStretch()
+                    )
                 )
-            )
-        ),
-        `VSpacing(),
-        `VBox(
-            `Frame( _("Firewall Settings"),
-                `VBox(
-                    `ReplacePoint( `id( `rp_firewall ),
-                        `Empty()
-                    ),
-                    `HStretch()
+            ),
+            `VSpacing(),
+            `VBox(
+                `Frame( _("Firewall Settings"),
+                    `VBox(
+                        `ReplacePoint( `id( `rp_firewall ),
+                            `Empty()
+                        ),
+                        `HStretch()
+                    )
                 )
             )
         )
-    )
-);
+    );
+
 any EnableServiceDialog()
 {
-    map <string, any> defaults = LdapServer::CreateInitialDefaults();
+    map <string, any> defaults = LdapServer::ReadInitialDefaults();
     map<string, any> firewall_settings = $[
             "services": [ "service:openldap" ],
             "display_details": true,
@@ -272,6 +277,78 @@ any EnableServiceDialog()
     return ret;
 }
 
+any ServerTypeDialog()
+{
+    term serverTypeWidget =
+        `HSquash(
+            `VBox(
+                `Heading( _("Please select Server type") ),
+                `VSpacing(),
+                `RadioButtonGroup(
+                    `id( `rbg_servertype ),
+                    `VBox(
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_standalone ),
+                                _("This will be a standalone server"),
+                                true
+                            )
+                        ),
+                        `VSpacing(),
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_master ),
+                                _("This server can act as a master server in a replication setup"),
+                                false
+                            )
+                        ),
+                        `VSpacing(),
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_slave ),
+                                _("This will be a replica (slave) server.\n") +
+                                _("All data including configuration will replicated from a remote server."),
+                                false
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    Wizard::SetContentsButtons( caption,
+            serverTypeWidget,
+            HELPS["server_type"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        ret = UI::UserInput();
+        y2milestone( "TlsConfigDialog: seeing return value '%1'", ret );
+        if ( ret == `next )
+        {
+            if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_slave )
+            {
+                ret = `slave_setup;
+                LdapServer::WriteSetupMaster(false);
+                LdapServer::WriteSetupSlave(true);
+            }
+            else if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_master )
+            {
+                LdapServer::WriteSetupMaster(true);
+                LdapServer::WriteSetupSlave(false);
+            }
+            else
+            {
+                LdapServer::WriteSetupMaster(false);
+                LdapServer::WriteSetupSlave(false);
+            }
+        }
+        return ret;
+    }
+    return ret;
+}
+
 any TlsConfigDialog()
 {
     Wizard::SetContentsButtons( caption,
@@ -329,6 +406,10 @@ any ProposalDialog()
     {
         LdapServer::SetInitialDefaults(LdapDatabase::GetDatabase());
         LdapServer::WriteLdapConfBase( LdapDatabase::GetLdapConfBase() );
+        if ( LdapServer::ReadSetupMaster() )
+        {
+            ret = `mastersetup;
+        }
     }
 
     return ret;
@@ -459,6 +540,537 @@ any TreeDialog()
                     Report::Error( "LdapServer Module: illegal input handler for item '"+current_tree_item+"'" );
                 }
             }
+        }
+    }
+    return ret;
+}
+
+string VerifyAdminPasswordPopup( map<string,any> bindparm, string suffix )
+{
+    map<string,string> authinfo = LdapServer::ReadAuthInfo(suffix);
+    string pw = nil;
+    if ( size(authinfo) > 0 )
+    {
+        if (authinfo["bind_dn"]:"1" == bindparm["bind_dn"]:"2" )
+        {
+            pw = authinfo["bind_pw"]:"";
+        }
+    }
+    Ldap::Set(bindparm);
+    Ldap::LDAPInitWithTLSCheck($[]);
+    symbol state= `cont;
+    while ( state == `cont )
+    {
+        if ( pw == nil )
+        {
+            pw =  Ldap::GetLDAPPassword(false);
+        }
+        if ( pw == nil )
+        {
+            state = `cancel;
+        }
+        else
+        {
+            string err = Ldap::LDAPBind( pw );
+            if ( err != "" )
+            {
+                pw = nil;
+                if( ! Popup::YesNo( _("LDAP Authentication failed. Try again?\n") +
+                                    _("Error message: ") + err  ) )
+                {
+                    state = `cancel;
+                }
+            }
+            else
+            {
+                state= `ok;
+                LdapServer::WriteAuthInfo( suffix, $[ "bind_dn" : bindparm["bind_dn"]:"", "bind_pw" : pw ] );
+            }
+        }
+    }
+    return pw;
+}
+
+map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
+{
+    term widget =
+        `HSquash(
+            `VBox(
+                `RadioButtonGroup( `id(`rbg_syncaccount),
+                    `VBox(
+                        `Left(
+                            `RadioButton( `id( `rb_createaccount ), `opt(`notify), _("Create new account in the first database"), true )
+                        ),
+                        `Left(
+                            `HBox(
+                                `HSpacing(2),
+                                `VBox( `id(`vb_account_param),
+                                    `Left(
+                                        `HBox(
+                                            `InputField( `id( `if_uid ), `opt( `hstretch ), _("User Id"), "" ),
+                                            `HSpacing(0.5),
+                                            `InputField( `id( `if_basedn ), `opt( `hstretch ), _("Container Object"), "" ),
+                                            `HSpacing(0.5),
+                                            `VBox(
+                                                `VSpacing(0.5),
+                                                `PushButton( `id( `pb_select_parent ), _("Browse") )
+                                            )
+                                        )
+                                    ),
+                                    `Left(
+                                        `CheckBox( `id( `cb_random_pw ), _("Generate a random password"), true)
+                                    )
+                                )
+                            )
+                        ),
+                        `VSpacing(0.3),
+                        `Left(
+                            `RadioButton( `id( `rb_useconfig ), `opt(`notify), _("Use the \"cn=config\" account for replication") )
+                        )
+                    )
+                )
+            )
+        );
+
+    map <string,any> db = LdapServer::ReadDatabase(1);
+    string suffix = (string)db["suffix"]:"";
+    string rootdn = (string)db["rootdn"]:"";
+
+    Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetContents( _("Configure Account for Replication"), widget,
+			     "",
+			     true, true);
+
+    UI::ChangeWidget( `if_uid, `Value, "syncrepl");
+    UI::ChangeWidget( `if_basedn, `Value, "ou=system," + suffix );
+    any ret = nil;
+    while (true)
+    {
+        ret = UI::UserInput();
+        if ( ret == `rb_useconfig )
+        {
+            UI::ChangeWidget( `vb_account_param, `Enabled, false );
+        }
+        else if ( ret == `rb_createaccount )
+        {
+            UI::ChangeWidget( `vb_account_param, `Enabled, true );
+        }
+        else if (ret == `pb_select_parent )
+        {
+            map <string,any> client = $[
+                    "bind_dn" : rootdn,
+                    "ldap_server"  : syncrepl["provider","target"]:"",
+                    "ldap_tls" : syncrepl["starttls"]:true
+                ];
+            string pw = VerifyAdminPasswordPopup( client, suffix );
+            if ( pw  != nil )
+            {
+                string dn = LdapPopup::BrowseTree(suffix);
+                if ( dn != "" )
+                {
+                    UI::ChangeWidget( `if_basedn, `Value, dn );
+                }
+            }
+        }
+        if ( ret == `next )
+        {
+            string binddn = "";
+            string bindpw = "";
+            if ( (boolean)UI::QueryWidget( `rb_createaccount, `Value ) )
+            {
+                binddn = "uid=" + (string)UI::QueryWidget( `if_uid, `Value ) + "," + (string)UI::QueryWidget( `if_basedn , `Value);
+                if ( ! (boolean)LdapServer::ValidateDn( binddn ) )
+                {
+                    Popup::Error( "\"" + binddn + "\"" + _("is not a valid LDAP DN") );
+                    continue;
+                }
+                if ( (boolean)UI::QueryWidget( `cb_random_pw, `Value ) )
+                {
+                   bindpw = LdapServer::GenerateRandPassword();
+                }
+                else
+                {
+                    term askPwWidget =
+                        `HSquash(
+                            `VSquash(
+                                `VBox(
+                                    `Password( `id( `te_pw ), `opt(`hstretch), _("Password") ),
+                                    `HSpacing( 0.5 ),
+                                    `Password( `id( `te_valid_pw ), `opt(`hstretch), _("Validate Password") ),
+                                    `HSpacing( 0.5 ),
+                                    Wizard::CancelOKButtonBox()
+                                )
+                            )
+                        );
+                    UI::OpenDialog( `opt(`decorated), askPwWidget );
+                    any ret1 = nil;
+                    while ( true )
+                    {
+                        ret1 = UI::UserInput();
+                        if (ret1 == `cancel )
+                        {
+                            bindpw = "";
+                            break;
+                        }
+                        else if ( ret1 == `ok )
+                        {
+                            string pw = (string)UI::QueryWidget( `te_pw, `Value );
+                            string verifypw = (string)UI::QueryWidget( `te_valid_pw, `Value );
+                            if ( size(pw) == 0 )
+                            {
+                                Popup::Error( _("Please enter a password") );
+                                UI::ChangeWidget( `te_pw, `Value, "" );
+                                UI::ChangeWidget( `te_valid_pw, `Value, "" );
+                            }
+                            else if ( pw == verifypw )
+                            {
+                                bindpw = pw;
+                                break;
+                            }
+                            else
+                            {
+                                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                                UI::ChangeWidget( `te_pw, `Value, "" );
+                                UI::ChangeWidget( `te_valid_pw, `Value, "" );
+                            }
+                        }
+                    }
+                    UI::CloseDialog();
+                    if ( ret1 != `ok)
+                    {
+                        continue;
+                    }
+                }
+                LdapServer::WriteSyncReplAccount( $[ "dn" : binddn, "pw" : bindpw, "dbsuffix" : suffix] );
+                syncrepl["binddn"] = binddn;
+                syncrepl["credentials"] = bindpw;
+            }
+            else
+            {
+                syncrepl["binddn"] = "cn=config";
+            }
+            break;
+        }
+    }
+    Wizard::CloseDialog();
+    return syncrepl;
+}
+
+any SlaveSetupDialog()
+{
+    term widget =
+        `HSquash(
+            `VBox(
+                `Heading( _("Slave server setup") ),
+                `VSpacing(),
+                `VSquash(
+                    `HBox(
+                        `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                        `HSpacing(),
+                        `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Hostname"), "" ),
+                        `HSpacing(),
+                        `HSquash(
+                            `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                        ),
+                        `HSpacing(),
+                        `VBox(
+                            `Bottom(
+                                `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
+                            ),
+                            `VSpacing(0.3)
+                        )
+                    )
+                ),
+                `VSpacing(0.3),
+                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" )
+            )
+        );
+
+    Wizard::SetContentsButtons( caption,
+            widget,
+            HELPS["slave_dialog"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        UI::ChangeWidget(`cb_start_tls, `Enabled, false );
+        map synbase = LdapServer::ReadSyncreplBaseConfig();
+        if ( size(synbase) > 0 )
+        {
+            UI::ChangeWidget( `cb_sync_prot, `Value, (string)synbase["provider","protocol"]:"" );
+            UI::ChangeWidget( `te_sync_target, `Value, (string)synbase["provider","target"]:"" );
+            UI::ChangeWidget( `if_sync_port, `Value, (integer)synbase["provider","port"]:389 );
+            UI::ChangeWidget( `cb_start_tls, `Value, (boolean)synbase["start_tls"]:true );
+            UI::ChangeWidget( `te_config_cred, `Value, (string)synbase["credentials"]:"");
+            LdapServer::WriteSyncreplBaseConfig( $[] );
+
+            ret = `next;
+        }
+        else
+        {
+            ret = UI::UserInput();
+        }
+        y2milestone( "SlaveSetupDialog: seeing return value '%1'", ret );
+        if ( ret == `next )
+        {
+            // test connection
+            map<string,any> provider = $[
+                    "protocol" : (string)UI::QueryWidget( `cb_sync_prot, `Value ),
+                    "target"   : (string)UI::QueryWidget( `te_sync_target, `Value ),
+                    "port"     : (integer)UI::QueryWidget( `if_sync_port, `Value )
+                ];
+
+            map<string,any> testparm = $[];
+            testparm = add(testparm, "target", provider );
+            if ( provider["protocol"]:"ldap" == "ldap" )
+            {
+                testparm = add(testparm, "starttls", true );
+            }
+            else
+            {
+                testparm = add(testparm, "starttls", false );
+            }
+            testparm = add(testparm, "basedn", "cn=config" );
+            testparm = add(testparm, "binddn", "cn=config" );
+            testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
+            if (! LdapServer::ReadModeInstProposal() ) // Doing these checks during installation will 
+                                                       // most probably fail
+            {
+                if (!(boolean) LdapServer::InitRemoteConnection( testparm ) )
+                {
+                    map<string,any> err = LdapServer::ReadError();
+                    Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" Database on the Provider Server.\n") +
+                             _("Please verify that the Provider Server allows remote connections to the  \"cn=config\" Database\nand that you entered the correct password"),
+                             _("The following error messages were returned:") + "\n\n\"" +
+                             (string)err["msg"]:"" + "\"\n\"" +
+                             (string)err["details"]:"" + "\"" );
+                    continue;
+                }
+                if (!(boolean) LdapServer::VerifyTlsSetup( testparm["target"]:$[] ) )
+                {
+                    map<string,any> err = LdapServer::ReadError();
+                    Popup::ErrorDetails( _("Error while verifying the TLS/SSL configuration"),
+                                         (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
+                    if (Popup::YesNo( _("Do you want to import a different CA/Server Certificate?") ) )
+                    {
+                        WFM::CallFunction("common_cert", [] );
+                    }
+                    continue;
+                }
+                // Check if the syncrepl config of cn=config makes sense
+                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
+                if ( size(syncrepl) == 0 )
+                {
+                    if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
+                                               _("Click Continue to create it now.") ) )
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        ret = `cancel;
+                        break;
+                    }
+                }
+                else
+                {
+                    // 1. Verify that the provider uri points to the provider itself
+                    map<string, any> provider = syncrepl["provider"]:$[];
+                    boolean setupok=true;
+                    if ( size(provider) > 0 )
+                    {
+                        if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                        {
+                            y2error("Provider target names do not match: <%1> vs. <%2>",
+                                    (string)provider["target"]:"",(string)testparm["target","target"]:"");
+                            setupok=false;
+                        }
+                        if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
+                        {
+                            y2error("Provider protocols do not match: <%1> vs. <%2>",
+                                    (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
+                            setupok=false;
+                        }
+                        if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
+                        {
+                            y2error("Provider ports do not match: <%1> vs. <%2>",
+                                    (string)provider["port"]:"",(string)testparm["target","port"]:"");
+                            setupok=false;
+                        }
+                        if ( ! setupok )
+                        {
+                            Popup::Error( _("The Replication Configuration on the master server indicates that\nis already acting as a Repliation Consumer.\n") +
+                                          _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                            ret = `cancel;
+                            break;
+                        }
+                    }
+                    // 2. Verify that the binddn/credential combination acutally works
+                    map <string,any> bindtestparm = $[
+                                "target" : syncrepl["provider"]:$[],
+                                "starttls" : syncrepl["starttls"]:true,
+                                "basedn" : syncrepl["basedn"]:"",
+                                "binddn" : syncrepl["binddn"]:"",
+                                "credentials" : syncrepl["credentials"]:""
+                            ];
+                    if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, bindtestparm ) )
+                    {
+                        map<string,any> err = SCR::Error(.ldapserver);
+                        if ( Popup::ContinueCancel( _("Checking the Authentication credentials defined in the Replication Configuration on the Provider Server failed.\n") +
+                                                    _("The test returned the following error messages:")
+                                                    + "\n\n\"" +
+                                                    (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                                    + "\"\n\n" +
+                                                    _("Click Continue to correct that now.") ) )
+                        {
+                            syncrepl = SyncreplAccountConfig( syncrepl );
+                            if ( syncrepl["binddn"]:"" == "cn=config" )
+                            {
+                                syncrepl["credentials"] = testparm["credentials"]:"";
+                            }
+                            else // Get admin password if we don't have it already
+                            {
+                                map <string,any> db = LdapServer::ReadDatabase(1);
+                                string suffix = (string)db["suffix"]:"";
+                                string rootdn = (string)db["rootdn"]:"";
+                                if ( size( LdapServer::ReadAuthInfo(suffix) ) == 0 )
+                                {
+                                    map <string,string> authinfo_firstdb=$[];
+                                    map <string,any> client = $[
+                                            "bind_dn" : rootdn,
+                                            "ldap_server"  : syncrepl["provider","target"]:"",
+                                            "ldap_tls" : syncrepl["starttls"]:true
+                                        ];
+                                    VerifyAdminPasswordPopup( client, suffix );
+                                }
+                            }
+                        }
+                        else
+                        {
+                            ret = `cancel;
+                            break;
+                        }
+                    }
+                }
+                LdapServer::WriteSyncreplBaseConfig( syncrepl );
+                LdapServer::WriteAuthInfo( "cn=config", $[ "bind_dn" : "cn=config", "bind_pw" : testparm["credentials"]:"" ] );
+                break;
+            }
+            else // we were called during the Installation Proposal
+            {
+                map<string,any> syncrepl = $[
+                        "provider" : testparm["target"]:$[],
+                        "starttls" : testparm["starttls"]:true,
+                        "binddn"   : testparm["binddn"]:"cn=config",
+                        "credentials" : testparm["credentials"]:""
+                    ];
+                LdapServer::WriteSyncreplBaseConfig( syncrepl );
+            }
+        }
+        if ( ret == `cb_sync_prot )
+        {
+            string prot = (string) UI::QueryWidget( `cb_sync_prot, `Value );
+            integer port = (integer) UI::QueryWidget( `if_sync_port, `Value );
+            if ( prot == "ldaps" )
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, false );
+                if ( port == 389 )
+                {
+                    UI::ChangeWidget( `if_sync_port, `Value, 636 );
+                }
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, true );
+                if ( port == 636 )
+                {
+                    UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                }
+            }
+            continue;
+        }
+        break;
+    }
+    if ( ret != `next )
+    {
+        // reset remote connection
+        SCR::Execute(.ldapserver.reset);
+    }
+
+    return ret;
+}
+
+/**
+ * ReplicatonSummary dialog
+ * @return dialog result
+ */
+any ReplicatonSetupSummaryDialog() {
+
+    any ret = nil;
+
+    LdapServer::SetupRemoteForReplication();
+    ret = `next;
+    return ret;
+}
+
+any MasterSetupDialog()
+{
+    term widget =
+        `HSquash(
+            `VSquash(
+                `VBox(
+                    `Heading( _("Repliation Master setup") ),
+                    `VSpacing( 0.5 ),
+                    `Label( _("In order to act as a Master Server for Replication, the Configuration database needs\nto be remotely accessible. Please set a password for the Configuration database." ) +
+                            _("\n(Remote access to the Configuration database will be restricted to encrypted\nLDAP Connections)")
+                    ),
+                    `VSpacing( 0.5 ),
+                    `Password( `id( `te_rootpw ), `opt( `hstretch ), _("Enter new &Password") ),
+                    `VSpacing( 0.5 ),
+                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") )
+                )
+            )
+        );
+    Wizard::SetContentsButtons( caption,
+            widget,
+            HELPS["master_setup_dialog"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
+    any ret = nil;
+    while ( true )
+    {
+        ret = UI::UserInput();
+        if ( ret == `next )
+        {
+            string pw = (string)UI::QueryWidget( `te_rootpw, `Value );
+            string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
+            if ( size(pw) == 0 )
+            {
+                Popup::Error( _("Please enter a password") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+            }
+            else if ( pw != verifypw )
+            {
+                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                pw = "";
+                verifypw ="";
+            }
+            else
+            {
+                map <string, any> defaults = LdapServer::ReadInitialDefaults();
+                defaults["configpw"] = pw;
+                LdapServer::SetInitialDefaults(defaults);
+                break;
+            }
+        }
+        else
+        {
+            break;
         }
     }
     return ret;

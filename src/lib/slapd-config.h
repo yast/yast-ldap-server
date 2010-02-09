@@ -292,6 +292,19 @@ class OlcSyncRepl
         StartTls starttls;
 };
 
+class OlcSecurity
+{
+    public:
+        OlcSecurity(const std::string &securityVal="");
+        std::string toSecturityVal() const;
+
+        int getSsf(const std::string& key) const;
+        void setSsf(const std::string& key, int value);
+
+    private:
+        std::map<std::string, int> secMap;
+};
+
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
 typedef std::list<boost::shared_ptr<OlcSyncRepl> > OlcSyncReplList;
@@ -432,7 +445,12 @@ class OlcConfig {
 
     public:
         OlcConfig(LDAPConnection *lc=0 );
+
         bool hasConnection() const;
+        inline LDAPConnection* getLdapConnection()
+        {
+            return m_lc;
+        }
 
         boost::shared_ptr<OlcGlobalConfig> getGlobals();
         OlcDatabaseList getDatabases();

@@ -67,7 +67,7 @@ class SlapdConfigAgent : public SCRAgent {
         YCPBoolean WriteSchema( const YCPPath &path,
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
-        YCPString ConfigToLdif() const;
+        YCPString ConfigToLdif( bool resetCsn = false ) const;
         bool remoteBindCheck( const YCPValue &arg );
         bool remoteSyncCheck( const YCPValue &arg );
         void startTlsCheck( LDAPConnection &c);
@@ -79,6 +79,7 @@ class SlapdConfigAgent : public SCRAgent {
 
     private:
         YCPMap lastError;
+        LDAPConnection *m_lc;
         OlcConfig olc;
         OlcDatabaseList databases;
         OlcSchemaList schema;
