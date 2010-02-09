@@ -13,6 +13,7 @@
 #define BACK_CONFIG_TEST_H
 #include <LDAPConnection.h>
 #include <LDAPResult.h>
+#include <LDAPUrl.h>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -230,8 +231,71 @@ class OlcAccess
         OlcAclByList m_byList;
 };
 
+class OlcSyncRepl
+{
+    public:
+        enum StartTls {
+            StartTlsNo,
+            StartTlsYes,
+            StartTlsCritical
+        };
+
+        OlcSyncRepl( const std::string &syncreplLine="" );
+        const static std::string RID;
+        const static std::string PROVIDER;
+        const static std::string BASE;
+        const static std::string TYPE;
+        const static std::string BINDMETHOD;
+        const static std::string BINDDN;
+        const static std::string CREDENTIALS;
+        const static std::string INTERVAL;
+        const static std::string STARTTLS;
+        const static std::string RETRY;
+
+        std::string toSyncReplLine() const;
+
+        void setRid( int value );
+        void setProvider( const std::string &value );
+        void setProvider( const LDAPUrl &value );
+        void setType( const std::string &value );
+        void setSearchBase( const std::string &value );
+        void setBindDn( const std::string &value );
+        void setCredentials( const std::string &value );
+        void setInterval( int days, int hours, int mins, int secs );
+        void setStartTls( StartTls tls );
+        void setRetryString( const std::string &value );
+
+        int getRid() const;
+        LDAPUrl getProvider() const;
+        void getProviderComponents( std::string &proto, std::string &target, int &port) const;
+        std::string getType() const;
+        std::string getSearchBase() const;
+        std::string getBindDn() const;
+        std::string getCredentials() const;
+        void getInterval( int &days, int &hours, int &mins, int &secs ) const;
+        StartTls getStartTls() const;
+
+    private:
+        int rid;
+        LDAPUrl provider;
+        std::string type;
+        std::string searchbase;
+        std::string bindmethod;
+        std::string binddn;
+        std::string credentials;
+        std::string retryString;
+        int refreshOnlyDays;
+        int refreshOnlyHours;
+        int refreshOnlyMins;
+        int refreshOnlySecs;
+        std::vector<std::pair<std::string, std::string> > otherValues;
+        StartTls starttls;
+};
+
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
+typedef std::list<boost::shared_ptr<OlcSyncRepl> > OlcSyncReplList;
+
 class OlcDatabase : public OlcConfigEntry
 {
     public :
@@ -250,9 +314,12 @@ class OlcDatabase : public OlcConfigEntry
         const std::string getType() const;
 
         bool getAcl( OlcAccessList& accessList ) const;
-
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const OlcAccessList& acllist );
+
+        OlcSyncReplList getSyncRepl() const;
+        void setSyncRepl( const OlcSyncReplList& srl );
+        void addSyncRepl( const std::string& value, int index=-1 );
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;

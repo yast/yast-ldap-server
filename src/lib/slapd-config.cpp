@@ -12,6 +12,7 @@
 #include <LDAPResult.h>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <map>
 #include <vector>
@@ -832,6 +833,262 @@ std::string OlcAccess::toAclString() const
     return aclString.str();
 }
 
+const std::string OlcSyncRepl::RID="rid";
+const std::string OlcSyncRepl::PROVIDER="provider";
+const std::string OlcSyncRepl::BASE="searchbase";
+const std::string OlcSyncRepl::TYPE="type";
+const std::string OlcSyncRepl::BINDMETHOD="bindmethod";
+const std::string OlcSyncRepl::BINDDN="binddn";
+const std::string OlcSyncRepl::CREDENTIALS="credentials";
+const std::string OlcSyncRepl::INTERVAL="interval";
+const std::string OlcSyncRepl::STARTTLS="starttls";
+const std::string OlcSyncRepl::RETRY="retry";
+
+OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
+        rid(1), 
+        bindmethod("simple"),
+        starttls( OlcSyncRepl::StartTlsNo )
+{
+    log_it(SLAPD_LOG_DEBUG, "OlcSyncRepl::OlcSyncRepl(" + syncreplLine + ")");
+    if ( !syncreplLine.empty() )
+    {
+        std::string::size_type spos1=0, spos2=0;
+
+        // skip leading whitespaces
+        spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+        while ( spos2 != std::string::npos && spos2 >= spos1 )
+        {
+            spos1 = spos2;
+            spos2 = syncreplLine.find_first_of("=", spos1 );
+            std::string key = syncreplLine.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            spos1 = spos2 + 1;
+            spos2 = extractAlcToken(syncreplLine, spos1, true );
+            std::string value = syncreplLine.substr(spos1, spos2-spos1);
+            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            if ( spos2 != std::string::npos )
+            {
+                spos1 = spos2 + 1;
+                spos2 = syncreplLine.find_first_not_of("\t ", spos1 );
+            }
+            if ( key == RID )
+            {
+                std::istringstream s(value);
+                s >> rid;
+            }
+            else if ( key == PROVIDER )
+            {
+                this->setProvider(value); 
+            }
+            else if ( key == BASE )
+            {
+                this->setSearchBase(value);
+            }
+            else if ( key == TYPE )
+            {
+                this->setType(value);
+            }
+            else if ( key == BINDMETHOD )
+            {
+                if ( value != "simple" )
+                {
+                    log_it(SLAPD_LOG_ERR, "Bind method " + value + " is currenty unsupported" );
+                    throw std::runtime_error( "Bind method " + value + " is currenty unsupported" );
+                }
+            }
+            else if ( key == BINDDN )
+            {
+                this->setBindDn(value);
+            }
+            else if ( key == CREDENTIALS )
+            {
+                this->setCredentials(value);
+            }
+            else if ( key == INTERVAL )
+            {
+                istringstream intervalStr(value);
+
+                intervalStr.exceptions( std::ios::failbit | std::ios::badbit );
+                try 
+                {
+                    intervalStr >> refreshOnlyDays;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlyHours;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlyMins;
+                    intervalStr.get();
+                    intervalStr >> refreshOnlySecs;
+                } 
+                catch ( std::exception e)
+                {
+                    log_it(SLAPD_LOG_ERR, "Error parsing replication interval:\"" + value + "\"" );
+                    log_it(SLAPD_LOG_ERR, e.what()  );
+                    throw std::runtime_error( "Error parsing replication interval:\"" + value + "\"" );
+                }
+            }
+            else if ( key == STARTTLS )
+            {
+                if ( value == "critical" )
+                {
+                    this->setStartTls(OlcSyncRepl::StartTlsCritical);
+                }
+                else if ( value == "yes" )
+                {
+                    this->setStartTls(OlcSyncRepl::StartTlsYes);
+                }
+            }
+            else if ( key == RETRY )
+            {
+                this->setRetryString(value);
+            }
+            else
+            {
+                otherValues.push_back(make_pair(key, value));
+            }
+        }
+    }
+}
+
+std::string OlcSyncRepl::toSyncReplLine() const
+{
+    std::ostringstream srlStream;
+
+    srlStream << "rid=" << rid << " "
+              << "provider=\"" << provider.getURLString() << "\" "
+              << "searchbase=\"" << this->searchbase << "\" "
+              << "type=\"" << this->type << "\" "
+              << "retry=\"" << this->retryString << "\" ";
+
+    if ( this->type == "refreshOnly" )
+    {
+        srlStream << "interval=\"" << std::setw(2) << std::setfill('0') << refreshOnlyDays << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlyHours << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlyMins << ":"
+                                   << std::setw(2) << std::setfill('0') << refreshOnlySecs << "\" ";
+    }
+    if ( this->starttls == OlcSyncRepl::StartTlsYes )
+    {
+        srlStream << "starttls=yes ";
+    }
+    else if ( this->starttls == OlcSyncRepl::StartTlsCritical )
+    {
+        srlStream << "starttls=critical ";
+    }
+    srlStream << "bindmethod=\"" << this->bindmethod << "\" "
+              << "binddn=\"" << this->binddn << "\" "
+              << "credentials=\"" << this->credentials << "\"";
+
+    std::vector<std::pair<std::string,std::string> >::const_iterator i;
+    for ( i = otherValues.begin(); i != otherValues.end(); i++ )
+    {
+        srlStream << " " << i->first << "=\"" << i->second << "\"";
+    }
+
+    return srlStream.str();
+}
+
+void OlcSyncRepl::setRid( int value )
+{
+    rid = value;
+}
+
+void OlcSyncRepl::setProvider( const std::string &value )
+{
+    provider = LDAPUrl(value);
+}
+
+void OlcSyncRepl::setProvider( const LDAPUrl &value )
+{
+    provider = value;
+}
+
+void OlcSyncRepl::setType( const std::string &value )
+{
+    type = value;
+}
+
+void OlcSyncRepl::setSearchBase( const std::string &value )
+{
+    searchbase = value;
+}
+
+void OlcSyncRepl::setBindDn( const std::string &value )
+{
+    binddn = value;
+}
+
+void OlcSyncRepl::setCredentials( const std::string &value )
+{
+    credentials = value;
+}
+
+void OlcSyncRepl::setInterval( int days, int hours, int mins, int secs )
+{
+    refreshOnlyDays = days;
+    refreshOnlyHours = hours;
+    refreshOnlyMins = mins;
+    refreshOnlySecs = secs;
+}
+
+void OlcSyncRepl::setStartTls( OlcSyncRepl::StartTls value )
+{
+    starttls = value;
+}
+
+void OlcSyncRepl::setRetryString( const std::string &value )
+{
+    retryString = value;
+}
+
+int OlcSyncRepl::getRid() const
+{
+    return rid;
+}
+
+LDAPUrl OlcSyncRepl::getProvider() const
+{
+    return provider;
+}
+
+void OlcSyncRepl::getProviderComponents( std::string &proto, std::string &target, int &port) const
+{
+    proto = provider.getScheme();
+    target = provider.getHost();
+    port = provider.getPort();
+}
+
+std::string OlcSyncRepl::getType() const
+{
+    return type;
+}
+
+std::string OlcSyncRepl::getSearchBase() const
+{
+    return searchbase;
+}
+
+std::string OlcSyncRepl::getBindDn() const
+{
+    return binddn;
+}
+
+std::string OlcSyncRepl::getCredentials() const
+{
+    return credentials;
+}
+
+void OlcSyncRepl::getInterval( int &days, int &hours, int &mins, int &secs ) const
+{
+    days = refreshOnlyDays;
+    hours = refreshOnlyHours;
+    mins = refreshOnlyMins;
+    secs = refreshOnlySecs;
+}
+
+OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
+{
+    return starttls;
+}
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {
@@ -941,6 +1198,62 @@ void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
     {
         this->addAccessControl( (*i)->toAclString(), j );
         j++;
+    }
+}
+
+
+OlcSyncReplList OlcDatabase::getSyncRepl() const
+{
+    const LDAPAttribute* srAttr = m_dbEntryChanged.getAttributeByName("olcSyncrepl");
+    OlcSyncReplList res;
+
+    if (! srAttr )
+    {
+        return res;
+    }
+
+    StringList values = srAttr->getValues();
+    if ( values.size() != 1 )
+    {
+        log_it(SLAPD_LOG_ERR, "Multiple syncrepl statements");
+    }
+    else
+    {
+        std::string syncreplLine;
+        splitIndexFromString( *values.begin(), syncreplLine );
+        try {
+            boost::shared_ptr<OlcSyncRepl> syncrepl( new OlcSyncRepl(syncreplLine) );
+            res.push_back(syncrepl);
+        }
+        catch ( std::runtime_error e )
+        {
+            log_it(SLAPD_LOG_INFO, "Can't parse Syncrepl line");
+            log_it(SLAPD_LOG_INFO, e.what() );
+            throw;
+        }
+    }
+    return res;
+}
+
+void OlcDatabase::addSyncRepl(const std::string& value, int index )
+{
+    if ( index < 0 )
+    {
+        StringList sl = this->getStringValues( "olcSyncrepl" );
+        index = sl.size();
+    }
+    this->addIndexedStringValue( "olcSyncrepl", value, index );
+}
+
+void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
+{
+    this->setStringValue("olcSyncRepl", "" );
+
+    OlcSyncReplList::const_iterator i;
+    int j = 0;
+    for ( i = srl.begin(); i != srl.end(); i++,j++ )
+    {
+        this->addSyncRepl( (*i)->toSyncReplLine(), j );
     }
 }
 
