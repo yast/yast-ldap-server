@@ -61,14 +61,19 @@ static void y2LogCallback( int level, const std::string &msg,
     y2_logger(y2level, "libslapdconfig", file, line, function, "%s", msg.c_str());
 }
 
-SlapdConfigAgent::SlapdConfigAgent()
+SlapdConfigAgent::SlapdConfigAgent() : m_lc(0)
 {
     y2milestone("SlapdConfigAgent::SlapdConfigAgent");
     OlcConfig::setLogCallback(y2LogCallback);
 }
 
 SlapdConfigAgent::~SlapdConfigAgent()
-{}
+{
+    if ( m_lc)
+    {
+        delete(m_lc);
+    }
+}
 
 YCPValue SlapdConfigAgent::Read( const YCPPath &path,
                                  const YCPValue &arg,
@@ -108,7 +113,14 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
         }
         else if ( path->component_str(0) == "configAsLdif" )
         {
-            return ConfigToLdif();
+            if ( arg.isNull() || !arg->asMap()->size())
+            {
+                return ConfigToLdif();
+            }
+            else
+            {
+                return ConfigToLdif(true);
+            }
         }
     } catch ( std::runtime_error e ) {
         y2error("Error during Read: %s", e.what() );
@@ -177,10 +189,33 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     {
         if ( ! olc.hasConnection() )
         {
-            LDAPConnection *lc = new LDAPConnection("ldapi:///");
+            std::string uri = "ldapi:///";
+            YCPMap argMap;
+            if (! arg.isNull() )
+            {
+                argMap = arg->asMap();
+                YCPMap targetMap(argMap->value(YCPString("target"))->asMap());
+                LDAPUrl target;
+                target.setScheme( targetMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                target.setHost( targetMap->value(YCPString("target"))->asString()->value_cstr() );
+                target.setPort( targetMap->value(YCPString("port"))->asInteger()->value() );
+                uri = target.getURLString();
+            }
+            m_lc = new LDAPConnection(uri);
             try {
-                SaslExternalHandler sih;
-                lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+                if( arg.isNull() )
+                {
+                    SaslExternalHandler sih;
+                    m_lc->saslInteractiveBind("external", 2 /* LDAP_SASL_QUIET */, (SaslInteractionHandler*)&sih);
+                }
+                else
+                {
+                    if ( argMap->value(YCPString("starttls"))->asBoolean()->value() )
+                    {
+                        m_lc->start_tls();
+                    }
+                    m_lc->bind("cn=config", std::string( argMap->value(YCPString("configcred"))->asString()->value_cstr() ));
+                }
             }
             catch ( LDAPException e)
             {
@@ -191,11 +226,28 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                         YCPString(errstring) );
                 lastError->add(YCPString("description"), YCPString( details ) );
                 y2milestone("Error connection to the LDAP Server: %s", details.c_str());
-                delete(lc);
+                delete(m_lc);
+                m_lc=0;
                 return YCPBoolean(false);
             }
-            olc = OlcConfig(lc);
+            olc = OlcConfig(m_lc);
         }
+        databases.clear();
+        schema.clear();
+        deleteableSchema.clear();
+        globals.reset((OlcGlobalConfig*) 0 );
+    }
+    else if ( path->component_str(0) == "reset" )
+    {
+        y2milestone("Reseting Agent");
+        if (olc.hasConnection())
+        {
+           // olc.getLdapConnection()->unbind();
+        }
+        olc = OlcConfig();
+        if ( m_lc)
+            delete m_lc;
+        m_lc=0;
         databases.clear();
         schema.clear();
         deleteableSchema.clear();
@@ -487,6 +539,17 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
             ymap.add(YCPString("crlFile"), YCPString( tls.getCrlFile() ) );
             return ymap;
         }
+        if ( path->component_str(0) == "serverIds" )
+        {
+            YCPList resList;
+            StringList serverIds = globals->getStringValues("olcserverid");
+            for ( StringList::const_iterator i =  serverIds.begin(); 
+                  i != serverIds.end(); i++ )
+            {
+                resList.add(YCPString(*i));
+            }
+            return resList;
+        }
     }
     return YCPNull();
 }
@@ -510,7 +573,14 @@ YCPValue SlapdConfigAgent::ReadDatabases( const YCPPath &path,
         {
             continue;
         }
-        ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
+        if ( (*i)->getSuffix().empty() && (*i)->getType() == "config" )
+        {
+            ymap.add( YCPString("suffix"), YCPString("cn=config") );
+        }
+        else
+        {
+            ymap.add( YCPString("suffix"), YCPString((*i)->getSuffix()) );
+        }
         ymap.add( YCPString("type"), YCPString((*i)->getType()) );
         ymap.add( YCPString("index"), YCPInteger((*i)->getEntryIndex()) );
         dbList.add(ymap);
@@ -543,6 +613,10 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
     }
 
     y2milestone("Database to read: %d", dbIndex);
+    if ( databases.size() == 0 )
+    {
+        databases = olc.getDatabases();
+    }
     OlcDatabaseList::const_iterator i;
     for ( i = databases.begin(); i != databases.end() ; i++ )
     {
@@ -554,9 +628,24 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 std::string dbtype = (*i)->getType();
                 std::string suffix = (*i)->getStringValue("olcSuffix");
                 y2milestone("suffix %s, dbtype %s\n", suffix.c_str(), dbtype.c_str() );
-                if ( suffix.empty() && dbtype == "config" )
+                if ( dbtype == "config" )
                 {
-                    suffix = "cn=config";
+                    // expose the security setting to cn=config only for now
+                    std::string secVal = (*i)->getStringValue("olcSecurity");
+                    OlcSecurity sec(secVal);
+                    if ( (sec.getSsf("ssf") >= 71) && (sec.getSsf("simple_bind") >= 128) )
+                    {
+                        resMap.add( YCPString("secure_only"), YCPBoolean(true) );
+                    }
+                    else
+                    {
+                        resMap.add( YCPString("secure_only"), YCPBoolean(false) );
+                    }
+
+                    if ( suffix.empty() )
+                    {
+                        suffix = "cn=config";
+                    }
                 }
                 resMap.add( YCPString("suffix"), YCPString(suffix) );
                 resMap.add( YCPString( "type" ),
@@ -1093,6 +1182,18 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
             globals->setTlsSettings(tls);
             return YCPBoolean(true);
         }
+        if ( path->component_str(0) == "serverIds" )
+        {
+            YCPList ycpServerIds = arg->asList();
+            StringList values;
+            YCPList::const_iterator i;
+            for ( i = ycpServerIds.begin(); i != ycpServerIds.end(); i++ )
+            {
+                values.add( (*i)->asString()->value_cstr() );
+            }
+            globals->setStringValues("olcServerId", values);
+        }
+
     }
     return YCPBoolean(false);
 }
@@ -1285,6 +1386,35 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                     if ( ! val.isNull() && val->isString() )
                     {
                         (*i)->setStringValue( "olcRootPw", val->asString()->value_cstr() );
+                    }
+                    val = dbMap.value( YCPString("secure_only") );
+                    if ( ! val.isNull() && val->isBoolean() )
+                    {
+                        y2milestone("olcSecurity");
+                        std::string secVal = (*i)->getStringValue("olcSecurity");
+
+                        OlcSecurity sec(secVal);
+                        if ( val->asBoolean()->value() )
+                        {
+                            if ( sec.getSsf("ssf") < 71 )
+                            {
+                                sec.setSsf("ssf", 71);
+                            }
+                            if ( sec.getSsf("simple_bind") < 128 )
+                            {
+                                sec.setSsf("simple_bind", 128);
+                            }
+                        }
+                        else
+                        {
+                            sec.setSsf("ssf", 0);
+                            sec.setSsf("simple_bind", 0);
+                        }
+                        std::string newVal(sec.toSecturityVal());
+                        if ( !secVal.empty() || !newVal.empty() )
+                        {
+                            (*i)->setStringValue("olcSecurity", newVal );
+                        }
                     }
                     if ( (*i)->getType() == "bdb" || (*i)->getType() == "hdb" )
                     {
@@ -1611,11 +1741,14 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             else
                             {
                                 YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
-                                LDAPUrl updaterefUrl;
-                                updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                                updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
-                                updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
-                                (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                if ( updaterefMap.size() > 0 )
+                                {
+                                    LDAPUrl updaterefUrl;
+                                    updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                    updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                    updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                    (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                }
                             }
                         }
                         else
@@ -1878,25 +2011,49 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
     return YCPBoolean(false);
 }
 
-YCPString SlapdConfigAgent::ConfigToLdif() const
+YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
 {
     y2milestone("ConfigToLdif");
     std::ostringstream ldif;
-    if ( ! globals || ! schemaBase )
+    if ( ! globals )
     {
         throw std::runtime_error("Configuration not initialized. Can't create LDIF dump." );
     }
-    ldif << globals->toLdif() << std::endl;
-    ldif << schemaBase->toLdif() << std::endl;
-    OlcSchemaList::const_iterator j;
-    for ( j = schema.begin(); j != schema.end() ; j++ )
+    if ( resetCsn )
     {
-        ldif << (*j)->toLdif() << std::endl;
+        globals->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        // schemaBase entryCSN won't be resetted as it cause trouble during replication
+        // of hardcoded schema values
+    }
+    ldif << globals->toLdif() << std::endl;
+    if ( schemaBase )
+    {
+        if ( resetCsn )
+            schemaBase->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+
+        ldif << schemaBase->toLdif() << std::endl;
+        OlcSchemaList::const_iterator j;
+        for ( j = schema.begin(); j != schema.end() ; j++ )
+        {
+            if ( resetCsn )
+                (*j)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+
+            ldif << (*j)->toLdif() << std::endl;
+        }
     }
     OlcDatabaseList::const_iterator i = databases.begin();
     for ( ; i != databases.end(); i++ )
     {
+        if ( resetCsn )
+            (*i)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
+        
         ldif << (*i)->toLdif() << std::endl;
+        OlcOverlayList overlays = (*i)->getOverlays();
+        OlcOverlayList::iterator k;
+        for ( k = overlays.begin(); k != overlays.end(); k++ )
+        {
+            ldif << (*k)->toLdif() << std::endl;
+        }
     }
     return YCPString(ldif.str());
 }

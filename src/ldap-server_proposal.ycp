@@ -26,6 +26,9 @@ import "Users";
 import "Package";
 import "String";
 import "SuSEFirewall";
+import "Wizard";
+
+include "ldap-server/dialogs.ycp";
 
 /* The main () */
 y2milestone("----------------------------------------");
@@ -70,7 +73,7 @@ if(func == "MakeProposal") {
             {
                 LdapServer::WriteServiceEnabled( true );
             }
-            defaults = LdapServer::CreateInitialDefaults();
+            defaults = LdapServer::ReadInitialDefaults();
             defaults["serviceEnabled"] = LdapServer::ReadServiceEnabled();
             defaults["rootpw_clear"] = Users::GetRootPassword();
             LdapServer::SetInitialDefaults(defaults);
@@ -83,7 +86,7 @@ if(func == "MakeProposal") {
     if( LdapServer::ReadServiceEnabled() )
     {
         string rootPWString = "";
-        defaults = LdapServer::CreateInitialDefaults();
+        defaults = LdapServer::ReadInitialDefaults();
         if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
         {
             rootPWString = _("[root password]");
@@ -210,9 +213,25 @@ without installing the required packages."));
 
             return ret;
         }
+        if ( LdapServer::ReadSetupSlave() )
+        {
+            Wizard::CreateDialog();
+            Wizard::SetDesktopIcon("ldap-server");
+            symbol slave_ret = (symbol) SlaveSetupDialog();
+            Wizard::CloseDialog();
+            if ( slave_ret == `next )
+            {
+                LdapServer::SetupRemoteForReplication(); 
+            }
+            else
+            {
+                Report::Error( _("OpenLDAP Replication Setup failed. Please reconfigure after the installation finished.") );
+                return ret;
+            }
+        }
 
         LdapServer::ReadFromDefaults();
-        map <string,any> defaults = LdapServer::CreateInitialDefaults();
+        map <string,any> defaults = LdapServer::ReadInitialDefaults();
         Progress::set(false);
         Ldap::Read();
         Progress::set(true);

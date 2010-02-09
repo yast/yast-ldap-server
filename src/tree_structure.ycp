@@ -556,6 +556,28 @@ define boolean cb_input_databases()
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
+            map <string,any> syncrepl = LdapDatabase::GetSyncRepl();
+            if ( size(syncrepl) > 0 )
+            {
+                list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
+                integer dbindex=0;
+                foreach( map<string,string> db, dblist, {
+                    if (db["suffix"]:"" == newDb["suffix"]:"" )
+                    {
+                        dbindex=tointeger(db["index"]:"0");
+                        break;
+                    }
+                });
+                if (dbindex > 0)
+                {
+                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl ) )
+                    {
+                        map<string, string> err = LdapServer::ReadError();
+                        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+                        return false;
+                    }
+                }
+            }
             map <string,any> ppolicy = LdapDatabase::GetPpolicy();
             if ( size(ppolicy) > 0 )
             {
@@ -715,6 +737,151 @@ define boolean cb_input_db()
         else
         {
             y2milestone("password change cancelled");
+        }
+    }
+
+    return true;
+}
+
+define boolean cb_write_confdb()
+{
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    y2milestone( "calling confdb write handler for '%1'", current_tree_item );
+
+    if( index == nil )
+    {
+                    /* Error Popup */
+        callback_error = _("Unable to write settings for the current database.");
+        y2error( "'name' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
+
+    map<string,any> db = $[];
+    map<string,any> olddb = LdapServer::ReadDatabase(index);
+    db["secure_only"] = (boolean)UI::QueryWidget( `cb_conf_ldapsimplebind, `Value );
+    if ( db["secure_only"]:false )
+    {
+        if ( olddb["rootpw"]:"" == "" )
+        {
+            string pw = (string)UI::QueryWidget( `te_rootpw, `Value );
+            string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
+            string hashAlgo = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
+            if ( size(pw) == 0 )
+            {
+                Popup::Error( _("Please enter a password") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                return false;
+            }
+            else if ( pw != verifypw )
+            {
+                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                UI::ChangeWidget( `te_rootpw, `Value, "" );
+                UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
+                pw = "";
+                verifypw ="";
+                return false;
+            }
+            if ( pw != "" )
+            {
+                y2milestone("set password");
+                string newhash = LdapServer::HashPassword(hashAlgo, pw);
+                y2milestone("new hash: %1", newhash );
+                db["rootpw"] = newhash;
+            }
+        }
+    }
+    else
+    {
+        db["rootpw"] = "";
+    }
+
+    boolean res = LdapServer::UpdateDatabase( index, db);
+    return true;
+}
+
+define boolean cb_read_confdb()
+{
+    y2milestone("cb_read_db current item: %1", current_tree_item);
+    integer index = (integer) widget_map[current_tree_item, "index"]:nil;
+
+    if ( index == nil )
+    {
+        callback_error = _("Unable to read settings for the current database.");
+        y2error( "'index' entry for item '%1' is nil", current_tree_item );
+        return false;
+    }
+    map<string, any> db = LdapServer::ReadDatabase( index );
+    UI::ChangeWidget( `cb_conf_ldapsimplebind, `Value, (boolean)db["secure_only"]:false );
+    if ( (boolean) db["secure_only"]:false )
+    {
+        if ( db["rootpw"]:"" == "" )
+        {
+            UI::ReplaceWidget(`rp_confpw,
+                `VBox(
+                    `Password( `id( `te_rootpw ), _("New Administrator &Password") ),
+                    `HSpacing( 0.5 ),
+                    `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                    `HSpacing( 0.5 ),
+                    `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types )
+                )
+            );
+        }
+    }
+    else
+    {
+        UI::ChangeWidget( `rp_confpw, `Enabled, false );
+    }
+    return true;
+}
+
+define boolean cb_input_confdb()
+{
+    string treeItem = current_tree_item;
+    y2milestone( "calling db input handler for item '%1'", treeItem );
+    integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    if ( handler_cmd == `pb_changepw ) {
+        map<string,string> newpw = ChangeAdminPassword();
+        if ( newpw != nil )
+        {
+            y2milestone("set password");
+            string newhash = LdapServer::HashPassword(newpw["hashAlgo"]:"", newpw["password"]:"");
+            y2milestone("new hash: %1", newhash );
+            LdapServer::UpdateDatabase( index, $[ "rootpw" : newhash] );
+        }
+        else
+        {
+            y2milestone("password change cancelled");
+        }
+    }
+    else if ( handler_cmd == `cb_conf_ldapsimplebind )
+    {
+        map<string, any> db = LdapServer::ReadDatabase( index );
+        if ( (boolean) UI::QueryWidget(`cb_conf_ldapsimplebind, `Value) )
+        {
+            if ( db["rootpw"]:"" == "" )
+            {
+                UI::ReplaceWidget(`rp_confpw,
+                    `VBox(
+                        `Password( `id( `te_rootpw ), _("New Administrator &Password") ),
+                        `HSpacing( 0.5 ),
+                        `Password( `id( `te_valid_rootpw ), _("&Validate Password") ),
+                        `HSpacing( 0.5 ),
+                        `ComboBox( `id( `cb_cryptmethod ), _("Password &Encryption"), enc_types )
+                    )
+                );
+            }
+            else
+            {
+                UI::ReplaceWidget(`rp_confpw,
+                    `PushButton( `id( `pb_changepw ), _("Change Administration Password") )
+                );
+            }
+            UI::ChangeWidget( `rp_confpw, `Enabled, true );
+        }
+        else
+        {
+            UI::ChangeWidget( `rp_confpw, `Enabled, false );
         }
     }
 
@@ -886,7 +1053,7 @@ define boolean cb_read_synccons()
     }
     else
     {
-        return LdapDatabase::DbSyncConsRead( handler_cmd, index, sr );
+        return LdapDatabase::DbSyncConsRead( index, sr );
     }
 }
 
@@ -1114,10 +1281,13 @@ void addDatabaseWidgetMap( string type, string label, string item_name, integer 
         "name"      : label,
         "children"  : [ item_name + "_acl", item_name + "_syncprov", item_name + "_synccons" ],
         "index"     : index,
-        "widget"    : editGenericDatabase,
+        "widget"    : editConfigDatabase,
         "new_db"    : new_db,
         "dynamic"   : true,
-        "help_page" : "database_detail_unsupported",
+        "help_page" : "database_detail_config",
+        "cb_read"   : ``( cb_read_confdb() ),
+        "cb_write"  : ``( cb_write_confdb() ),
+        "cb_input"  : ``( cb_input_confdb() )
     ];
     y2milestone( "adding database item '%1' as '%2'", label, item_name );
 

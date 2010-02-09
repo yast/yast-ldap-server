@@ -1,6 +1,6 @@
 # Makefile.am for ldap-server/src
 
-SUBDIRS = YaPI config lib agent
+SUBDIRS = YaPI config lib agent tools
 
 yncludedir = @yncludedir@/ldap-server
 

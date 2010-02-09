@@ -33,6 +33,7 @@ YaST::YCP::Import ("Service");
 YaST::YCP::Import ("SCR");
 
 my %error = ( msg => undef, details => undef );
+my $ssl_check_command = "/usr/lib/YaST2/bin/ldap-server-ssl-check";
 my $usingDefaults = 1;
 my $readConfig = 0;
 my $restartRequired = 0;
@@ -40,6 +41,9 @@ my $configured = 0;
 my $usesBackConfig = 0;
 my $slapdConfChanged = 0;
 my $overwriteConfig = 0;
+my $setupSyncreplSlave = 0;
+my $setupSyncreplMaster = 0;
+my $modeInstProposal = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
 my $registerSlp = 0;
@@ -185,9 +189,12 @@ my @added_databases = ();
 # can be used to bind against the databases
 my $auth_info = {};
 
-# contains a hash, key by database suffixed that contains
+# contains a hash, keyed by database suffixed that contains
 # hashes of the password policy DNs and and objects
 my $ppolicy_objects = {};
+
+my $syncreplaccount = {};
+my $syncreplbaseconfig = {};
 
 ##
  # Read all ldap-server settings
@@ -291,6 +298,20 @@ sub Read {
         
     Progress->Finish();
     return 1;
+}
+
+BEGIN { $TYPEINFO {WriteModeInstProposal} = ["function",  "boolean", "boolean"]; }
+sub WriteModeInstProposal
+{
+    my ( $self, $value ) = @_;
+    $modeInstProposal=$value;
+    return 1;
+}
+
+BEGIN { $TYPEINFO {ReadModeInstProposal} = ["function",  "boolean" ]; }
+sub ReadModeInstProposal
+{
+    return $modeInstProposal;
 }
 
 ##
@@ -405,6 +426,99 @@ sub CreateBaseObjects()
         else
         {
             y2milestone("Authentication information for database $db unavailable");
+        }
+    }
+    return 1;
+}
+
+BEGIN { $TYPEINFO{WriteSyncReplAccount} = ["function", "boolean", ["map", "string", "string"] ]; }
+sub WriteSyncReplAccount()
+{
+    my ( $self, $account ) = @_;
+    y2milestone("WriteSyncReplAccount()");
+    $syncreplaccount->{'syncdn'} = $account->{'dn'};
+    $syncreplaccount->{'syncpw'} = $account->{'pw'};
+    $syncreplaccount->{'syncpw_hash'} = $self->HashPassword("SSHA", $account->{'pw'} );
+    $syncreplaccount->{'basedn'} = $account->{'dbsuffix'};
+
+    return 1;
+}
+
+sub CreateSyncReplAccount()
+{
+    my $self = shift;
+    y2milestone("CreateSyncReplAccount()");
+    if (defined $syncreplaccount->{'syncdn'} && defined $syncreplaccount->{'syncpw'} &&
+        defined $syncreplaccount->{'basedn'} && defined $syncreplaccount->{'syncpw_hash'})
+    {
+        my $db_auth = $self->ReadAuthInfo(  $syncreplaccount->{'basedn'} );
+        if ( keys( %$db_auth ) )
+        {
+            my $object = X500::DN->ParseRFC2253( $syncreplaccount->{'syncdn'} );
+            my $suffixDn = X500::DN->ParseRFC2253( $syncreplaccount->{'basedn'} );
+            if(! defined $object) {
+                y2error("Error while parsing dn");
+                return 0;
+            }
+            if ( $object->getRDNs() > ( $suffixDn->getRDNs()+2 ) )
+            {
+                y2error("Error while parsing dn");
+                return 0;
+            }
+            my @attr = $object->getRDN($object->getRDNs()-2)->getAttributeTypes();
+            my $val = $object->getRDN($object->getRDNs()-2)->getAttributeValue($attr[0]);
+            my $parententry = {};
+            if( lc($attr[0]) eq "ou") {
+                $parententry = {
+                      "objectClass" => [ "organizationalUnit" ],
+                      "ou" => $val,
+                }
+            }
+            else
+            {
+                y2error("Cannot create ".$attr[0]." object");
+                return 0;
+            }
+            my $parentdn = $attr[0]."=".$val.",".$syncreplaccount->{'basedn'};
+            my $syncaccountentry = {
+                    "objectclass" => [ "account", "simpleSecurityObject" ],
+                    "uid" => "syncrepl",
+                    "userPassword" => $syncreplaccount->{'syncpw_hash'},
+                    "pwdPolicySubentry" => "" # To make sure that no password policies are applied 
+                                              # to this entry!
+                    };
+            my $ldapERR=undef;
+
+            if (! SCR->Execute(".ldap.bind", {"bind_dn" => $db_auth->{'bind_dn'},
+                                              "bind_pw" => $db_auth->{'bind_pw'}}) ) {
+                $ldapERR = SCR->Read(".ldap.error");
+                y2error( "LDAP bind failed" );
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                return 0;
+            }
+            if (! SCR->Write(".ldap.add", { dn => $parentdn } , $parententry)) {
+                my $ldapERR = SCR->Read(".ldap.error");
+                y2error("Can not add base entry.");
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                if ( $ldapERR->{'code'} != 68 ) # already exists
+                {
+                    return 0;
+                }
+            }
+            if (! SCR->Write(".ldap.add", { dn => $syncreplaccount->{'syncdn'} } , $syncaccountentry)) {
+                my $ldapERR = SCR->Read(".ldap.error");
+                y2error("Can not add syncaccount entry.");
+                y2error( $ldapERR->{'code'}." : ".$ldapERR->{'msg'});
+                if ( $ldapERR->{'code'} != 68 ) # already exists */
+                {
+                    return 0;
+                }
+            }
+            y2milestone("sync entries added");
+        }
+        else
+        {
+            y2milestone("Authentication information for database ".$syncreplaccount->{'basendn'} ." unavailable");
         }
     }
     return 1;
@@ -597,7 +711,12 @@ sub Write {
             my $tmpfile = $rc->{'stdout'};
             chomp $tmpfile;
             y2milestone("using tempfile: ".$tmpfile );
-            my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+            my $overrideCsn = {};
+            if ( $setupSyncreplSlave )
+            {
+                $overrideCsn = { resetCsn => 0 };
+            }
+            my $ldif = SCR->Read('.ldapserver.configAsLdif', $overrideCsn );
             y2debug($ldif);
             if ( ! $ldif )
             {
@@ -657,6 +776,10 @@ sub Write {
         }
         Progress->NextStage();
         $self->CreateBaseObjects();
+        if ( $setupSyncreplMaster )
+        {
+            $self->CreateSyncReplAccount();
+        }
         if ( $write_ldapconf )
         {
             y2milestone("Updating /etc/openldap/ldap.conf");
@@ -867,7 +990,7 @@ BEGIN { $TYPEINFO{Import} = ["function", "boolean", [ "map", "any", "any" ] ]; }
 sub Import {
     my $self = shift;
     my $hash = shift;
-    y2milestone("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
+    y2debug("LdapServer::Import() : ". Data::Dumper->Dump([$hash]));
 
     if ( (! keys( %$hash ))  || (! defined $hash->{'daemon'}) || 
          (! defined $hash->{'globals'}) || (! defined $hash->{'databases'}) )
@@ -976,7 +1099,7 @@ sub Import {
     $defaultDbAcls = $defAclBak;
 
     my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-    y2milestone($ldif);
+    y2debug($ldif);
     return 1;
 }
 
@@ -1059,7 +1182,7 @@ sub Export {
     }
     $hash->{'databases'} = \@dbs;
 
-    y2milestone("LdapServer::Export() ". Data::Dumper->Dump([$hash]));
+    y2debug("LdapServer::Export() ". Data::Dumper->Dump([$hash]));
     return $hash;
 }
 
@@ -1409,10 +1532,17 @@ sub MigrateSlapdConf
     return 1;
 }
 
-BEGIN { $TYPEINFO {CreateInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
-sub CreateInitialDefaults
+##
+ # Read the settings used for creating the initial server setup. If those
+ # settings do not exist currently. A call to this function will create a
+ # proposal with useful default (by calling LdapServer::InitDbDefaults() )
+ # 
+ # @return A Map containing the setting to use when creating the initial setup
+ #
+BEGIN { $TYPEINFO {ReadInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub ReadInitialDefaults
 {
-    y2milestone("CreateInitialDefaults");
+    y2milestone("ReadInitialDefaults");
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
@@ -1583,6 +1713,66 @@ sub ReadFromDefaults
             $self->ChangeDatabaseIndex(1, $idx );
         }
     }
+
+    if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
+    {
+        my $confPwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'configpw'} );
+        my $changes = { "secure_only" => 1, "rootpw" => $confPwHash };
+        $self->UpdateDatabase(0 ,$changes);
+        if ( $self->ReadSetupMaster() )
+        {
+            my $syncprov = { 'enabled' => 1, 
+                             'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
+                                               'min' => YaST::YCP::Integer(10) }
+                            };
+
+            SCR->Write( ".ldapserver.database.{0}.syncprov", $syncprov );
+            SCR->Write( ".ldapserver.database.{1}.syncprov", $syncprov );
+
+            my $syncpw = GenerateRandPassword();
+            my $syncdn = "uid=syncrepl,ou=system,".$dbDefaults{'suffix'};
+            my $rc = SCR->Execute( '.target.bash_output', "/bin/hostname -f" );
+            my $fqdn = $rc->{"stdout"};
+            chomp($fqdn);
+            my $syncrepl = {
+                    "provider" => {
+                            "protocol"  => "ldap",
+                            "target"    => $fqdn,
+                            "port"      => YaST::YCP::Integer(389)
+                        },
+                    "type" => "refreshAndPersist",
+                    "binddn" => $syncdn,
+                    "credentials" => $syncpw,
+                    "basedn" => "cn=config",
+                    "starttls" => YaST::YCP::Boolean(1),
+                    "updateref" => {}
+                };
+            SCR->Write(".ldapserver.database.{0}.syncrepl", $syncrepl );
+            $syncrepl->{'basedn'} = $dbDefaults{'suffix'};
+            SCR->Write(".ldapserver.database.{1}.syncrepl", $syncrepl );
+            $syncreplaccount->{'syncdn'} = $syncdn;
+            $syncreplaccount->{'syncpw'} = $syncpw;
+            $syncreplaccount->{'syncpw_hash'} = $self->HashPassword($dbDefaults{'pwenctype'}, $syncpw );
+            $syncreplaccount->{'basedn'} = $dbDefaults{'suffix'};
+            my @syncacl = ({
+                    'target' => {},
+                    'access' => [
+                            { 'type' => "dn.base",
+                              'value' => $syncdn,
+                              'level' => "read",
+                              'control' => "" },
+                            { 'type' => "*",
+                              'value' => "",
+                              'level' => "",
+                              'control' => "break" }
+                        ]
+                });
+            $rc = SCR->Write(".ldapserver.database.{0}.acl", \@syncacl );
+            push @syncacl, @$defaultDbAcls;
+            $defaultDbAcls = \@syncacl;
+        }
+    }
+    
     # add default ACLs
     $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
     $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
@@ -1626,6 +1816,10 @@ sub ReadDatabase
     my ($self, $index) = @_;
     y2milestone("ReadDatabase ".$index);
     my $rc = SCR->Read(".ldapserver.database.{".$index."}" );
+    if ( defined $rc->{'secure_only'} )
+    {
+        $rc->{'secure_only'} = YaST::YCP::Boolean($rc->{'secure_only'}); 
+    }
     y2debug( "Database: ".Data::Dumper->Dump([$rc]) );
     return $rc;
 }
@@ -1827,7 +2021,7 @@ sub ReadSyncProv
     my ($self, $index) = @_;
     y2milestone("ReadSyncProv ", $index);
     my $syncprov = SCR->Read(".ldapserver.database.{".$index."}.syncprov" );
-    y2milestone( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
+    y2debug( "Syncprov: ".Data::Dumper->Dump([$syncprov]) );
     if (defined $syncprov->{'checkpoint'} )
     {
         $syncprov->{'checkpoint'} = {
@@ -1847,7 +2041,7 @@ sub WriteSyncProv
 {
     my ( $self, $dbindex, $syncprov) = @_;
     y2milestone("WriteSyncProv");
-    y2milestone("SyncProv: ".Data::Dumper->Dump([$syncprov]) );
+    y2debug("SyncProv: ".Data::Dumper->Dump([$syncprov]) );
     if (defined $syncprov->{'checkpoint'} )
     {
         $syncprov->{'checkpoint'} = {
@@ -1874,7 +2068,7 @@ sub ReadSyncRepl
     my ($self, $index) = @_;
     y2milestone("ReadSyncRepl ", $index);
     my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
-    y2milestone( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    y2debug( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! $syncrepl )
     {
         my $err = SCR->Error(".ldapserver");
@@ -1941,7 +2135,7 @@ sub WriteSyncRepl
     {
         $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
     }
-    y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    y2debug("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
     if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )
     {
         my $err = SCR->Error(".ldapserver");
@@ -2239,6 +2433,11 @@ sub UpdateDatabase
         $changes->{'checkpoint'}->[0] = YaST::YCP::Integer( $changes->{'checkpoint'}->[0] );
         $changes->{'checkpoint'}->[1] = YaST::YCP::Integer( $changes->{'checkpoint'}->[1] );
     }
+    if ( defined $changes->{'secure_only'} )
+    {
+        $changes->{'secure_only'} = YaST::YCP::Boolean( $changes->{'secure_only'} );
+    }
+    y2debug( Data::Dumper->Dump([$changes]) );
 
     my $rc = SCR->Write(".ldapserver.database.{".$index."}", $changes);
     return $rc;
@@ -2285,6 +2484,26 @@ sub HashPassword
         $hashed = $cleartext;
     }
     return $hashed;
+}
+
+##
+ # Generates a random password 
+ #
+ # @return A random password string
+ #
+BEGIN { $TYPEINFO {GenerateRandPassword} = ["function", "string" ] ; }
+sub GenerateRandPassword
+{
+    my $length=12;
+    my @chars=('a'..'z','A'..'Z','0'..'9','_');
+    my $randpw;
+    foreach (1..$length) 
+    {
+            # rand @chars will generate a random 
+            # number between 0 and scalar @chars
+            $randpw .= $chars[rand @chars];
+    }
+    return $randpw;
 }
 
 BEGIN { $TYPEINFO {HaveCommonServerCertificate} = ["function", "boolean" ]; }
@@ -2406,7 +2625,7 @@ sub WritePpolicyDefault
 {
     my ( $self, $suffix, $dn, $ppolicy ) = @_;
     y2milestone("WritePpolicyDefault $suffix $dn");
-    y2milestone("WritePpolicyDefault ". Data::Dumper->Dump([$ppolicy]) );
+    y2debug("WritePpolicyDefault ". Data::Dumper->Dump([$ppolicy]) );
     if ( ! defined $ppolicy->{'objectClass'} )
     {
         $ppolicy->{'objectClass'} = [ "namedObject", "pwdPolicy" ];
@@ -2431,5 +2650,354 @@ sub ReadPpolicyDefault
     y2milestone("ReadPpolicyDefault ". Data::Dumper->Dump([$ppolicy_objects->{$suffix}]) );
     return $ppolicy_objects->{$suffix}
 }
+
+BEGIN { $TYPEINFO {SetupRemoteForReplication} = ["function",  "boolean" ]; }
+sub SetupRemoteForReplication
+{
+    my ( $self ) = @_;
+
+    my $dbs = $self->ReadDatabaseList();
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $db = SCR->Read(".ldapserver.database.{".$i."}" );
+            my $prv = SCR->Read(".ldapserver.database.{".$i."}.syncprov" );
+            y2debug("Database $i ". Data::Dumper->Dump([ $prv ]) );
+            if ( keys %{$prv} == 0 )
+            {
+                y2milestone("Database $i needs syncprov overlay");
+                y2milestone("Enabling syncrepl provider overlay on database $i");
+                my $syncprov = { 'enabled' => 1, 
+                                 'checkpoint' => { 'ops' => YaST::YCP::Integer(100),
+                                                  'min' => YaST::YCP::Integer(5)
+                                                }
+                                };
+                SCR->Write(".ldapserver.database.{".$i."}.syncprov", $syncprov);
+            }
+        }
+    }
+
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $cons = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
+            my $needsyncrepl = 0;
+            if ( keys %{$cons} == 0 )
+            {
+                y2milestone("Database $i needs syncrepl config");
+                $needsyncrepl = 1;
+            }
+            else
+            {
+                my $provider = $cons->{'provider'};
+                if ( $provider->{'target'} ne $syncreplbaseconfig->{'provider'}->{'target'} )
+                {
+                    y2milestone("Provider Hostname doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $provider->{'port'} ne $syncreplbaseconfig->{'provider'}->{'port'}->value )
+                {
+                    y2milestone("Provider Port doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $provider->{'protocol'} ne $syncreplbaseconfig->{'provider'}->{'protocol'} )
+                {
+                    y2milestone("Provider Protocol doesn't match");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $cons->{'binddn'} ne $syncreplbaseconfig->{'binddn'} )
+                {
+                    y2milestone("binddn doesn't match syncreplbaseconfig");
+                    $needsyncrepl = 1;
+                }
+                elsif ( $cons->{'credentials'} ne $syncreplbaseconfig->{'credentials'} )
+                {
+                    y2milestone("credentials don't match syncreplbaseconfig");
+                    $needsyncrepl = 1;
+                }
+            }
+            if ( $needsyncrepl ) 
+            {
+                y2milestone("Adding syncrepl consumer configuration for database $i");
+                $syncreplbaseconfig->{'basedn'} = $suffix;
+                SCR->Write(".ldapserver.database.{".$i."}.syncrepl", $syncreplbaseconfig );
+            }
+
+        }
+    }
+
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $db = SCR->Read(".ldapserver.database.{".$i."}" );
+            my $needsacl = 0;
+            if ( lc($db->{'rootdn'}) eq lc($syncreplbaseconfig->{'binddn'}) )
+            {
+                y2milestone("Repl DN \"".$syncreplbaseconfig->{'binddn'}. "\" is rootdn of database $i. No ACL needed");
+            }
+            else
+            {
+                my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
+                y2debug("Database $i acl:".  Data::Dumper->Dump([ $acl ]) );
+                my $needacl = 1;
+                foreach my $rule ( @{$acl} )
+                {
+                    my $wholedb=0;
+                    if ( keys %{$rule->{'target'}} == 0 )
+                    {
+                        $wholedb=1;
+                    }
+                    elsif ( defined $rule->{'target'}->{'dn'} && 
+                            $rule->{'target'}->{'dn'}->{'style'} eq "subtree" &&
+                            lc($rule->{'target'}->{'dn'}->{'value'}) eq lc($suffix)
+                          )
+                    {
+                        $wholedb=1;
+                    }
+                    else
+                    {
+                        # rule doesn't match the whole database
+                        $wholedb=0;
+                        last;
+                        
+                    }
+                    if ($wholedb)
+                    {
+                        # this rule matches all db entries, check if it gives
+                        # at least read access to the provided syncrepl id
+                        foreach my $access ( @{$rule->{'access'}} )
+                        {
+                            if ( $access->{'type'} eq "dn.base" && 
+                                 lc($access->{'value'}) eq lc($syncreplbaseconfig->{'binddn'} ) &&
+                                 ($access->{'level'} eq "read" || $access->{'level'} eq "write")
+                               )
+                            {
+                                y2milestone("Found matching ACL in database $i");
+                                $needacl = 0;
+                                last;
+                            }
+                        }
+                        if (! $needacl)
+                        {
+                            last;
+                        }
+                    }
+                }
+                if ( $needacl )
+                {
+                    y2milestone("Adding ACL for syncrepl to database $i");
+                    my @syncacl = ({
+                            'target' => {},
+                            'access' => [
+                                    { 'type' => "dn.base",
+                                      'value' => $syncreplbaseconfig->{'binddn'},
+                                      'level' => "read",
+                                      'control' => "" },
+                                    { 'type' => "*",
+                                      'value' => "",
+                                      'level' => "",
+                                      'control' => "break" }
+                                ]
+                        });
+                    my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
+                    push @syncacl, (@$acl);
+                    my $rc = SCR->Write(".ldapserver.database.{".$i."}.acl", \@syncacl );
+                }
+            }
+        }
+    }
+    SCR->Execute(".ldapserver.commitChanges" );
+    SCR->Execute(".ldapserver.reset" );
+    
+    $self->CreateSyncReplAccount();
+    SCR->Execute(".ldapserver.initGlobals" );
+    my $cfgdatabase = { 'type' => 'config',
+                        'rootdn' => 'cn=config' };
+    my $frontenddb = { 'type' => 'frontend' };
+    SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
+    $syncreplbaseconfig->{'binddn'} = "cn=config";
+    $syncreplbaseconfig->{'credentials'} = $auth_info->{'cn=config'}->{'bind_pw'};
+    $syncreplbaseconfig->{'basedn'} = "cn=config";
+
+    SCR->Write(".ldapserver.database.{0}.syncrepl", $syncreplbaseconfig );
+    my $ldif = SCR->Read('.ldapserver.configAsLdif' );
+    y2milestone($ldif);
+    $overwriteConfig = 1;
+#    $self->Write( {resetCsn => 1} );
+#    SCR->Execute(".ldapserver.reset" );
+    
+    return 1;
+}
+
+BEGIN { $TYPEINFO {WriteSyncreplBaseConfig} = ["function",  "boolean", ["map", "string", "any"] ]; }
+sub WriteSyncreplBaseConfig
+{
+    my ($self, $syncrepl ) = @_;
+    $syncreplbaseconfig = $syncrepl;
+
+    if ( defined $syncreplbaseconfig->{'provider'} )
+    {
+        if ( defined $syncreplbaseconfig->{'provider'}->{'port'} )
+        { 
+            $syncreplbaseconfig->{'provider'}->{'port'} = YaST::YCP::Integer($syncreplbaseconfig->{'provider'}->{'port'} ); 
+        }
+    }
+    if ( defined $syncreplbaseconfig->{'starttls'} )
+    {
+        $syncreplbaseconfig->{'starttls'} = YaST::YCP::Boolean($syncreplbaseconfig->{'starttls'} );
+    }
+    if (defined $syncreplbaseconfig->{'updateref'} )
+    {
+        if ( defined $syncreplbaseconfig->{'updateref'}->{'port'} )
+        {
+            $syncreplbaseconfig->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncreplbaseconfig->{'updateref'}->{'port'} );
+        }
+        if ( defined $syncreplbaseconfig->{'updateref'}->{'use_provider'} )
+        {
+            $syncreplbaseconfig->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncreplbaseconfig->{'updateref'}->{'use_provider'} );
+        }
+    }
+    return 1;
+}
+
+BEGIN { $TYPEINFO {ReadSyncreplBaseConfig} = ["function",  ["map", "string", "any"] ]; }
+sub ReadSyncreplBaseConfig
+{
+    my ($self, $syncrepl ) = @_;
+    return $syncreplbaseconfig;
+    return 1;
+}
+
+##
+ # Set "true" here if we are setting up a Syncrepl Slave server currently
+ # (this function is only useful for the installation wizards)
+ #
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteSetupSlave} = ["function",  "boolean", "boolean"]; }
+sub WriteSetupSlave
+{
+    my ($self, $value) = @_;
+    $setupSyncreplSlave=$value;
+}
+
+##
+ # @return true, if the current setup will creat a Syncrepl Slave server
+ #         false otherwise
+ #
+BEGIN { $TYPEINFO {ReadSetupSlave} = ["function",  "boolean" ]; }
+sub ReadSetupSlave
+{
+    return $setupSyncreplSlave;
+}
+
+##
+ # Set "true" here if we are setting up a Syncrepl Master server currently
+ # (this function is only useful for the installation wizards)
+ #
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteSetupMaster} = ["function",  "boolean", "boolean"]; }
+sub WriteSetupMaster
+{
+    my ($self, $value) = @_;
+    $setupSyncreplMaster=$value;
+}
+
+##
+ # @return true, if the current setup will creat a Syncrepl Master server
+ #         false otherwise
+ #
+BEGIN { $TYPEINFO {ReadSetupMaster} = ["function",  "boolean" ]; }
+sub ReadSetupMaster
+{
+    return $setupSyncreplMaster;
+}
+
+##
+ # Initializes the ldapserver agent to connect to a remote cn=config database
+ # @param A Map containing the details for the remote connections. Required keys:
+ #      "provider": A Map with the keys "protocol" (can be "ldap" or "ldaps"), 
+ #                  target (contains the hostname of the destination server) and
+ #                  port (the port number to connect to).
+ #      "starttls": A boolean to flag whether to use TLS
+ #      "credentials" : The password for the "cn=config" account
+ #
+ # @return true on success, false on failure
+ #
+BEGIN { $TYPEINFO {InitRemoteConnection} = ["function",  "boolean", ["map", "string", "any"] ]; }
+sub InitRemoteConnection
+{
+    my ( $self, $param) = @_;
+    $param->{'target'}->{'port'} = YaST::YCP::Integer($param->{'target'}->{'port'});
+    $param->{'starttls'} = YaST::YCP::Boolean($param->{'starttls'});
+
+    $param->{'configcred'} = $param->{'credentials'};
+    my $rc = SCR->Execute(".ldapserver.init", $param );
+    if ( ! $rc )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{"summary"}, $err->{"description"} );
+        SCR->Execute(".ldapserver.reset" );
+    }
+    return $rc;
+}
+
+##
+ # Read the TLS Settings from the currently connected cn=config database and checks if 
+ # the local TLS Setup is suited for replicating that config, by checking if the required 
+ # Certificate and CA files a present and by trying to verify the remote servers certificate
+ # with the locally installed CA.
+ # @param A Map with the keys "target" (contains the hostname of the destination server) and
+ #        "port" (the port number to connect to).
+ #
+BEGIN { $TYPEINFO {VerifyTlsSetup} = ["function",  "boolean", ["map", "string", "any" ] ]; }
+sub VerifyTlsSetup
+{
+    my ($self, $param ) = @_;
+    my $remoteuri = "ldap://".$param->{'target'}.":".$param->{'port'};
+    my $tls = $self->ReadTlsConfig();
+    y2milestone("TlsConfig ". Data::Dumper->Dump([$tls]) );
+    if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
+    {
+        $self->SetError( _("CA Certificate File: \"") .  $tls->{"caCertFile"}. _("\" does not exist."), "");
+        return 0;
+    }
+    else
+    {
+        # Check if this is the correct CA for verifing the remote server's certificate
+        y2milestone("ssl check command: $ssl_check_command \"".$remoteuri."\" ".$tls->{"caCertFile"} );
+        my $rc = SCR->Execute( '.target.bash_output', $ssl_check_command." \"".$remoteuri."\" ".$tls->{"caCertFile"} );
+        if ( $rc->{'exit'} != 0 )
+        {
+            $self->SetError( _("Error while trying to verify the Server Certificate of the Provider server.\n").
+                             _("Please make sure that \"".$tls->{"caCertFile"}."\" constains the correct\nCA file to verify the remote Server Certificate."),
+                             $rc->{'stderr'} );
+            return 0;
+        }
+    }
+
+    if ( SCR->Read(".target.size", $tls->{"certFile"}) <= 0)
+    {
+        $self->SetError( _("Certificate File: \""). $tls->{"certFile"}. _(\" does not exist."), "" );
+        return 0;
+    }
+    if ( SCR->Read(".target.size", $tls->{"certKeyFile"}) <= 0)
+    {
+        $self->SetError( _("Certificate Key File: \""). $tls->{"certKeyFile"} . _("\" does not exist."), "");
+        return 0;
+    }
+    return 1;
+}
+
 1;
 # EOF
