@@ -1406,6 +1406,377 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return true;
     }
 
+    global term GetSyncConsWidget()
+    {
+        term widget =
+            `Top(
+                `VBox(
+                    `Left(
+                        `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
+                    ),
+                    `Frame( `id( `f_synccons ), _("Consumer Settings" ),
+                        `VBox(
+                            `Left(
+                                `VSquash(
+                                    `HBox(
+                                        `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                        `HSpacing(),
+                                        `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Name"), "" ),
+                                        `HSpacing(),
+                                        `HSquash(
+                                            `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                        ),
+                                        `HSpacing(),
+                                        `VBox(
+                                            `Bottom(
+                                                `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
+                                            ),
+                                            `VSpacing(0.3)
+                                        )
+                                    )
+                                )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `InputField( `id( `te_sync_base ), `opt(`hstretch), _("Base DN"), "" )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `HBox(
+                                    `ComboBox( `id( `cb_sync_type ), `opt(`notify),
+                                                _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
+                                    `HSpacing(),
+                                    `VSquash(
+                                        `HBox( `id( `hb_rep_interval ),
+                                            `VBox(
+                                                `Bottom(
+                                                    `Label( _("Replication Interval") )
+                                                )
+                                            ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_d), _("Days"), 0, 99, 0)
+                                            ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_h), _("Hours"), 0, 23, 0)
+                                            ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_m), _("Minutes"), 0, 59, 0)
+                                            ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_int_s), _("Seconds"), 0, 59, 0)
+                                            ),
+                                            `HStretch()
+                                        )
+                                    )
+                                )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `HBox(
+                                    `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN"), "" ),
+                                    `HSpacing(),
+                                    `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
+                                )
+                            ),
+                            `VSpacing(0.3),
+                            `Left(
+                                `VSquash(
+                                    `HBox(
+                                        `VBox(
+                                            `Bottom(
+                                                `CheckBox( `id( `cb_update_ref ), `opt(`notify), _("Custom update referral") )
+                                            ),
+                                            `VSpacing(0.3)
+                                        ),
+                                        `HSpacing(),
+                                        `ComboBox( `id( `cb_updateref_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                        `HSpacing(),
+                                        `InputField( `id( `te_updateref_target ), `opt(`hstretch), _("Target Host"), "" ),
+                                        `HSpacing(),
+                                        `HSquash(
+                                            `IntField( `id(`if_updateref_port), "Port", 0, 65536, 389)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        return widget;
+    }
+
+    global boolean DbSyncConsRead( symbol handler_cmd, integer index, map synccons )
+    {
+        y2milestone("DbSyncConsRead %1 %2", handler_cmd, index);
+        if ( size(synccons) == 0 )
+        {
+            UI::ChangeWidget( `f_synccons, `Enabled, false );
+        }
+        else
+        {
+            UI::ChangeWidget( `f_synccons, `Enabled, true );
+            UI::ChangeWidget( `cb_syncrepl, `Value, true );
+            map<string,any> provider = synccons["provider"]:$[];
+            UI::ChangeWidget( `te_sync_target, `Value, (string)provider["target"]:"");
+            UI::ChangeWidget( `cb_sync_prot, `Value, (string)provider["protocol"]:"");
+            if ( (string)provider["protocol"]:"" == "ldaps")
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, false );
+                UI::ChangeWidget( `cb_start_tls, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_start_tls, `Value, (boolean)synccons["starttls"]:true );
+            }
+            UI::ChangeWidget( `if_sync_port, `Value, (integer)provider["port"]:0);
+            UI::ChangeWidget( `te_sync_base, `Value, (string)synccons["searchbase"]:"");
+            UI::ChangeWidget( `cb_sync_type, `Value, (string)synccons["type"]:"");
+            if ( (string)synccons["type"]:"" == "refreshAndPersist" )
+            {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `if_sync_int_d, `Value, (integer)synccons["interval","days"]:0 );
+                UI::ChangeWidget( `if_sync_int_h, `Value, (integer)synccons["interval","hours"]:0 );
+                UI::ChangeWidget( `if_sync_int_m, `Value, (integer)synccons["interval","mins"]:0 );
+                UI::ChangeWidget( `if_sync_int_s, `Value, (integer)synccons["interval","secs"]:0 );
+            }
+            UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
+            UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
+            map <string,any> updateref = synccons["updateref"]:$[];
+            if (size(updateref) == 0 )
+            {
+                // no updateref
+                UI::ChangeWidget( `cb_update_ref, `Value, true );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+            else if ( (boolean)updateref["use_provider"]:true )
+            {
+                UI::ChangeWidget( `cb_update_ref, `Value, false );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
+                UI::ChangeWidget( `te_updateref_target, `Enabled, false );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, false );
+            }
+            else
+            {
+                UI::ChangeWidget( `cb_update_ref, `Value, true );
+                UI::ChangeWidget( `cb_updateref_prot, `Value, (string)updateref["protocol "]:"ldap" );
+                UI::ChangeWidget( `te_updateref_target, `Value, (string)updateref["target"]:"" );
+                UI::ChangeWidget( `if_updateref_port, `Value, (integer)updateref["port"]:389 );
+            }
+        }
+        return true;
+    }
+
+    global boolean DbSyncConsInput( symbol handler_cmd, integer index )
+    {
+        y2milestone("DbSyncConsInput %1 %2", handler_cmd, index);
+        if ( handler_cmd == `cb_syncrepl )
+        {
+            if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+            {
+                UI::ChangeWidget( `f_synccons, `Enabled, true );
+                if ( UI::QueryWidget( `te_sync_base, `Value ) == "" )
+                {
+                    map<string,any> db = LdapServer::ReadDatabase(index);
+                    string basedn =  db["suffix"]:"";
+                    UI::ChangeWidget( `te_sync_base, `Value, basedn );
+                }
+            }
+            else
+            {
+                UI::ChangeWidget( `f_synccons, `Enabled, false );
+            }
+        }
+        if ( handler_cmd == `cb_sync_prot )
+        {
+                string prot = (string) UI::QueryWidget( `cb_sync_prot, `Value );
+                integer port = (integer) UI::QueryWidget( `if_sync_port, `Value );
+                if ( prot == "ldaps" )
+                {
+                    UI::ChangeWidget( `cb_start_tls, `Value, false );
+                    UI::ChangeWidget( `cb_start_tls, `Enabled, false );
+                    if ( port == 389 )
+                    {
+                        UI::ChangeWidget( `if_sync_port, `Value, 636 );
+                    }
+                }
+                else
+                {
+                    UI::ChangeWidget( `cb_start_tls, `Value, true );
+                    UI::ChangeWidget( `cb_start_tls, `Enabled, true );
+                    if ( port == 636 )
+                    {
+                        UI::ChangeWidget( `if_sync_port, `Value, 389 );
+                    }
+                }
+        }
+        if ( handler_cmd == `cb_update_ref )
+        {
+            if ( (boolean)UI::QueryWidget( `cb_update_ref, `Value ) == true )
+            {
+                UI::ChangeWidget( `te_updateref_target, `Enabled, true );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, true );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, true );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+            else
+            {
+                UI::ChangeWidget( `te_updateref_target, `Enabled, false );
+                UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
+                UI::ChangeWidget( `if_updateref_port, `Enabled, false );
+                UI::ChangeWidget( `te_updateref_target, `Value, "" );
+            }
+        }
+        if ( handler_cmd == `cb_updateref_prot )
+        {
+                string prot = (string) UI::QueryWidget( `cb_updateref_prot, `Value );
+                integer port = (integer) UI::QueryWidget( `if_updateref_port, `Value );
+                if ( prot == "ldaps" )
+                {
+                    if ( port == 389 )
+                    {
+                        UI::ChangeWidget( `if_updateref_port, `Value, 636 );
+                    }
+                }
+                else
+                {
+                    if ( port == 636 )
+                    {
+                        UI::ChangeWidget( `if_updateref_port, `Value, 389 );
+                    }
+                }
+        }
+        if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshAndPersist" )
+        {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, false );
+        }
+        else
+        {
+                UI::ChangeWidget( `hb_rep_interval, `Enabled, true );
+        }
+
+        return true;
+    }
+
+    global boolean DbSyncConsCheck( integer index )
+    {
+        y2milestone("DbSyncConsCheck %1", index);
+        if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+        {
+            if ( (string)UI::QueryWidget( `cb_sync_type, `Value ) == "refreshOnly" )
+            {
+                integer days = (integer)UI::QueryWidget( `if_sync_int_d, `Value );
+                integer hours = (integer)UI::QueryWidget( `if_sync_int_h, `Value );
+                integer mins = (integer)UI::QueryWidget( `if_sync_int_m, `Value );
+                integer secs = (integer)UI::QueryWidget( `if_sync_int_s, `Value );
+                if(days == 0 && hours == 0 && mins == 0 && secs == 0 )
+                {
+                    Popup::Error( _("Invalid Replication Interval specified") );
+                    return false;
+                }
+            }
+            string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
+            string target = (string)UI::QueryWidget( `te_sync_target, `Value );
+            integer port = (integer)UI::QueryWidget( `if_sync_port, `Value );
+
+            // test connection
+            map<string,any> provider = $[
+                    "protocol" : prot,
+                    "target"   : target,
+                    "port"     : port
+                ];
+            map<string,any> testparm = $[];
+            testparm = add(testparm, "target", provider );
+            testparm = add(testparm, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
+            testparm = add(testparm, "binddn", (string)UI::QueryWidget(`te_sync_binddn, `Value) );
+            testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_sync_cred, `Value) );
+            testparm = add(testparm, "basedn", (string)UI::QueryWidget(`te_sync_base, `Value) );
+            if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                return Popup::ContinueCancelHeadline( _("Checking LDAP connectivity to the provider failed"),
+                                               _("The test returned the following error messages:")
+                                               + "\n\n\"" +
+                                               (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
+                                               + "\"\n\n" +
+                                               _("Do you want to still want to continue?"));
+            }
+            if(!(boolean)SCR::Execute( .ldapserver.remoteLdapSyncCheck, testparm ) )
+            {
+                map<string,any> err = SCR::Error(.ldapserver);
+                return Popup::ContinueCancelHeadline( _("Checking the LDAPsync capabilities of the provider failed"),
+                                               _("Please verify that the target server is enabled to be a LDAPsync provider")
+                                               + "\n\n" +
+                                               _("The test returned the following error messages:")
+                                               + "\n\"" +
+                                               (string)err["summary"]:""+ "\"\n\"" + (string)err["description"]:""
+                                               + "\"\n\n" +
+                                               _("Do you want to still want to continue?"));
+            }
+        }
+        return true;
+    }
+
+    global map<string,any> DbSyncConsWrite( integer index )
+    {
+        y2milestone("DbSyncConsWrite %1", index);
+        map<string,any> result = $[];
+        if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
+        {
+            string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
+            string target = (string)UI::QueryWidget( `te_sync_target, `Value );
+            integer port = (integer)UI::QueryWidget( `if_sync_port, `Value );
+            map<string,any> provider = $[
+                    "protocol" : prot,
+                    "target"   : target,
+                    "port"     : port
+                ];
+            result = add(result, "provider", provider );
+            result = add(result, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
+
+            string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
+            result = add(result, "type", type );
+
+            if ( type == "refreshOnly" )
+            {
+                map<string,integer> iv = $[
+                        "days" : (integer)UI::QueryWidget( `if_sync_int_d, `Value ),
+                        "hours" : (integer)UI::QueryWidget( `if_sync_int_h, `Value ),
+                        "mins" : (integer)UI::QueryWidget( `if_sync_int_m, `Value ),
+                        "secs" : (integer)UI::QueryWidget( `if_sync_int_s, `Value ),
+                    ];
+                result = add( result, "interval", iv );
+            }
+
+            string basedn = (string)UI::QueryWidget( `te_sync_base, `Value );
+            string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
+            string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
+            result = add(result, "basedn", basedn );
+            result = add(result, "binddn", binddn );
+            result = add(result, "credentials", cred );
+            if ( (boolean) UI::QueryWidget( `cb_update_ref, `Value) )
+            {
+                map<string,any> updateref = $[];
+                if ( (string)UI::QueryWidget(`cb_updateref_prot, `Value) != "" )
+                {
+                    updateref = add(updateref, "protocol", (string)UI::QueryWidget(`cb_updateref_prot, `Value) );
+                    updateref = add(updateref, "target", (string)UI::QueryWidget(`te_updateref_target, `Value) );
+                    updateref = add(updateref, "port", (integer)UI::QueryWidget(`if_updateref_port, `Value) );
+                }
+                result = add(result, "updateref", updateref );
+            }
+        }
+        y2milestone("DbSyncConsWrite result: %1", result);
+        return result;
+    }
+
     global term GetSyncProvWidget()
     {
         term widget =
@@ -1415,7 +1786,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     `VBox(
                         `HBox(
                             `CheckBox( `id( `cb_synprov_enable ),`opt(`notify ),
-                                _("Enable ldapsync provider for this database"), false 
+                                _("Enable ldapsync provider for this database"), false
                             ),
                             `HSpacing( `opt(`hstretch))
                         ),

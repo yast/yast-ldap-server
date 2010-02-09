@@ -92,7 +92,10 @@ boolean callHandler( string item, string handler )
         {
             if( !(boolean)eval( function ) )
             {
-                Report::Error( callback_error );
+                if (callback_error != "" )
+                {
+                    Report::Error( callback_error );
+                }
                 return false;
             }
         } else {
@@ -117,7 +120,12 @@ string showTreeDialog( string name, boolean focus_tree )
     else if ( !LdapServer::ReadServiceRunning() )
     {
         if ( name != "daemon" ) {
-            symbol ret = Popup::AnyQuestion3( _("The LDAP Server is not running."), _("Do you want to start it now to re-read its configuration data or do you want to creat a new configuration from scratch?"), _("Restart"), _("New Configuration"), Label::AbortButton(), `focus_yes );
+            symbol ret = Popup::AnyQuestion3( _("The LDAP Server is not running."),
+                    _("Do you want to start it now to re-read its configuration data or do you want to creat a new configuration from scratch?"),
+                    _("Restart"),
+                    _("New Configuration"),
+                    Label::AbortButton(),
+                    `focus_yes );
             name = "daemon";
             if ( ret == `yes )
             {
@@ -201,7 +209,9 @@ any EnableServiceDialog()
     map<string, any> firewall_widget =
 	CWMFirewallInterfaces::CreateOpenFirewallWidget (firewall_settings);
 
-    Wizard::SetContentsButtons( caption, dlg_service_initial, HELPS["service_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
+    Wizard::SetContentsButtons( caption, dlg_service_initial,
+                                HELPS["service_dialog"]:"help not found",
+                                Label::BackButton(), Label::NextButton() );
     Wizard::HideBackButton();
     Wizard::SetAbortButton(`abort, Label::CancelButton());
 
@@ -264,7 +274,11 @@ any EnableServiceDialog()
 
 any TlsConfigDialog()
 {
-    Wizard::SetContentsButtons( caption, tlsWidget, HELPS["tls_dialog"]:"help not found", Label::BackButton(), Label::NextButton() );
+    Wizard::SetContentsButtons( caption,
+            tlsWidget,
+            HELPS["tls_dialog"]:"help not found",
+            Label::BackButton(),
+            Label::NextButton() );
     LdapServer::InitGlobals();
     cb_read_tls();
     any ret = nil;

@@ -4,6 +4,7 @@
 #include <LdifReader.h>
 #include <LdifWriter.h>
 #include <LDAPEntry.h>
+#include <LDAPUrl.h>
 #include <SaslInteraction.h>
 #include <algorithm>
 #include <exception>
@@ -40,7 +41,6 @@ SaslExternalHandler::~SaslExternalHandler()
         delete(*i);
     }
 }
-
 
 bool caseIgnoreCompare( char c1, char c2)
 {
@@ -391,6 +391,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             return YCPBoolean(false);
         }
     }
+    else if ( path->component_str(0) == "remoteBindCheck" )
+    {
+        return YCPBoolean(remoteBindCheck(arg));
+    }
+    else if ( path->component_str(0) == "remoteLdapSyncCheck" )
+    {
+        return YCPBoolean(remoteSyncCheck(arg));
+    }
     return YCPBoolean(true);
 }
 
@@ -679,6 +687,9 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                             {
                                 resMap.add( YCPString("sessionlog"), YCPInteger(slog) );
                             }
+                            // This is just that the map is not empty (e.g. when syncprov is
+                            // configured with default values)
+                            resMap.add( YCPString("enabled"), YCPBoolean(true) );
                             break;
                         }
                     }
@@ -749,6 +760,75 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     {
                         return YCPNull();
                     }
+                }
+                else if ( dbComponent == "syncrepl" )
+                {
+                    YCPMap resMap;
+                    OlcSyncReplList srl = (*i)->getSyncRepl();
+                    if ( ! srl.empty() )
+                    {
+                        boost::shared_ptr<OlcSyncRepl> sr = *srl.begin();
+                        resMap.add( YCPString(OlcSyncRepl::RID), YCPInteger( sr->getRid() ));
+                        std::string proto,host;
+                        int port;
+                        sr->getProviderComponents(proto, host, port);
+                        YCPMap providerMap;
+                        providerMap.add( YCPString("protocol"), YCPString(proto) );
+                        providerMap.add( YCPString("target"), YCPString(host) );
+                        providerMap.add( YCPString("port"), YCPInteger(port) );
+                        resMap.add( YCPString(OlcSyncRepl::PROVIDER),  providerMap );
+                        resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
+                        if ( sr->getStartTls() != OlcSyncRepl::StartTlsNo )
+                        {
+                            resMap.add( YCPString(OlcSyncRepl::STARTTLS), YCPBoolean( true ));
+                        }
+
+                        if ( sr->getType() == "refreshOnly" )
+                        {
+                            YCPMap intervalMap;
+                            int d,h,m,s;
+                            sr->getInterval(d, h, m, s);
+                            intervalMap.add( YCPString("days"), YCPInteger(d) );
+                            intervalMap.add( YCPString("hours"), YCPInteger(h) );
+                            intervalMap.add( YCPString("mins"), YCPInteger(m) );
+                            intervalMap.add( YCPString("secs"), YCPInteger(s) );
+                            resMap.add( YCPString( OlcSyncRepl::INTERVAL ), intervalMap );
+                        }
+
+                        resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
+                        resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
+                        resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
+                        std::string updateref((*i)->getStringValue("olcUpdateRef"));
+                        if (! updateref.empty() )
+                        {
+                            LDAPUrl updateUrl(updateref);
+                            YCPMap updaterefMap;
+                            std::string updateHost(updateUrl.getHost() );
+                            std::string updateProt(updateUrl.getScheme() );
+                            int updatePort(updateUrl.getPort() );
+
+                            // don't set updateref when using updateref == provideruri
+                            if ( updatePort != updatePort || 
+                                 updateHost != host ||
+                                 updateProt != proto )
+                            {
+                                updaterefMap.add( YCPString("protocol"), YCPString( updateUrl.getScheme() ) );
+                                updaterefMap.add( YCPString("target"), YCPString( updateUrl.getHost() ) );
+                                updaterefMap.add( YCPString("port"), YCPInteger( updateUrl.getPort() ) );
+                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( false ) );
+                            }
+                            else
+                            {
+                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( true ) );
+                            }
+                            resMap.add( YCPString("updateref"), updaterefMap );
+                        }
+                        else
+                        {
+                            resMap.add( YCPString("updateref"), YCPMap() );
+                        }
+                    }
+                    return resMap;
                 }
                 else
                 {
@@ -1445,6 +1525,107 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         (*i)->replaceAccessControl(aclList);
                         ret = true;
                     }
+                    else if ( dbComponent == "syncrepl" )
+                    {   
+                        YCPMap argMap = arg->asMap();
+                        if ( argMap->size() > 0 )
+                        {
+                            ret = true;
+                            OlcSyncReplList srl = (*i)->getSyncRepl();
+                            boost::shared_ptr<OlcSyncRepl> sr;
+                            if ( srl.empty() )
+                            {   
+                                sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
+                                srl.push_back(sr);
+                            }
+                            else
+                            {
+                                sr = *srl.begin();
+                            }
+                            YCPMap providerMap = argMap->value(YCPString("provider"))->asMap();
+                            std::string protocol( providerMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                            std::string target( providerMap->value(YCPString("target"))->asString()->value_cstr() );
+                            int port = providerMap->value(YCPString("port"))->asInteger()->value();
+                            std::string type( argMap->value(YCPString("type"))->asString()->value_cstr() );
+                            std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
+                            std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
+                            std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
+                            bool starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
+
+                            LDAPUrl prvuri;
+                            prvuri.setScheme(protocol);
+                            prvuri.setHost(target);
+                            prvuri.setPort(port);
+
+                            sr->setType( type );
+                            sr->setProvider( prvuri );
+                            sr->setSearchBase( basedn );
+                            sr->setBindDn( binddn );
+                            sr->setCredentials( cred );
+                            // default retry (every 120 seconds)
+                            sr->setRetryString( "120 +" );
+
+                            if ( starttls )
+                            {
+                                sr->setStartTls( OlcSyncRepl::StartTlsCritical );
+                            }
+                            else
+                            {
+                                sr->setStartTls( OlcSyncRepl::StartTlsNo );
+                            }
+
+                            if ( type == "refreshOnly" )
+                            {
+                                if ( argMap->value(YCPString("interval")).isNull() )
+                                {
+                                    lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+                                    lastError->add(YCPString("description"), YCPString("\"RefreshOnly needs Interval\"") );
+                                    ret = false;
+                                }
+                                else
+                                {
+                                    YCPMap ivMap =  argMap->value(YCPString("interval"))->asMap();
+                                    int days = ivMap->value(YCPString("days"))->asInteger()->value();
+                                    int hours = ivMap->value(YCPString("hours"))->asInteger()->value();
+                                    int mins = ivMap->value(YCPString("mins"))->asInteger()->value();
+                                    int secs = ivMap->value(YCPString("secs"))->asInteger()->value();
+
+                                    if ( days == 0 && hours == 0 && mins == 0 && secs == 0 )
+                                    {
+                                        lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+                                        lastError->add(YCPString("description"), YCPString("\"Syncrepl Interval is 00:00:00\"") );
+                                        ret = false;
+                                    }
+                                    else
+                                    {
+                                        sr->setInterval( days, hours, mins, secs );
+                                    }
+                                }
+                            }
+                            (*i)->setSyncRepl(srl);
+                            if ( argMap->value(YCPString("updateref")).isNull() )
+                            {
+                                // set provider URL as updateref if no customer URI was supplied
+                                (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
+                            }
+                            else
+                            {
+                                YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
+                                LDAPUrl updaterefUrl;
+                                updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                            }
+                        }
+                        else
+                        {
+                            // clear syncrepl config
+                            (*i)->setStringValue("olcSyncRepl", "" );
+                            (*i)->setStringValue("olcUpdateRef", "" );
+                            ret = true;
+                        }
+                    }
                     else if ( dbComponent == "dbconfig" )
                     {
                         YCPList argList = arg->asList();
@@ -1720,3 +1901,139 @@ YCPString SlapdConfigAgent::ConfigToLdif() const
     return YCPString(ldif.str());
 }
 
+static void initLdapParameters( const YCPValue &arg, std::string &targetUrl,
+        bool &starttls, std::string &binddn, std::string &bindpw, std::string &basedn);
+bool SlapdConfigAgent::remoteBindCheck( const YCPValue &arg )
+{
+    y2milestone("remoteBindCheck");
+    std::string targetUrl, binddn, bindpw, basedn;
+    bool starttls;
+    initLdapParameters(arg, targetUrl ,starttls, binddn, bindpw, basedn);
+    try 
+    {
+        LDAPConnection c( targetUrl );
+        if (starttls)
+        {
+            startTlsCheck(c);
+        }
+        bindCheck(c, binddn, bindpw);
+    }
+    catch( LDAPException e )
+    {
+        std::string details = e.getResultMsg();
+        if (! e.getServerMsg().empty() )
+        {
+            details += ": ";
+            details += e.getServerMsg();
+        }
+        lastError->add(YCPString("description"), YCPString( details ) );
+        y2milestone("Error connecting to the LDAP Server \"%s\". %s: %s", 
+                targetUrl.c_str(), 
+                lastError->value(YCPString("summary"))->asString()->value_cstr(),
+                details.c_str());
+        return false;
+    }
+    return true; 
+}
+
+bool SlapdConfigAgent::remoteSyncCheck( const YCPValue &arg )
+{
+    y2milestone("remoteBindCheck");
+    std::string targetUrl, binddn, bindpw, basedn;
+    bool starttls;
+    initLdapParameters(arg, targetUrl ,starttls, binddn, bindpw, basedn);
+    try 
+    {
+        LDAPConnection c( targetUrl );
+        if (starttls)
+        {
+            startTlsCheck(c);
+        }
+        bindCheck(c, binddn, bindpw);
+        syncCheck(c, basedn );
+    }
+    catch( LDAPException e )
+    {
+        std::string details = e.getResultMsg();
+        if (! e.getServerMsg().empty() )
+        {
+            details += ": ";
+            details += e.getServerMsg();
+        }
+        lastError->add(YCPString("description"), YCPString( details ) );
+        y2milestone("Error connection to the LDAP Server \"%s\". %s: %s", 
+                targetUrl.c_str(), 
+                lastError->value(YCPString("summary"))->asString()->value_cstr(),
+                details.c_str());
+        return false;
+    }
+    return true; 
+}
+
+void initLdapParameters( const YCPValue &arg, 
+        std::string &url,
+        bool &starttls,
+        std::string &binddn,
+        std::string &bindpw,
+        std::string &basedn)
+{
+    YCPMap argMap = arg->asMap();
+    YCPMap target = argMap->value(YCPString("target"))->asMap();
+    LDAPUrl targetUrl;
+    targetUrl.setScheme( target->value(YCPString("protocol"))->asString()->value_cstr() );
+    targetUrl.setHost( target->value(YCPString("target"))->asString()->value_cstr() );
+    targetUrl.setPort( target->value(YCPString("port"))->asInteger()->value() );
+    url = targetUrl.getURLString();
+    starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
+    binddn = argMap->value(YCPString("binddn"))->asString()->value_cstr();
+    bindpw = argMap->value(YCPString("credentials"))->asString()->value_cstr();
+    basedn = argMap->value(YCPString("basedn"))->asString()->value_cstr();
+}
+
+// FIXME:
+// Until the TLS parameters can't be setup correctly with LDAPC++
+// the start_tls check might return false positives
+// 
+void SlapdConfigAgent::startTlsCheck( LDAPConnection &c)
+{
+    try {
+        c.start_tls();
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("StartTLS operation failed") );
+        throw;
+    }
+}
+
+void SlapdConfigAgent::bindCheck( LDAPConnection &c, const std::string &binddn, const std::string &bindpw)
+{
+    try {
+        c.bind(binddn, bindpw);
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("LDAP authentication failed") );
+        throw;
+    }
+}
+
+void SlapdConfigAgent::syncCheck( LDAPConnection &c, const std::string &basedn )
+{
+    try{
+        // Simple LDAPSync Request Control (refreshOnly, no cookie)
+        const char ctrl[] = { 0x30, 0x03, 0x0a, 0x01, 0x01 };
+        LDAPCtrl syncCtrl( "1.3.6.1.4.1.4203.1.9.1.1", true, ctrl, sizeof(ctrl) );
+        LDAPControlSet cs;
+        cs.add(syncCtrl);
+        LDAPConstraints searchCons;
+        searchCons.setServerControls( &cs );
+        c.search(basedn, LDAPConnection::SEARCH_BASE, "(objectclass=*)", 
+            StringList(), false, &searchCons );
+    }
+    catch( LDAPException e )
+    {
+        lastError->add(YCPString("summary"), YCPString("Initiating the LDAPsync Operation failed") );
+        throw;
+    }
+}

@@ -1868,6 +1868,89 @@ sub WriteSyncProv
     return YaST::YCP::Boolean(1);
 }
 
+BEGIN { $TYPEINFO {ReadSyncRepl} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+sub ReadSyncRepl
+{
+    my ($self, $index) = @_;
+    y2milestone("ReadSyncRepl ", $index);
+    my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
+    y2milestone( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    if ( ! $syncrepl )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return undef;
+    }
+    if (defined $syncrepl->{'provider'} && defined $syncrepl->{'provider'}->{'port'} )
+    {
+        $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+    }
+    if (defined $syncrepl->{'updateref'} )
+    {
+        if ( defined $syncrepl->{'updateref'}->{'port'} )
+        {
+            $syncrepl->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'updateref'}->{'port'} );
+        }
+        if ( defined $syncrepl->{'updateref'}->{'use_provider'} )
+        {
+            $syncrepl->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncrepl->{'updateref'}->{'use_provider'} );
+        }
+    }
+    if ( defined $syncrepl->{'interval'} )
+    {
+        $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
+        $syncrepl->{'interval'}->{'hours'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'hours'} );
+        $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
+        $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
+    }
+    if ( defined $syncrepl->{'starttls'} )
+    {
+        $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
+    }
+    return $syncrepl;
+}
+
+BEGIN { $TYPEINFO {WriteSyncRepl} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
+sub WriteSyncRepl
+{
+    my ( $self, $dbindex, $syncrepl) = @_;
+    y2milestone("WriteSyncRepl");
+    if (defined $syncrepl->{'provider'} && defined $syncrepl->{'provider'}->{'port'} )
+    {
+        $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+    }
+    if (defined $syncrepl->{'updateref'} )
+    {
+        if ( defined $syncrepl->{'updateref'}->{'port'} )
+        {
+            $syncrepl->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'updateref'}->{'port'} );
+        }
+        if ( defined $syncrepl->{'updateref'}->{'use_provider'} )
+        {
+            $syncrepl->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncrepl->{'updateref'}->{'use_provider'} );
+        }
+    }
+    if ( defined $syncrepl->{'interval'} )
+    {
+        $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
+        $syncrepl->{'interval'}->{'hours'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'hours'} );
+        $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
+        $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
+    }
+    if ( defined $syncrepl->{'starttls'} )
+    {
+        $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
+    }
+    y2milestone("SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
+    if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.syncrepl", $syncrepl ) )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return YaST::YCP::Boolean(0);
+    }
+    return YaST::YCP::Boolean(1);
+}
+
 BEGIN { $TYPEINFO {ReadSchemaList} = ["function", [ "list" , "string"] ]; }
 sub ReadSchemaList
 {
