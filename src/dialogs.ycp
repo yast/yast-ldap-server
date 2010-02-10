@@ -335,14 +335,26 @@ any ServerTypeDialog()
             }
             else if (UI::QueryWidget( `id( `rbg_servertype ), `CurrentButton) == `rb_master )
             {
-                LdapServer::WriteSetupMaster(true);
-                LdapServer::WriteSetupSlave(false);
+                if ( size( LdapServer::ReadHostnameFQ() ) == 0 )
+                {
+                    Popup::Notify(_("YaST was not able to determine the full qualified hostname of this\ncomputer. ") +
+                                  _("Setting up a replication master it not possible currently.") );
+                    UI::ChangeWidget( `rb_master, `Enabled, false );
+                    UI::ChangeWidget( `rbg_servertype, `CurrentButton, `rb_standalone );
+                    continue;
+                }
+                else
+                {
+                    LdapServer::WriteSetupMaster(true);
+                    LdapServer::WriteSetupSlave(false);
+                }
             }
             else
             {
                 LdapServer::WriteSetupMaster(false);
                 LdapServer::WriteSetupSlave(false);
             }
+            SCR::Execute(.ldapserver.reset);
         }
         return ret;
     }
@@ -1011,6 +1023,7 @@ any ReplicatonSetupSummaryDialog() {
     any ret = nil;
 
     LdapServer::SetupRemoteForReplication();
+    LdapServer::ReadFromDefaults();
     ret = `next;
     return ret;
 }

@@ -191,7 +191,7 @@ void OlcConfigEntry::setStringValues(const std::string &type, const StringList &
 
 void OlcConfigEntry::setStringValue(const std::string &type, const std::string &value)
 {
-    log_it(SLAPD_LOG_INFO,"setStringValue() " + type + " " + value);
+    log_it(SLAPD_LOG_DEBUG,"setStringValue() " + type + " " + value);
     if ( value.empty() )
     {
         m_dbEntryChanged.delAttribute(type);
@@ -290,7 +290,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( deleted ) 
                 {
                     delValues.add(*j);
-                    log_it(SLAPD_LOG_INFO,"Value deleted: " + *j );
+                    log_it(SLAPD_LOG_DEBUG,"Value deleted: " + *j );
                 }
             }
             j = changedAttr->getValues().begin();
@@ -308,7 +308,7 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
                 if ( added ) 
                 {
                     addValues.add(*j);
-                    log_it(SLAPD_LOG_INFO,"Value added: " + *j);
+                    log_it(SLAPD_LOG_DEBUG,"Value added: " + *j);
                 }
             }
             bool replace = false;
@@ -675,7 +675,7 @@ OlcAccess::OlcAccess( const std::string& aclString )
                     }
                     else
                     {
-                        throw std::runtime_error( "Unsupported access level" );
+                        throw std::runtime_error( "Unsupported access level <" + level + ">" );
                     }
                 }
                 log_it(SLAPD_LOG_INFO, "access: " +  level );
@@ -833,6 +833,86 @@ std::string OlcAccess::toAclString() const
     return aclString.str();
 }
 
+OlcLimits::OlcLimits( const std::string& limitString )
+{
+    std::string::size_type spos = 0;
+    std::string::size_type tmppos = 0;
+    // limits look like this:  <selector> <limit> [<limit> [...]]
+
+    // split of the selector pattern
+    tmppos = limitString.find_first_not_of("\t ", spos );
+    spos = tmppos;
+    tmppos = limitString.find_first_of("\t\" ", spos );
+    // skip quoted whitespaces
+    while ( limitString[tmppos] == '"'  && limitString[tmppos-1] != '\\')
+    {
+        tmppos = extractAlcToken( limitString, tmppos, true );
+        tmppos = limitString.find_first_of("\t\" ", tmppos+1 );
+    }
+    m_selector = limitString.substr(spos, tmppos-spos );
+    log_it(SLAPD_LOG_DEBUG, "selector: <"+m_selector+">" );
+
+    // now the list of <limits> follows
+    spos = tmppos;
+    if ( spos != std::string::npos )
+    {
+        spos = limitString.find_first_not_of("\t ", spos );
+    }
+    while ( spos != std::string::npos )
+    {
+        tmppos = extractAlcToken( limitString, spos, false );
+        std::string tmp = limitString.substr( spos, tmppos-spos ); 
+        log_it(SLAPD_LOG_DEBUG, "limit: <"+tmp+">" );
+        std::string::size_type delimpos = tmp.find( '=' );
+        if ( delimpos == std::string::npos )
+        {
+            throw std::runtime_error( "error while parsing limits statement" );
+        }
+        m_limits.push_back( make_pair(tmp.substr(0, delimpos), tmp.substr( delimpos+1 ) ));
+        if ( tmppos != std::string::npos )
+        {
+            spos = limitString.find_first_not_of("\t ", tmppos+1 );
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+void OlcLimits::setSelector( const std::string &value )
+{
+    m_selector = value;
+}
+
+void OlcLimits::setLimits ( const pairlist &value )
+{
+    m_limits = value;
+}
+
+std::string OlcLimits::getSelector() const
+{
+    return m_selector;
+}
+
+pairlist OlcLimits::getLimits() const
+{
+    return m_limits;
+}
+
+std::string OlcLimits::toLimitsString() const
+{
+    std::ostringstream limitStr;
+    limitStr << m_selector;
+
+    pairlist::const_iterator i;
+    for ( i=m_limits.begin(); i != m_limits.end(); i++ )
+    {
+        limitStr << " " << i->first << "=" << i->second ;
+    }
+    return limitStr.str();
+}
+
 const std::string OlcSyncRepl::RID="rid";
 const std::string OlcSyncRepl::PROVIDER="provider";
 const std::string OlcSyncRepl::BASE="searchbase";
@@ -843,6 +923,7 @@ const std::string OlcSyncRepl::CREDENTIALS="credentials";
 const std::string OlcSyncRepl::INTERVAL="interval";
 const std::string OlcSyncRepl::STARTTLS="starttls";
 const std::string OlcSyncRepl::RETRY="retry";
+const std::string OlcSyncRepl::TLS_REQCERT="tls_reqcert";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
         rid(1), 
@@ -941,6 +1022,10 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
             {
                 this->setRetryString(value);
             }
+            else if ( key == TLS_REQCERT )
+            {
+                this->setTlsReqCert(value);
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -973,6 +1058,10 @@ std::string OlcSyncRepl::toSyncReplLine() const
     else if ( this->starttls == OlcSyncRepl::StartTlsCritical )
     {
         srlStream << "starttls=critical ";
+    }
+    if (! this->tlsReqCert.empty() )
+    {
+        srlStream << "tls_reqcert=" << tlsReqCert  << " ";
     }
     srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
@@ -1040,6 +1129,11 @@ void OlcSyncRepl::setRetryString( const std::string &value )
     retryString = value;
 }
 
+void OlcSyncRepl::setTlsReqCert( const std::string &value )
+{
+    tlsReqCert = value;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -1090,6 +1184,10 @@ OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
     return starttls;
 }
 
+std::string OlcSyncRepl::getTlsReqCert() const
+{
+    return tlsReqCert;
+}
 
 OlcSecurity::OlcSecurity(const std::string &securityVal)
 {
@@ -1105,11 +1203,11 @@ OlcSecurity::OlcSecurity(const std::string &securityVal)
             spos1 = spos2;
             spos2 = securityVal.find_first_of("=", spos1 );
             std::string key = securityVal.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Key: <" + key + ">");
+            log_it(SLAPD_LOG_DEBUG, "Key: <" + key + ">");
             spos1 = spos2 + 1;
             spos2 = extractAlcToken(securityVal, spos1, false );
             std::string value = securityVal.substr(spos1, spos2-spos1);
-            log_it(SLAPD_LOG_INFO, "Value: <" + value + ">");
+            log_it(SLAPD_LOG_DEBUG, "Value: <" + value + ">");
             if ( spos2 != std::string::npos )
             {
                 spos1 = spos2 + 1;
@@ -1294,6 +1392,54 @@ void OlcDatabase::replaceAccessControl(const OlcAccessList& acllist )
     }
 }
 
+bool OlcDatabase::getLimits(OlcLimitList &limitList) const
+{
+    const LDAPAttribute* limitsAttr = m_dbEntryChanged.getAttributeByName("olcLimits");
+    log_it(SLAPD_LOG_INFO, "OlcDatabase::getLimits()");
+    limitList.clear();
+    bool ret = true;
+    if ( limitsAttr )
+    {
+        StringList values = limitsAttr->getValues();
+        StringList::const_iterator i;
+        for ( i =  values.begin(); i != values.end(); i++ )
+        {
+            log_it(SLAPD_LOG_DEBUG, "limits VALUE: " + *i );
+            std::string limitString;
+            splitIndexFromString( *i, limitString );
+            try {
+                boost::shared_ptr<OlcLimits> limit( new OlcLimits(limitString) );
+                limitList.push_back(limit);
+            }
+            catch ( std::runtime_error e )
+            {
+                log_it(SLAPD_LOG_INFO, "Can't parse Limit");
+                log_it(SLAPD_LOG_INFO, e.what() );
+                limitList.clear();
+                ret = false;
+                break;
+            }
+        }
+    }
+    else
+    {
+        log_it(SLAPD_LOG_INFO, "no limit set");
+    }
+    return ret;
+}
+
+void OlcDatabase::replaceLimits( const OlcLimitList& limits )
+{
+    this->setStringValue( "olcLimits", "" );
+    OlcLimitList::const_iterator i;
+    int j = 0;
+
+    for ( i = limits.begin(); i != limits.end(); i++ )
+    {
+        this->addIndexedStringValue( "olcLimits", (*i)->toLimitsString(), j );
+        j++;
+    }
+}
 
 OlcSyncReplList OlcDatabase::getSyncRepl() const
 {
@@ -2073,7 +2219,7 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 void OlcConfig::waitForBackgroundTasks()
 {
     try {
-        LDAPModification mod( LDAPAttribute("objectClass", "olcConfig"), LDAPModification::OP_ADD );
+        LDAPModification mod( LDAPAttribute("objectClass", "olcGlobal"), LDAPModification::OP_ADD );
         LDAPModList ml;
         ml.addModification(mod);
         m_lc->modify( "cn=config", &ml );
