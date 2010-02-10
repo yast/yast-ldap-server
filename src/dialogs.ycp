@@ -913,7 +913,7 @@ any SlaveSetupDialog()
                         }
                         if ( ! setupok )
                         {
-                            Popup::Error( _("The Replication Configuration on the master server indicates that\nis already acting as a Repliation Consumer.\n") +
+                            Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
                                           _("Setting up cascaded replication of the cn=config is not supported currently.") );
                             ret = `cancel;
                             break;
@@ -1034,7 +1034,7 @@ any MasterSetupDialog()
         `HSquash(
             `VSquash(
                 `VBox(
-                    `Heading( _("Repliation Master setup") ),
+                    `Heading( _("Replication Master setup") ),
                     `VSpacing( 0.5 ),
                     `Label( _("In order to act as a Master Server for Replication, the Configuration database needs\nto be remotely accessible. Please set a password for the Configuration database." ) +
                             _("\n(Remote access to the Configuration database will be restricted to encrypted\nLDAP Connections)")

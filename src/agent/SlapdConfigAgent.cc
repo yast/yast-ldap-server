@@ -1734,6 +1734,25 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             {   
                                 sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
                                 srl.push_back(sr);
+
+                                // find available rid (rid must be unique accross the server)
+                                OlcDatabaseList::const_iterator k;
+                                int largest_rid=0;
+                                for ( k = databases.begin(); k != databases.end() ; k++ )
+                                {
+                                    OlcSyncReplList srl1 = (*k)->getSyncRepl();
+                                    if ( srl1.empty() )
+                                    {
+                                        continue;
+                                    }
+                                    boost::shared_ptr<OlcSyncRepl> sr1;
+                                    int currid = (*srl1.begin())->getRid();
+                                    if ( currid > largest_rid )
+                                    {
+                                        largest_rid=currid;
+                                    }
+                                }
+                                sr->setRid(largest_rid+1);
                             }
                             else
                             {
@@ -1814,11 +1833,23 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
                                 if ( updaterefMap.size() > 0 )
                                 {
-                                    LDAPUrl updaterefUrl;
-                                    updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                                    updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
-                                    updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
-                                    (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                    if ( !updaterefMap->value(YCPString("use_provider")).isNull() &&
+                                         updaterefMap->value(YCPString("use_provider"))->asBoolean()->value() )
+                                    {
+                                        (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
+                                    }
+                                    else
+                                    {
+                                        LDAPUrl updaterefUrl;
+                                        updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                                        updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                                        updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                                        (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                                    }
+                                }
+                                else
+                                {
+                                    (*i)->setStringValue("olcUpdateRef", "" );
                                 }
                             }
                         }
@@ -2251,7 +2282,8 @@ void SlapdConfigAgent::syncCheck( LDAPConnection &c, const std::string &basedn )
     try{
         // Simple LDAPSync Request Control (refreshOnly, no cookie)
         const char ctrl[] = { 0x30, 0x03, 0x0a, 0x01, 0x01 };
-        LDAPCtrl syncCtrl( "1.3.6.1.4.1.4203.1.9.1.1", true, ctrl, sizeof(ctrl) );
+        std::string ctrlStr(ctrl, sizeof(ctrl) );
+        LDAPCtrl syncCtrl( std::string("1.3.6.1.4.1.4203.1.9.1.1"), true, ctrlStr );
         LDAPControlSet cs;
         cs.add(syncCtrl);
         LDAPConstraints searchCons;
