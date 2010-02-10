@@ -170,7 +170,8 @@ class OlcAclBy
         inline void setLevel( const std::string &level )
         {
 
-            if ( level != "none" && level != "disclose" && level != "auth" &&
+            if ( !level.empty() &&
+                 level != "none" && level != "disclose" && level != "auth" &&
                  level != "compare" && level != "read" &&
                  level != "write" && level != "manage" )
             {

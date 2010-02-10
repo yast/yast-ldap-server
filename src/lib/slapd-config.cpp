@@ -663,7 +663,8 @@ OlcAccess::OlcAccess( const std::string& aclString )
                 spos = tmppos+1;
                 tmppos = extractAlcToken( aclString, spos, false );
                 level = aclString.substr(spos, tmppos-spos);
-                if ( level != "none" && level != "disclose" && level != "auth" &&
+                if ( !level.empty() && 
+                     level != "none" && level != "disclose" && level != "auth" &&
                      level != "compare" && level != "read" &&
                      level != "write" && level != "manage" )
                 {
@@ -822,12 +823,14 @@ std::string OlcAccess::toAclString() const
         {
             aclString << "=\"" << (*i)->getValue() << "\"";
         }
-
-        aclString << " " << (*i)->getLevel();
+        if ( ! (*i)->getLevel().empty() )
+        {
+            aclString << " " << (*i)->getLevel();
+        }
         std::string control = (*i)->getControl();
         if ( !control.empty() && control != "stop" )
         {
-            aclString << " " << (*i)->getControl();
+            aclString << " " << control;
         }
     }
     return aclString.str();
