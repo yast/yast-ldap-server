@@ -838,6 +838,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                                 byMap.add(YCPString("level"), YCPString( (*k)->getLevel() ) );
                                 byMap.add(YCPString("type"), YCPString( (*k)->getType() ) );
                                 byMap.add(YCPString("value"), YCPString( (*k)->getValue() ) );
+                                byMap.add(YCPString("control"), YCPString( (*k)->getControl() ) );
                                 accessList.add(byMap);
                             }
                             aclMap.add( YCPString("access"), accessList ); 
@@ -1680,8 +1681,15 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                     value = accessList->value(k)->asMap()->value( YCPString("value") )->asString()->value_cstr();
                                 }
                                 std::string level( accessList->value(k)->asMap()->value( YCPString("level") )->asString()->value_cstr() );
-                                y2debug("level %s, type %s, value %s", level.c_str(), type.c_str(), value.c_str() );
-                                boost::shared_ptr<OlcAclBy> by( new OlcAclBy( level, type, value ) );
+                                std::string control( "stop" );
+                                YCPValue ctrlVal(accessList->value(k)->asMap()->value( YCPString("control") ) );
+                                if ( ! ctrlVal.isNull() )
+                                {
+                                    control = ctrlVal->asString()->value_cstr() ;
+                                }
+                                y2debug("level %s, type %s, value %s control %s", 
+                                            level.c_str(), type.c_str(), value.c_str(), control.c_str() );
+                                boost::shared_ptr<OlcAclBy> by( new OlcAclBy( level, type, value, control ) );
                                 byList.push_back( by );
                             }
                             acl->setByList(byList);

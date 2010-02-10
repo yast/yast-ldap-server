@@ -625,6 +625,7 @@
     ];
 
     map<symbol, list<string> > accessId2String = $[
+        `access_empty     :  [ _("<empty>"), ""],
         `access_none     : [ _("No Access"), "none"],
         `access_disclose : [ _("No Access (but disclose information on error)"), "disclose" ],
         `access_auth     : [ _("Authenticate"), "auth" ],
@@ -635,6 +636,7 @@
     ];
 
     map<string, symbol> accessString2Id = $[
+        ""          : `access_empty,
         "none"      : `access_none,
         "disclose"  : `access_disclose,
         "auth"      : `access_auth,
@@ -657,7 +659,7 @@
         );
 
         list access_itemlist = [];
-        foreach( symbol i, [`access_none, `access_disclose, `access_auth, `access_compare, `access_read, `access_write, `access_manage ] ,
+        foreach( symbol i, [`access_empty, `access_none, `access_disclose, `access_auth, `access_compare, `access_read, `access_write, `access_manage ] ,
             {
                 access_itemlist = add(access_itemlist, `item( `id( i ), accessId2String[i,0]:"" ) );
             }
@@ -1249,7 +1251,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         foreach( map acl, acllist,
             {
                 y2milestone( "------------------------------" );
-                y2milestone( "ACL Target: %1", acl["target","what"]:`nil );
+                y2milestone( "ACL Target: %1", acl["target","what"]:"<nul>");
                 map targetmap = $[];
                 if ( acl["target","what"]:"*" != "*" )
                 {
