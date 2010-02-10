@@ -87,17 +87,42 @@ if(func == "MakeProposal") {
     {
         string rootPWString = "";
         defaults = LdapServer::ReadInitialDefaults();
-        if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
+        if (! LdapServer::ReadSetupSlave() )
         {
-            rootPWString = _("[root password]");
-        } else
-        {
-            rootPWString = _("[manually set]");
+            if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
+            {
+                rootPWString = _("[root password]");
+            } else
+            {
+                rootPWString = _("[manually set]");
+            }
+            if( defaults["rootpw_clear"]:"" == "" )
+            {
+                warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
+                warning_level = `blocker;
+            }
+            if ( LdapServer::ReadSetupMaster() )
+            {
+                proposal = _("Setting up LDAP Master Server:");
+            }
+            else
+            {
+                proposal = _("Setting up standalone LDAP Server:");
+            }
+            proposal = proposal +
+                HTML::List( [ _("Base DN: ") + defaults["suffix"]:"",
+                              _("Root DN: ") + defaults["rootdn"]:"",
+                              _("LDAP Password: ") + rootPWString
+                            ] );
         }
-        if( defaults["rootpw_clear"]:"" == "" )
+        else
         {
-            warning = _("Unable to retrieve the system root password.  Set an LDAP server password to continue.");
-            warning_level = `blocker;
+            map <string,any> syncrepl = LdapServer::ReadSyncreplBaseConfig();
+            proposal = _("Setting up LDAP Slave Server") +
+                    HTML::List( [ _("Provider: ") + (string)syncrepl["provider","protocol"]:"" + "://"
+                                                  + (string)syncrepl["provider","target"]:"" + ":"
+                                                  + tostring(syncrepl["provider","port"]:0) ] );
+
         }
         // Try to get Firewall status
         string fw_text = "";
@@ -128,16 +153,10 @@ if(func == "MakeProposal") {
                 fw_text = _("Firewall is disabled");
                 textdomain "ldap-server";
         }
-
-        proposal = _("LDAP Server Configuration:") +
-                     HTML::List( [ _("Base DN: ") + defaults["suffix"]:"",
-                                   _("Root DN: ") + defaults["rootdn"]:"",
-                                   _("LDAP Password: ") + rootPWString
-                                 ] ) +
-                   _("Start LDAP Server: ") + HTML::Bold( _("YES") ) + HTML::Newline() +
-                   _("Register at SLP Daemon: ") + HTML::Bold( defaults["slpRegister"]:false ? _("YES") : _("NO") ) +
-                   HTML::Newline() +
-                  fw_text;
+        proposal = proposal +
+                _("Register at SLP Daemon: ") + HTML::Bold( defaults["slpRegister"]:false ? _("YES") : _("NO") ) +
+                HTML::Newline() +
+                fw_text;
     } else {
         proposal = _("Start LDAP Server: ") + HTML::Bold( _("NO") );
     }
@@ -213,6 +232,7 @@ without installing the required packages."));
 
             return ret;
         }
+
         if ( LdapServer::ReadSetupSlave() )
         {
             Wizard::CreateDialog();
@@ -221,7 +241,7 @@ without installing the required packages."));
             Wizard::CloseDialog();
             if ( slave_ret == `next )
             {
-                LdapServer::SetupRemoteForReplication(); 
+                LdapServer::SetupRemoteForReplication();
             }
             else
             {
@@ -229,7 +249,6 @@ without installing the required packages."));
                 return ret;
             }
         }
-
         LdapServer::ReadFromDefaults();
         map <string,any> defaults = LdapServer::ReadInitialDefaults();
         Progress::set(false);

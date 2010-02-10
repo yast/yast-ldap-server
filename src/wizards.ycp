@@ -123,15 +123,15 @@ any ProposalSequence() {
            Label::BackButton(), Label::NextButton());
 
     map aliases = $[
-        "startup"   : ``( EnableServiceDialog() ),
-        "servertype" : ``( ServerTypeDialog() ),
-        "tlssettings" : ``( TlsConfigDialog() ),
-        "database"   : ``( ProposalDialog() ),
-        "summary"   : ``(SummaryDialog() ),
-        "advanced"  :  ``(MainSequence() ),
-	"write"	: ``( WriteDialog() ),
-        "slavesetup" : ``( SlaveSetupDialog() ),
-        "mastersetup" : ``( MasterSetupDialog() ),
+        "startup"           : ``( EnableServiceDialog() ),
+        "servertype"        : ``( ServerTypeDialog() ),
+        "tlssettings"       : ``( TlsConfigDialog() ),
+        "database"          : ``( ProposalDialog() ),
+        "summary"           : ``(SummaryDialog() ),
+        "advanced"          : ``(MainSequence() ),
+        "write"             : ``( WriteDialog() ),
+        "slavesetup"        : ``( SlaveSetupDialog() ),
+        "mastersetup"       : ``( MasterSetupDialog() ),
         "replicationsummary": ``( ReplicatonSetupSummaryDialog() )
     ];
 
@@ -162,21 +162,21 @@ any ProposalSequence() {
         ],
         "mastersetup"   : $[
             `next   : "summary",
-            `abort  : `abort,
+            `abort  : `abort
         ],
         "summary"   : $[
             `next   : "write",
             `abort  : `abort,
             `advanced : "advanced"
         ],
-	"advanced" : $[
-	    `abort	: `abort,
-	    `next	: "write"
-	],
-	"write" : $[
-	    `abort	: `abort,
-	    `next	: `next
-	]
+        "advanced" : $[
+            `abort      : `abort,
+            `next       : "write"
+        ],
+        "write" : $[
+            `abort      : `abort,
+            `next       : `next
+        ]
     ];
 
     y2milestone( "--> starting ProposalSequence" );

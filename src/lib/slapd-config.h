@@ -174,7 +174,7 @@ class OlcAclBy
                  level != "compare" && level != "read" &&
                  level != "write" && level != "manage" )
             {
-                throw std::runtime_error( "Unsupported access level" );
+                throw std::runtime_error( "Unsupported access level <" + level + ">" );
             }
             m_level = level;
         }
@@ -231,6 +231,25 @@ class OlcAccess
         OlcAclByList m_byList;
 };
 
+typedef std::list<std::pair<std::string,std::string> > pairlist;
+class OlcLimits
+{
+    public:
+        inline OlcLimits() {}
+
+        OlcLimits( const std::string &limitsString);
+        void setSelector( const std::string &value );
+        void setLimits ( const pairlist&value );
+        
+        std::string getSelector() const;
+        pairlist getLimits() const;
+
+        std::string toLimitsString() const;
+    private:
+        std::string m_selector;
+        pairlist m_limits;
+};
+
 class OlcSyncRepl
 {
     public:
@@ -251,6 +270,7 @@ class OlcSyncRepl
         const static std::string INTERVAL;
         const static std::string STARTTLS;
         const static std::string RETRY;
+        const static std::string TLS_REQCERT;
 
         std::string toSyncReplLine() const;
 
@@ -264,6 +284,7 @@ class OlcSyncRepl
         void setInterval( int days, int hours, int mins, int secs );
         void setStartTls( StartTls tls );
         void setRetryString( const std::string &value );
+        void setTlsReqCert( const std::string &value );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -274,6 +295,7 @@ class OlcSyncRepl
         std::string getCredentials() const;
         void getInterval( int &days, int &hours, int &mins, int &secs ) const;
         StartTls getStartTls() const;
+        std::string getTlsReqCert() const;
 
     private:
         int rid;
@@ -284,6 +306,7 @@ class OlcSyncRepl
         std::string binddn;
         std::string credentials;
         std::string retryString;
+        std::string tlsReqCert;
         int refreshOnlyDays;
         int refreshOnlyHours;
         int refreshOnlyMins;
@@ -307,6 +330,7 @@ class OlcSecurity
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
+typedef std::list<boost::shared_ptr<OlcLimits> > OlcLimitList;
 typedef std::list<boost::shared_ptr<OlcSyncRepl> > OlcSyncReplList;
 
 class OlcDatabase : public OlcConfigEntry
@@ -329,6 +353,9 @@ class OlcDatabase : public OlcConfigEntry
         bool getAcl( OlcAccessList& accessList ) const;
         virtual void addAccessControl( const std::string& acl, int index=-1 );
         virtual void replaceAccessControl( const OlcAccessList& acllist );
+        
+        bool getLimits( OlcLimitList& limitList ) const;
+        void replaceLimits( const OlcLimitList& limits );
 
         OlcSyncReplList getSyncRepl() const;
         void setSyncRepl( const OlcSyncReplList& srl );
