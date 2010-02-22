@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Feb 22 12:22:01 UTC 2010 - rhafer@novell.com
+
+- Version 2.17.31
+- Added missing online-help for config DB settings (bnc#580238)
+
+-------------------------------------------------------------------
 Mon Feb  8 12:36:42 UTC 2010 - rhafer@novell.com
 
 - Version 2.17.30 
