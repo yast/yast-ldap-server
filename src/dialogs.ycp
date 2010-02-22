@@ -147,7 +147,7 @@ string showTreeDialog( string name, boolean focus_tree )
 
     //get helps page
     string help_page = (string)widget_map[name,"help_page"]:name;
-    string help_string = HELPS[help_page]:("help page for item <b>"+help_page+"</b> not available");
+    string help_string = HELPS[help_page]:(_("help page for item <b>")+help_page+_("</b> not available"));
 
     Wizard::SetAbortButton(`abort, Label::CancelButton());
     Wizard::SetContentsButtons( caption, widget, help_string,
