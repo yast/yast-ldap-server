@@ -31,6 +31,7 @@ YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("SuSEFirewall");
 YaST::YCP::Import ("Service");
 YaST::YCP::Import ("SCR");
+YaST::YCP::Import ("Hostname");
 
 my %error = ( msg => undef, details => undef );
 my $ssl_check_command = "/usr/lib/YaST2/bin/ldap-server-ssl-check";
@@ -1621,8 +1622,12 @@ sub InitDbDefaults
     my $domain = $rc->{"stdout"};
     if ( $domain eq "" )
     {
-        y2milestone("\"hostname -d\" returned: \"". $rc->{'stderr'} . "\" falling back to default");
-        $domain = "site";
+        $domain = Hostname::CurrentDomain();
+        if ( $domain eq "" )
+        {
+            y2milestone("unable to determine domainname falling back to hard-coded default");
+            $domain = "site";
+        }
     }
     chomp($domain);
     y2milestone( "domain is: <".$domain.">"  );
