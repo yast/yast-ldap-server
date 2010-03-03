@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Mar  2 14:58:07 UTC 2010 - rhafer@novell.com
+
+- Version 2.17.32
+- use Hostname Module (for /etc/HOSTNAME fallback) to get the 
+  local domainname (bnc#583786)
+
+-------------------------------------------------------------------
 Mon Feb 22 12:22:01 UTC 2010 - rhafer@novell.com
 
 - Version 2.17.31
