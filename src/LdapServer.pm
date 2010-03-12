@@ -683,7 +683,7 @@ sub Write {
                 _("Creating Configuration"),
                 _("Starting OpenLDAP Server"),
                 _("Creating Base Objects") ];
-        Progress->New("Writing OpenLDAP Server Configuration", "", 5, $progressItems, $progressItems, "");
+        Progress->New(_("Writing OpenLDAP Server Configuration"), "", 5, $progressItems, $progressItems, "");
 
         Progress->NextStage();
 
@@ -848,7 +848,7 @@ sub Write {
             my $progressItems = [ _("Stopping LDAP Server"),
                     _("Disabling LDAP Server")
                 ];
-            Progress->New("De-activating OpenLDAP Server", "", 2, $progressItems, $progressItems, "");
+            Progress->New(_("De-activating OpenLDAP Server"), "", 2, $progressItems, $progressItems, "");
             Progress->NextStage();
             Service->Disable("ldap");
             Progress->NextStage();
@@ -870,7 +870,7 @@ sub Write {
                               _("Restarting OpenLDAP Server if required"),
                             ];
 
-        Progress->New("Writing OpenLDAP Configuration", "", 7, $progressItems, $progressItems, "");
+        Progress->New(_("Writing OpenLDAP Configuration"), "", 7, $progressItems, $progressItems, "");
         Progress->NextStage();
 
         # these changes require a restart of slapd
@@ -1504,7 +1504,7 @@ sub MigrateSlapdConf
             _("Converting slapd.conf to config database"), 
             _("Switching startup configuration to use config database"),
             _("Restarting LDAP Server") ]; 
-    Progress->New("Migrating LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
+    Progress->New(_("Migrating LDAP Server Configuration"), "", 3, $progressItems, $progressItems, "");
     
     Progress->NextStage();
     Progress->NextStage();
