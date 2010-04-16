@@ -1403,7 +1403,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                         `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Name"), "" ),
                                         `HSpacing(),
                                         `HSquash(
-                                            `IntField( `id(`if_sync_port), "Port", 0, 65536, 389)
+                                            `IntField( `id(`if_sync_port), _("Port"), 0, 65536, 389)
                                         ),
                                         `HSpacing(),
                                         `VBox(
@@ -1473,7 +1473,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                                         `InputField( `id( `te_updateref_target ), `opt(`hstretch), _("Target Host"), "" ),
                                         `HSpacing(),
                                         `HSquash(
-                                            `IntField( `id(`if_updateref_port), "Port", 0, 65536, 389)
+                                            `IntField( `id(`if_updateref_port), _("Port"), 0, 65536, 389)
                                         )
                                     )
                                 )
