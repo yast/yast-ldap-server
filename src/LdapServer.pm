@@ -31,6 +31,7 @@ YaST::YCP::Import ("Progress");
 YaST::YCP::Import ("SuSEFirewall");
 YaST::YCP::Import ("Service");
 YaST::YCP::Import ("SCR");
+YaST::YCP::Import ("Hostname");
 
 my %error = ( msg => undef, details => undef );
 my $ssl_check_command = "/usr/lib/YaST2/bin/ldap-server-ssl-check";
@@ -682,7 +683,7 @@ sub Write {
                 _("Creating Configuration"),
                 _("Starting OpenLDAP Server"),
                 _("Creating Base Objects") ];
-        Progress->New("Writing OpenLDAP Server Configuration", "", 5, $progressItems, $progressItems, "");
+        Progress->New(_("Writing OpenLDAP Server Configuration"), "", 5, $progressItems, $progressItems, "");
 
         Progress->NextStage();
 
@@ -847,7 +848,7 @@ sub Write {
             my $progressItems = [ _("Stopping LDAP Server"),
                     _("Disabling LDAP Server")
                 ];
-            Progress->New("De-activating OpenLDAP Server", "", 2, $progressItems, $progressItems, "");
+            Progress->New(_("De-activating OpenLDAP Server"), "", 2, $progressItems, $progressItems, "");
             Progress->NextStage();
             Service->Disable("ldap");
             Progress->NextStage();
@@ -869,7 +870,7 @@ sub Write {
                               _("Restarting OpenLDAP Server if required"),
                             ];
 
-        Progress->New("Writing OpenLDAP Configuration", "", 7, $progressItems, $progressItems, "");
+        Progress->New(_("Writing OpenLDAP Configuration"), "", 7, $progressItems, $progressItems, "");
         Progress->NextStage();
 
         # these changes require a restart of slapd
@@ -1503,7 +1504,7 @@ sub MigrateSlapdConf
             _("Converting slapd.conf to config database"), 
             _("Switching startup configuration to use config database"),
             _("Restarting LDAP Server") ]; 
-    Progress->New("Migrating LDAP Server Configuration", "Blub", 3, $progressItems, $progressItems, "");
+    Progress->New(_("Migrating LDAP Server Configuration"), "", 3, $progressItems, $progressItems, "");
     
     Progress->NextStage();
     Progress->NextStage();
@@ -1621,8 +1622,12 @@ sub InitDbDefaults
     my $domain = $rc->{"stdout"};
     if ( $domain eq "" )
     {
-        y2milestone("\"hostname -d\" returned: \"". $rc->{'stderr'} . "\" falling back to default");
-        $domain = "site";
+        $domain = Hostname::CurrentDomain();
+        if ( $domain eq "" )
+        {
+            y2milestone("unable to determine domainname falling back to hard-coded default");
+            $domain = "site";
+        }
     }
     chomp($domain);
     y2milestone( "domain is: <".$domain.">"  );
