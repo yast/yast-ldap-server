@@ -855,10 +855,12 @@
                                             `PushButton( `id (`pb_down ), _("Down") )
                                         )
                                     ),
-                                    `HBox(
-                                        `PushButton( `id (`pb_add ), _("Add") ),
-                                        `PushButton( `id (`pb_del ), _("Delete") ),
-                                        `PushButton( `id (`pb_edit ), _("Edit") )
+                                    `Left(
+                                        `HBox(
+                                            `PushButton( `id (`pb_add ), Label::AddButton() ),
+                                            `PushButton( `id (`pb_edit ), Label::EditButton() ),
+                                            `PushButton( `id (`pb_del ), Label::DeleteButton() )
+                                        )
                                     )
                                 )
                             ),
@@ -1147,10 +1149,12 @@
                             `PushButton( `id (`pb_down ), _("Down") )
                         )
                     ),
-                    `HBox(
-                        `PushButton( `id (`pb_add ), _("Add") ),
-                        `PushButton( `id (`pb_del ), _("Delete") ),
-                        `PushButton( `id (`pb_edit ), _("Edit") )
+                    `Left(
+                        `HBox(
+                            `PushButton( `id (`pb_add ), Label::AddButton() ),
+                            `PushButton( `id (`pb_edit ),Label::EditButton() ),
+                            `PushButton( `id (`pb_del ), Label::DeleteButton() )
+                        )
                     )
                 )
             );
