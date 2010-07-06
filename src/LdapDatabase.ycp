@@ -148,7 +148,7 @@
         boolean append_checked = true;
         if ( createDefaults )
         {
-            db = LdapServer::ReadInitialDefaults();
+            db = LdapServer::CreateInitialDefaults();
         }
         else
         {

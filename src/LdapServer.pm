@@ -811,6 +811,13 @@ sub Write {
 		["localhost"]);
 	    SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base",
 		[$ldapconf_base]);
+            my $tls = $self->ReadTlsConfig();
+            if ( ref($tls) eq "HASH" && $tls->{'caCertFile'} ne "" )
+            {
+	        SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".tls_cacert",
+		    [$tls->{'caCertFile'}]);
+            }
+            SCR->Write(".etc.ldap_conf", "force" );
         }
         if (! $usesBackConfig )
         {
@@ -1570,10 +1577,10 @@ sub MigrateSlapdConf
  # 
  # @return A Map containing the setting to use when creating the initial setup
  #
-BEGIN { $TYPEINFO {ReadInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
-sub ReadInitialDefaults
+BEGIN { $TYPEINFO {CreateInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub CreateInitialDefaults
 {
-    y2milestone("ReadInitialDefaults");
+    y2milestone("CreateInitialDefaults");
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
@@ -1759,6 +1766,7 @@ sub ReadFromDefaults
                 $self->ChangeDatabaseIndex(1, $idx );
             }
         }
+        $self->WriteLdapConfBase($database->{'suffix'});
 
         if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
         {
