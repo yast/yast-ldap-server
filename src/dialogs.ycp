@@ -282,37 +282,33 @@ any ServerTypeDialog()
     term serverTypeWidget =
         `HSquash(
             `VBox(
-                `Heading( _("Server type") ),
-                `Frame("",
+                `Heading( _("Please select Server type") ),
+                `VSpacing(),
+                `RadioButtonGroup(
+                    `id( `rbg_servertype ),
                     `VBox(
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_standalone ),
+                                _("This will be a standalone server"),
+                                true
+                            )
+                        ),
                         `VSpacing(),
-                        `RadioButtonGroup(
-                            `id( `rbg_servertype ),
-                            `VBox(
-                                `Left(
-                                    `RadioButton(
-                                        `id( `rb_standalone ),
-                                        _("Stand-alone server"),
-                                        true
-                                    )
-                                ),
-                                `VSpacing(),
-                                `Left(
-                                    `RadioButton(
-                                        `id( `rb_master ),
-                                        _("Master server in a replication setup"),
-                                        false
-                                    )
-                                ),
-                                `VSpacing(),
-                                `Left(
-                                    `RadioButton(
-                                        `id( `rb_slave ),
-                                        _("Replica (slave) server.\n") +
-                                        _("All data, including configuration, is replicated from a remote server."),
-                                        false
-                                    )
-                                )
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_master ),
+                                _("This server can act as a master server in a replication setup"),
+                                false
+                            )
+                        ),
+                        `VSpacing(),
+                        `Left(
+                            `RadioButton(
+                                `id( `rb_slave ),
+                                _("This will be a replica (slave) server.\n") +
+                                _("All data including configuration will replicated from a remote server."),
+                                false
                             )
                         )
                     )
