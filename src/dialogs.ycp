@@ -206,7 +206,7 @@ term dlg_service_initial =
 
 any EnableServiceDialog()
 {
-    map <string, any> defaults = LdapServer::ReadInitialDefaults();
+    map <string, any> defaults = LdapServer::CreateInitialDefaults();
     map<string, any> firewall_settings = $[
             "services": [ "service:openldap" ],
             "display_details": true,
@@ -1075,7 +1075,7 @@ any MasterSetupDialog()
             }
             else
             {
-                map <string, any> defaults = LdapServer::ReadInitialDefaults();
+                map <string, any> defaults = LdapServer::CreateInitialDefaults();
                 defaults["configpw"] = pw;
                 LdapServer::SetInitialDefaults(defaults);
                 break;
