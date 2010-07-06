@@ -301,13 +301,11 @@
                 `header( _("Attrbute"), _("Presence"), _("Equality"), _("Substring")),
                 [ ]
             ),
-            `Left(
-                `HSquash(
-                    `HBox(
-                        `PushButton( `id( `pb_idx_add ), Label::AddButton() ),
-                        `PushButton( `id( `pb_idx_edit ), Label::EditButton() ),
-                        `PushButton( `id( `pb_idx_del ), Label::DeleteButton() )
-                    )
+            `HSquash(
+                `HBox(
+                    `PushButton( `id( `pb_idx_add ), _("Add") ),
+                    `PushButton( `id( `pb_idx_edit ), _("Edit") ),
+                    `PushButton( `id( `pb_idx_del ), _("Delete") )
                 )
             )
         );

@@ -218,11 +218,11 @@ for OpenLDAP by checking the corresponding Checkbox.</p>"),
     /* Configuration Wizard Step 2 */
     "server_type" :
         _("<p>Select the type of LDAP Server you want to setup. The following scenarios are available:</p>") +
-        _("<p><b>Stand-alone server</b>: Setup a single standalone OpenLDAP Server with no preparations for
+        _("<p><b>Standalone Server</b>: Setup a single standalone OpenLDAP Server with no preparations for
 replication</p>") +
-        _("<p><b>Master server in a replication setup</b>: Create an OpenLDAP setup that is prepared to act as a master server
+        _("<p><b>Replication Master (Provider)</b>: Create an OpenLDAP setup that is prepared to act as a master server
 (provider) in a replication setup.</p>") +
-        _("<p><b>Replica slave server</b>: Setup an OpenLDAP slave server that replicates all its data,
+        _("<p><b>Replication Slave (Consumer)</b>: Setup an OpenLDAP slave server that replicates all its data,
 including configuration, from a master server.</p>"),
 
     /* Configuration Wizard Step 3 */
