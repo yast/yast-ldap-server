@@ -73,7 +73,7 @@ if(func == "MakeProposal") {
             {
                 LdapServer::WriteServiceEnabled( true );
             }
-            defaults = LdapServer::ReadInitialDefaults();
+            defaults = LdapServer::CreateInitialDefaults();
             defaults["serviceEnabled"] = LdapServer::ReadServiceEnabled();
             defaults["rootpw_clear"] = Users::GetRootPassword();
             LdapServer::SetInitialDefaults(defaults);
@@ -86,7 +86,7 @@ if(func == "MakeProposal") {
     if( LdapServer::ReadServiceEnabled() )
     {
         string rootPWString = "";
-        defaults = LdapServer::ReadInitialDefaults();
+        defaults = LdapServer::CreateInitialDefaults();
         if (! LdapServer::ReadSetupSlave() )
         {
             if( defaults["rootpw_clear"]:"" == Users::GetRootPassword() )
@@ -250,7 +250,7 @@ without installing the required packages."));
             }
         }
         LdapServer::ReadFromDefaults();
-        map <string,any> defaults = LdapServer::ReadInitialDefaults();
+        map <string,any> defaults = LdapServer::CreateInitialDefaults();
         Progress::set(false);
         Ldap::Read();
         Progress::set(true);
