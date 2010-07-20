@@ -1570,10 +1570,10 @@ sub MigrateSlapdConf
  # 
  # @return A Map containing the setting to use when creating the initial setup
  #
-BEGIN { $TYPEINFO {ReadInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
-sub ReadInitialDefaults
+BEGIN { $TYPEINFO {CreateInitialDefaults} = ["function", [ "map", "string", "any"] ]; }
+sub CreateInitialDefaults
 {
-    y2milestone("ReadInitialDefaults");
+    y2milestone("CreateInitialDefaults");
     my $self = shift;
     if ( ! keys(%dbDefaults ) ) {
         $self->InitDbDefaults();
@@ -1759,6 +1759,7 @@ sub ReadFromDefaults
                 $self->ChangeDatabaseIndex(1, $idx );
             }
         }
+        $self->WriteLdapConfBase($database->{'suffix'});
 
         if ( defined $dbDefaults{'configpw'} && $dbDefaults{'configpw'} ne "" )
         {
