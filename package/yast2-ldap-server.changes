@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Jul 20 14:48:59 UTC 2010 - rhafer@novell.com
+
+- Version 2.17.35
+- Fixed an API incompatiblity between sle11-ga and sle11-sp1 which
+  caused yast2-kerberos-server to fail (bnc#619548)
+
+-------------------------------------------------------------------
 Fri Mar 12 12:57:46 UTC 2010 - rhafer@novell.com
 
 - Version 2.17.34 
