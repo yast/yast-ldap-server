@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Jul 22 11:07:04 UTC 2010 - rhafer@novell.com
+
+- Version 2.19.2
+  * Create LDAP Base objects after ldap.conf as been written, to 
+    avoid initialization issues in the LDAP agent (bnc#619549)
+
+-------------------------------------------------------------------
 Tue Jul  6 11:29:07 UTC 2010 - rhafer@novell.com
 
 - Version 2.19.1
