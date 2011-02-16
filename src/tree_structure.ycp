@@ -550,12 +550,13 @@ define boolean cb_input_databases()
         {
             rebuild_widget_tree = true;
             map <string,any> newDb = LdapDatabase::GetDatabase();
-            if ( ! LdapServer::AddDatabase(0, newDb, LdapDatabase::GetCreateDir() ) )
+            if ( ! LdapServer::AddDatabase(0, newDb, LdapDatabase::GetCreateDir(), LdapDatabase::GetCreateBase() ) )
             {
                 map<string, string> err = LdapServer::ReadError();
                 callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                 return false;
             }
+            LdapDatabase::ResetCreateBase();
             map <string,any> syncrepl = LdapDatabase::GetSyncRepl();
             if ( size(syncrepl) > 0 )
             {
