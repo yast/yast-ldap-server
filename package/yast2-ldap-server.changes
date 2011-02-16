@@ -11,7 +11,6 @@ Wed Feb 16 11:00:52 UTC 2011 - rhafer@suse.de
 Wed Aug 18 15:23:05 CEST 2010 - mzugec@suse.cz
 
 - fixed typos (bnc#631743)
-- 2.19.1 
 
 -------------------------------------------------------------------
 Thu Jul 22 10:05:25 UTC 2010 - rhafer@novell.com
@@ -20,11 +19,12 @@ Thu Jul 22 10:05:25 UTC 2010 - rhafer@novell.com
   (bnc#619549)
 
 -------------------------------------------------------------------
-Tue Jul  6 12:30:23 UTC 2010 - rhafer@novell.com
+Tue Jul  6 11:29:07 UTC 2010 - rhafer@novell.com
 
-- Write tls_cacert option to ldap.conf (bnc#619549)
-- Rename ReadInitialDefaults() back to CreateInitialDefaults()
-  to stay backwards compatible. (bnc#615805)
+- Version 2.19.1
+  * Write tls_cacert option to ldap.conf (bnc#619549)
+  * Rename ReadInitialDefaults() back to CreateInitialDefaults()
+    to stay backwards compatible. (bnc#615805)
 
 -------------------------------------------------------------------
 Fri Apr 16 09:27:08 UTC 2010 - rhafer@novell.com
