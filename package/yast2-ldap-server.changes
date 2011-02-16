@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Wed Feb 16 11:00:52 UTC 2011 - rhafer@suse.de
+
+- Version 2.20.0
+- Warn user, when creating a database with a non-standard base DN and
+  disable base-object creation in such case (bnc#669213)
+- Allow non-standard db-directory when creating the first database
+  (bnc#669213)
+
+-------------------------------------------------------------------
 Wed Aug 18 15:23:05 CEST 2010 - mzugec@suse.cz
 
 - fixed typos (bnc#631743)
