@@ -19,6 +19,7 @@
 
     string ldapconf_basedn = "";
     boolean createDbDir = false;
+    boolean createBase = true;
 
 
     term editPolicy =
@@ -74,6 +75,17 @@
                 )
             )
         );
+
+    global define boolean GetCreateBase()
+    {
+        return createBase;
+    }
+
+    global define boolean ResetCreateBase()
+    {
+        createBase = true;
+        return true;
+    }
 
     global define symbol AddDbBasic( boolean createDefaults )
     {
@@ -297,6 +309,29 @@
                     Popup::Error( err["msg"]:"" + "\n" + err["details"]:"" );
                     continue;
                 }
+                integer rc =  LdapServer::CheckSuffixAutoCreate( db["suffix"]:"" );
+                if ( rc < 0 )
+                {
+                    map<string, string> err = LdapServer::ReadError();
+                    Popup::Error( err["msg"]:"" + "\n" + err["details"]:"" );
+                    continue;
+                }
+                else if ( rc > 0 )
+                {
+                    map<string, string> err = LdapServer::ReadError();
+                    boolean res = Popup::AnyQuestion(Label::WarningMsg(),
+                                        _("The Base Object: \"") + db["suffix"]:"" +
+                                        _("\" can not be auto created by YaST.\n") +
+                                        err["msg"]:"",
+                                        Label::OKButton(), Label::CancelButton(), `focus);
+                    if ( res == false ) {
+                        continue;
+                    } else {
+                        y2debug( "Will not create base objects" );
+                        createBase = false;
+                    }
+
+                }
                 if( db["directory"]:"" == "" )
                 {
                     Popup::Error( _("A directory must be specified.") );
@@ -445,7 +480,9 @@
                 UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , true );
                 UI::ChangeWidget( `te_ppolicy_defaultpolicy, `Enabled , true );
                 UI::ChangeWidget( `cb_pp_append_basedn, `Enabled, true );
-                UI::ChangeWidget( `pb_define_policy, `Enabled , true );
+                if (LdapDatabase::GetCreateBase() ) {
+                    UI::ChangeWidget( `pb_define_policy, `Enabled , true );
+                }
             } else {
                 UI::ChangeWidget( `cb_ppolicy_hashcleartext, `Enabled , false );
                 UI::ChangeWidget( `cb_ppolicy_uselockout, `Enabled , false );

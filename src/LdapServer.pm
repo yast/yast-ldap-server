@@ -2420,6 +2420,42 @@ sub IsSubordinate
     return 1;
 }
 
+##
+ # Check whether the object named be the supplied LDAP DN can be auto-created.
+ # @returns 0 in case of success,
+ #         <0 if the supplied DN is invalid
+ #         >0 if autocreation is not possible
+ #
+BEGIN { $TYPEINFO {CheckSuffixAutoCreate} = ["function", "integer", "string" ]; }
+sub CheckSuffixAutoCreate
+{
+    my ($self, $suffix) = @_;
+    my $object = X500::DN->ParseRFC2253($suffix);
+    my @attr = $object->getRDN($object->getRDNs()-1)->getAttributeTypes();
+    my $val = $object->getRDN($object->getRDNs()-1)->getAttributeValue($attr[0]);
+    if(!defined $attr[0] || !defined $val)
+    {
+        y2error("Error while extracting RDN values");
+        $self->SetError( _("Invalid LDAP DN: \""). $suffix. _("\", can't extract RDN values"));
+        return -1;
+    }
+    if( (lc($attr[0]) eq "ou") || ( lc($attr[0]) eq "o") || ( lc($attr[0]) eq "l") ||
+        ( lc($attr[0]) eq "st") || ( lc($attr[0]) eq "dc") ) {
+        return 0;
+    } elsif( lc($attr[0]) eq "c") {
+        if($val !~ /^\w{2}$/) {
+            $self->SetError( _("The value of the \"c\" Attribute must contain a valid ISO-3166 country 2-letter code."), "");
+            y2error("The countryName must be an ISO-3166 country 2-letter code.");
+            return -1;
+        }
+        return 0;
+    } else {
+        y2error("First part of suffix must be c=, st=, l=, o=, ou= or dc=.");
+        $self->SetError( _("First part of suffix must be c=, st=, l=, o=, ou= or dc=."), "");
+        return 1;
+    }
+}
+
 BEGIN { $TYPEINFO {CheckDatabase} = ["function", "boolean", [ "map" , "string", "any"] ]; }
 sub CheckDatabase
 {
@@ -2462,10 +2498,10 @@ sub CheckDatabase
 }
 
 
-BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"], "boolean" ]; }
+BEGIN { $TYPEINFO {AddDatabase} = ["function", "boolean", "integer", [ "map" , "string", "any"], "boolean", "boolean" ]; }
 sub AddDatabase
 {
-    my ($self, $index, $db, $createDir) = @_;
+    my ($self, $index, $db, $createDir, $createBase) = @_;
     if ( ! $self->CheckDatabase($db) )
     {
         return 0;
@@ -2577,10 +2613,13 @@ sub AddDatabase
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return 0;
     }
-    push @added_databases, $db->{'suffix'};
-    $self->WriteAuthInfo( $db->{'suffix'}, 
+
+    if ( $createBase ) {
+        push @added_databases, $db->{'suffix'};
+        $self->WriteAuthInfo( $db->{'suffix'},
                         { bind_dn => $db->{'rootdn'},
                           bind_pw => $db->{'rootpw_clear'} } );
+    }
     return 1;
 }
 
