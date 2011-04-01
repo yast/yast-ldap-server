@@ -96,7 +96,7 @@ define boolean addDatabaseHandler (map options ) {
 
 //    y2milestone("db-options : %1", db);
 //
-    ret = LdapServer::AddDatabase(0,db, true);
+    ret = LdapServer::AddDatabase(0,db, true, true);
 
     if(!ret)
     {
