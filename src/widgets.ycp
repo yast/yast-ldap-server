@@ -298,7 +298,7 @@
             `Heading( _("Indexing Configuration") ),
             `Table(
                 `id( `tab_idx ),
-                `header( _("Attrbute"), _("Presence"), _("Equality"), _("Substring")),
+                `header( _("Attribute"), _("Presence"), _("Equality"), _("Substring")),
                 [ ]
             ),
             `Left(
