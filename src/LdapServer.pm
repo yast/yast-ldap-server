@@ -811,6 +811,13 @@ sub Write {
 		["localhost"]);
 	    SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".base",
 		[$ldapconf_base]);
+            my $tls = $self->ReadTlsConfig();
+            if ( ref($tls) eq "HASH" && $tls->{'caCertFile'} ne "" )
+            {
+	        SCR->Write(".etc.ldap_conf.value.\"/etc/openldap/ldap.conf\".tls_cacert",
+		    [$tls->{'caCertFile'}]);
+            }
+            SCR->Write(".etc.ldap_conf", "force" );
         }
         if (! $usesBackConfig )
         {
