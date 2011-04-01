@@ -1696,7 +1696,7 @@ sub ReadFromDefaults
                      'suffix' => $dbDefaults{'suffix'},
                      'rootdn' => $dbDefaults{'rootdn'},
                      'rootpw' => $pwHash,
-                     'directory' => '/var/lib/ldap',
+                     'directory' => $dbDefaults{'directory'},
                      'entrycache' => YaST::YCP::Integer($dbDefaults{'entrycache'}),
                      'idlcache' => YaST::YCP::Integer($dbDefaults{'idlcache'}),
                      'checkpoint' => [ YaST::YCP::Integer($dbDefaults{'checkpoint'}->[0]),
@@ -1755,6 +1755,20 @@ sub ReadFromDefaults
             return $rc;
         }
 
+        if ( ! defined SCR->Read(".target.dir", $database->{directory}) ) {
+            my $ret = SCR->Execute(".target.bash", "mkdir -m 0700 -p ".$database->{directory});
+            if( ( $ret ) && ( ! defined  SCR->Read(".target.dir", $database->{directory}) ) ) {
+                $self->SetError(_("Could not create database directory."), "");
+                return $ret;
+            }
+            my $owner = SCR->Read('.sysconfig.openldap.OPENLDAP_USER');
+            my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
+            $ret = SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$database->{directory});
+            if ( $ret ) {
+                $self->SetError(_("Could adjust ownership of database directory."), "");
+                return $ret;
+            }
+        }
         SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase, $database ] );
         if ( $dbDefaults{'defaultIndex'} == 1 || 
              ( ref($dbDefaults{'defaultIndex'}) eq "YaST::YCP::Boolean" &&
