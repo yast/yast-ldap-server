@@ -799,11 +799,6 @@ sub Write {
             return 0;
         }
         Progress->NextStage();
-        $self->CreateBaseObjects();
-        if ( $setupSyncreplMaster )
-        {
-            $self->CreateSyncReplAccount();
-        }
         if ( $write_ldapconf )
         {
             y2milestone("Updating /etc/openldap/ldap.conf");
@@ -818,6 +813,11 @@ sub Write {
 		    [$tls->{'caCertFile'}]);
             }
             SCR->Write(".etc.ldap_conf", "force" );
+        }
+        $self->CreateBaseObjects();
+        if ( $setupSyncreplMaster )
+        {
+            $self->CreateSyncReplAccount();
         }
         if (! $usesBackConfig )
         {
