@@ -1192,9 +1192,11 @@ widget_map = $[
             `MinSize( 60, 7,
                 `Table( `id( `tab_db ),`opt(`keepSorting), `header(_("Suffix DN"), _("Database type") ) )
             ),
-            `HBox(
-                `PushButton( `id( `pb_add ), _("A&dd Database...") ),
-                `PushButton( `id( `pb_del ), _("Delete Database") )
+            `Left(
+                `HBox(
+                    `PushButton( `id( `pb_add ), Label::AddButton() ),
+                    `PushButton( `id( `pb_del ), Label::DeleteButton() )
+                )
             )
         ),
         "cb_read"   : ``( cb_read_databases() ),
