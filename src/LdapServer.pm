@@ -1690,8 +1690,10 @@ sub ReadFromDefaults
 
     $self->WriteServiceEnabled( $dbDefaults{'serviceEnabled'} );
     $self->WriteSLPEnabled( $dbDefaults{'slpRegister'} );
-
-    my $pwHash =  $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
+    my $pwHash = "";
+    if ( $dbDefaults{'pwenctype'} && $dbDefaults{'rootpw_clear'} ) {
+        $pwHash = $self->HashPassword($dbDefaults{'pwenctype'}, $dbDefaults{'rootpw_clear'} );
+    }
     my $database = { 'type' => $dbDefaults{'type'},
                      'suffix' => $dbDefaults{'suffix'},
                      'rootdn' => $dbDefaults{'rootdn'},
