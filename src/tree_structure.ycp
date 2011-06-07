@@ -1054,7 +1054,8 @@ define boolean cb_read_synccons()
     }
     else
     {
-        return LdapDatabase::DbSyncConsRead( index, sr );
+        map<string,any> updateref = LdapServer::ReadUpdateRef( index );
+        return LdapDatabase::DbSyncConsRead( index, sr, updateref );
     }
 }
 
