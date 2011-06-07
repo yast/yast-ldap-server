@@ -15,7 +15,7 @@
 #define ANSWER	42
 #define MAX_LENGTH_ID 5
 
-class SaslExternalHandler : SaslInteractionHandler 
+class SaslExternalHandler : SaslInteractionHandler
 {
     public:
         virtual void handleInteractions(const std::list<SaslInteraction*> &cb );
@@ -919,35 +919,25 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
                         resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
                         resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
-                        std::string updateref((*i)->getStringValue("olcUpdateRef"));
-                        if (! updateref.empty() )
-                        {
-                            LDAPUrl updateUrl(updateref);
-                            YCPMap updaterefMap;
-                            std::string updateHost(updateUrl.getHost() );
-                            std::string updateProt(updateUrl.getScheme() );
-                            int updatePort(updateUrl.getPort() );
+                    }
+                    return resMap;
+                }
+                else if ( dbComponent == "updateref" )
+                {
+                    YCPMap resMap;
+                    std::string updateRefAttr( (*i)->getStringValue( "olcUpdateRef" ) );
 
-                            // don't set updateref when using updateref == provideruri
-                            if ( updatePort != updatePort || 
-                                 updateHost != host ||
-                                 updateProt != proto )
-                            {
-                                updaterefMap.add( YCPString("protocol"), YCPString( updateUrl.getScheme() ) );
-                                updaterefMap.add( YCPString("target"), YCPString( updateUrl.getHost() ) );
-                                updaterefMap.add( YCPString("port"), YCPInteger( updateUrl.getPort() ) );
-                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( false ) );
-                            }
-                            else
-                            {
-                                updaterefMap.add( YCPString("use_provider"), YCPBoolean( true ) );
-                            }
-                            resMap.add( YCPString("updateref"), updaterefMap );
-                        }
-                        else
-                        {
-                            resMap.add( YCPString("updateref"), YCPMap() );
-                        }
+                    if (! updateRefAttr.empty() )
+                    {
+                        LDAPUrl updateUrl(updateRefAttr);
+
+                        resMap.add( YCPString("protocol"), YCPString( updateUrl.getScheme() ) );
+                        resMap.add( YCPString("target"), YCPString( updateUrl.getHost() ) );
+                        resMap.add( YCPString("port"), YCPInteger( updateUrl.getPort() ) );
+                    }
+                    else
+                    {
+                        resMap.add( YCPString("updateref"), YCPMap() );
                     }
                     return resMap;
                 }

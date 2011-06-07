@@ -1526,7 +1526,24 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return widget;
     }
 
-    global boolean DbSyncConsRead( integer index, map synccons )
+    boolean urlComponentsMatch( map url1, map url2 )
+    {
+        if ( (string)url1["protocol"]:"" != (string)url2["protocol"]:"" )
+        {
+            return false;
+        }
+        if ( (string)url1["target"]:"" != (string)url2["target"]:"" )
+        {
+            return false;
+        }
+        if ( (integer)url1["port"]:0 != (integer)url2["port"]:0 )
+        {
+            return false;
+        }
+        return true;
+    }
+
+    global boolean DbSyncConsRead( integer index, map synccons, map updateref )
     {
         y2milestone("DbSyncConsRead %1", index);
         if ( size(synccons) == 0 )
@@ -1564,14 +1581,13 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             }
             UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
             UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
-            map <string,any> updateref = synccons["updateref"]:$[];
             if (size(updateref) == 0 )
             {
                 // no updateref
                 UI::ChangeWidget( `cb_update_ref, `Value, true );
                 UI::ChangeWidget( `te_updateref_target, `Value, "" );
             }
-            else if ( (boolean)updateref["use_provider"]:true )
+            else if ( urlComponentsMatch( provider, updateref )  )
             {
                 UI::ChangeWidget( `cb_update_ref, `Value, false );
                 UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
@@ -1989,7 +2005,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         Wizard::SetContentsButtons(caption, contents, HELPS["synccons_edit"]:"",
                 Label::BackButton(), Label::NextButton());
         symbol ret = `next;
-        DbSyncConsRead(-1, $[] );
+        DbSyncConsRead(-1, $[], $[] );
         while(true) {
             ret = (symbol)UI::UserInput();
             if (ret == `abort || ret == `cancel )
