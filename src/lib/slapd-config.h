@@ -355,9 +355,11 @@ class OlcDatabase : public OlcConfigEntry
         void setSuffix( const std::string &suffix);
         void setRootDn( const std::string &rootdn);
         void setRootPw( const std::string &rootpw);
+        void setMirrorMode( bool mm );
 
         const std::string getSuffix() const;
         const std::string getType() const;
+        bool getMirrorMode() const;
 
         bool getAcl( OlcAccessList& accessList ) const;
         virtual void addAccessControl( const std::string& acl, int index=-1 );
