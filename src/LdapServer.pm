@@ -1981,8 +1981,9 @@ sub ChangeDatabaseAcl
     # syncrepl related ACL and move it to the top. This is to ensure
     # that syncrepl clients have read access to everything
     my $syncrepl = $self->ReadSyncRepl( $dbIndex );
-    if ( $syncrepl && scalar(keys %{$syncrepl}) && $syncrepl->{'binddn'} ne "" )
+    if ( @$syncrepl > 0 && scalar(keys %{$syncrepl->[0]}) && $syncrepl->[0]->{'binddn'} ne "" )
     {
+        my $binddn =  $syncrepl->[0]->{'binddn'};
         my $acllist_sorted=[];
         my $syncacl={};
         my $found=0;
@@ -1996,7 +1997,7 @@ sub ChangeDatabaseAcl
                 foreach my $access ( @{$rule->{'access'}} )
                 {
                     if ( $access->{'type'} eq "dn.base" && 
-                         lc($access->{'value'}) eq lc($syncrepl->{'binddn'} ) &&
+                         lc($access->{'value'}) eq lc( $binddn ) &&
                          ($access->{'level'} eq "read" || $access->{'level'} eq "write")
                        )
                     {
@@ -2214,35 +2215,38 @@ sub WriteSyncProv
     return YaST::YCP::Boolean(1);
 }
 
-BEGIN { $TYPEINFO {ReadSyncRepl} = ["function", [ "map" , "string", "any" ], "integer" ]; }
+BEGIN { $TYPEINFO {ReadSyncRepl} = ["function", [ "list" , [ "map", "string", "any" ] ], "integer" ]; }
 sub ReadSyncRepl
 {
     my ($self, $index) = @_;
     y2milestone("ReadSyncRepl ", $index);
-    my $syncrepl = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
-    y2debug( "SyncRepl: ".Data::Dumper->Dump([$syncrepl]) );
-    if ( ! $syncrepl )
+    my $syncreplList = SCR->Read(".ldapserver.database.{".$index."}.syncrepl" );
+    y2debug( "SyncRepl: ".Data::Dumper->Dump([$syncreplList]) );
+    if ( ! $syncreplList )
     {
         my $err = SCR->Error(".ldapserver");
         $self->SetError( $err->{'summary'}, $err->{'description'} );
         return undef;
     }
-    if (defined $syncrepl->{'provider'} && defined $syncrepl->{'provider'}->{'port'} )
+    foreach my $syncrepl (@{$syncreplList})
     {
-        $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+        if (defined $syncrepl->{'provider'} && defined $syncrepl->{'provider'}->{'port'} )
+        {
+            $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
+        }
+        if ( defined $syncrepl->{'interval'} )
+        {
+            $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
+            $syncrepl->{'interval'}->{'hours'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'hours'} );
+            $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
+            $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
+        }
+        if ( defined $syncrepl->{'starttls'} )
+        {
+            $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
+        }
     }
-    if ( defined $syncrepl->{'interval'} )
-    {
-        $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
-        $syncrepl->{'interval'}->{'hours'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'hours'} );
-        $syncrepl->{'interval'}->{'mins'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'mins'} );
-        $syncrepl->{'interval'}->{'secs'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'secs'} );
-    }
-    if ( defined $syncrepl->{'starttls'} )
-    {
-        $syncrepl->{'starttls'} = YaST::YCP::Boolean( $syncrepl->{'starttls'} );
-    }
-    return $syncrepl;
+    return $syncreplList;
 }
 
 BEGIN { $TYPEINFO {WriteSyncRepl} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }

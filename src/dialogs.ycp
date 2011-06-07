@@ -876,7 +876,7 @@ any SlaveSetupDialog()
                     continue;
                 }
                 // Check if the syncrepl config of cn=config makes sense
-                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
+                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0)[0]:$[];
                 if ( size(syncrepl) == 0 )
                 {
                     if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
