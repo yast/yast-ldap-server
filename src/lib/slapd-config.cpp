@@ -1372,9 +1372,26 @@ void OlcDatabase::setRootPw( const std::string &rootpw)
     this->setStringValue("olcRootPW", rootpw); 
 }
 
+void OlcDatabase::setMirrorMode( bool mm )
+{
+    if ( mm )
+    {
+        this->setStringValue( "olcMirrorMode", "TRUE" );
+    }
+    else if ( ! this->getStringValue( "olcMirrorMode" ).empty() )
+    {
+        this->setStringValue( "olcMirrorMode", "" );
+    }
+}
+
 const std::string OlcDatabase::getSuffix() const
 {
     return this->getStringValue("olcSuffix");
+}
+
+bool OlcDatabase::getMirrorMode() const
+{
+    return ( this->getStringValue( "olcMirrorMode" ) == "TRUE" );
 }
 
 const std::string OlcDatabase::getType() const
