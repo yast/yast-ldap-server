@@ -1045,12 +1045,19 @@ define boolean cb_read_synccons()
     y2milestone("cb_read_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    map<string,any> sr = LdapServer::ReadSyncRepl(index);
+    list<map<string,any> > srl = LdapServer::ReadSyncRepl(index);
+    map<string,any> sr = srl[0]:$[];
     y2milestone("cb_read_synccons() %1", sr);
     if ( sr == nil )
     {
         map<string, string> err = LdapServer::ReadError();
         callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+        return false;
+    }
+    else if (size(sr) > 1 )
+    {
+        UI::ReplaceWidget( `syncConsWidget, `Label( _("Multiple Replication Consumers not supported currently") ) );
+        return true;
     }
     else
     {
@@ -1064,7 +1071,14 @@ define boolean cb_input_synccons()
     y2milestone("cb_input_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    return LdapDatabase::DbSyncConsInput( handler_cmd, index );
+    if ( UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return LdapDatabase::DbSyncConsInput( handler_cmd, index );
+    }
+    else
+    {
+        return true;
+    }
 }
 
 define boolean cb_check_synccons()
@@ -1072,7 +1086,14 @@ define boolean cb_check_synccons()
     y2milestone("cb_check_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    return LdapDatabase::DbSyncConsCheck( index );
+    if ( UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return LdapDatabase::DbSyncConsCheck( index );
+    }
+    else
+    {
+        return true;
+    }
 }
 
 define boolean cb_write_synccons()
@@ -1080,6 +1101,10 @@ define boolean cb_write_synccons()
     y2milestone("cb_write_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    if (! UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return true;
+    }
     map <string,any> syncrepl = LdapDatabase::DbSyncConsWrite( index );
     boolean result = false;
     result = LdapServer::WriteSyncRepl(index, syncrepl["syncrepl"]:$[]);

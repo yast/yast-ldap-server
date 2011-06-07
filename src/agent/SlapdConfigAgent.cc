@@ -884,31 +884,32 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                 }
                 else if ( dbComponent == "syncrepl" )
                 {
-                    YCPMap resMap;
+                    YCPList resList;
                     OlcSyncReplList srl = (*i)->getSyncRepl();
-                    if ( ! srl.empty() )
+                    OlcSyncReplList::const_iterator sr;
+                    for ( sr = srl.begin(); sr != srl.end(); sr++ )
                     {
-                        boost::shared_ptr<OlcSyncRepl> sr = *srl.begin();
-                        resMap.add( YCPString(OlcSyncRepl::RID), YCPInteger( sr->getRid() ));
+                        YCPMap resMap;
+                        resMap.add( YCPString(OlcSyncRepl::RID), YCPInteger( (*sr)->getRid() ));
                         std::string proto,host;
                         int port;
-                        sr->getProviderComponents(proto, host, port);
+                        (*sr)->getProviderComponents(proto, host, port);
                         YCPMap providerMap;
                         providerMap.add( YCPString("protocol"), YCPString(proto) );
                         providerMap.add( YCPString("target"), YCPString(host) );
                         providerMap.add( YCPString("port"), YCPInteger(port) );
                         resMap.add( YCPString(OlcSyncRepl::PROVIDER),  providerMap );
-                        resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( sr->getType() ));
-                        if ( sr->getStartTls() != OlcSyncRepl::StartTlsNo )
+                        resMap.add( YCPString(OlcSyncRepl::TYPE), YCPString( (*sr)->getType() ));
+                        if ( (*sr)->getStartTls() != OlcSyncRepl::StartTlsNo )
                         {
                             resMap.add( YCPString(OlcSyncRepl::STARTTLS), YCPBoolean( true ));
                         }
 
-                        if ( sr->getType() == "refreshOnly" )
+                        if ( (*sr)->getType() == "refreshOnly" )
                         {
                             YCPMap intervalMap;
                             int d,h,m,s;
-                            sr->getInterval(d, h, m, s);
+                            (*sr)->getInterval(d, h, m, s);
                             intervalMap.add( YCPString("days"), YCPInteger(d) );
                             intervalMap.add( YCPString("hours"), YCPInteger(h) );
                             intervalMap.add( YCPString("mins"), YCPInteger(m) );
@@ -916,11 +917,12 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                             resMap.add( YCPString( OlcSyncRepl::INTERVAL ), intervalMap );
                         }
 
-                        resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( sr->getBindDn() ));
-                        resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( sr->getCredentials()));
-                        resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( sr->getSearchBase()));
+                        resMap.add( YCPString(OlcSyncRepl::BINDDN), YCPString( (*sr)->getBindDn() ));
+                        resMap.add( YCPString(OlcSyncRepl::CREDENTIALS), YCPString( (*sr)->getCredentials()));
+                        resMap.add( YCPString(OlcSyncRepl::BASE), YCPString( (*sr)->getSearchBase()));
+                        resList.add(resMap);
                     }
-                    return resMap;
+                    return resList;
                 }
                 else if ( dbComponent == "updateref" )
                 {
