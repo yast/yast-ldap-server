@@ -1455,14 +1455,12 @@ OlcSyncReplList OlcDatabase::getSyncRepl() const
     }
 
     StringList values = srAttr->getValues();
-    if ( values.size() != 1 )
-    {
-        log_it(SLAPD_LOG_ERR, "Multiple syncrepl statements");
-    }
-    else
+    for ( StringList::const_iterator i = values.begin();
+          i != values.end();
+          i++ )
     {
         std::string syncreplLine;
-        splitIndexFromString( *values.begin(), syncreplLine );
+        splitIndexFromString( *i, syncreplLine );
         try {
             boost::shared_ptr<OlcSyncRepl> syncrepl( new OlcSyncRepl(syncreplLine) );
             res.push_back(syncrepl);
