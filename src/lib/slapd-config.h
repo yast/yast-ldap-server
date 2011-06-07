@@ -272,6 +272,8 @@ class OlcSyncRepl
         const static std::string STARTTLS;
         const static std::string RETRY;
         const static std::string TLS_REQCERT;
+        const static std::string TIMEOUT;
+        const static std::string NETWORK_TIMEOUT;
 
         std::string toSyncReplLine() const;
 
@@ -286,6 +288,8 @@ class OlcSyncRepl
         void setStartTls( StartTls tls );
         void setRetryString( const std::string &value );
         void setTlsReqCert( const std::string &value );
+        void setNetworkTimeout( int sec );
+        void setTimeout( int sec );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -297,6 +301,8 @@ class OlcSyncRepl
         void getInterval( int &days, int &hours, int &mins, int &secs ) const;
         StartTls getStartTls() const;
         std::string getTlsReqCert() const;
+        int getNetworkTimeout() const;
+        int getTimeout() const;
 
     private:
         int rid;
@@ -312,6 +318,8 @@ class OlcSyncRepl
         int refreshOnlyHours;
         int refreshOnlyMins;
         int refreshOnlySecs;
+        int networkTimeout;
+        int timeout;
         std::vector<std::pair<std::string, std::string> > otherValues;
         StartTls starttls;
 };

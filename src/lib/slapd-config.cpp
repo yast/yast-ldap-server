@@ -927,10 +927,14 @@ const std::string OlcSyncRepl::INTERVAL="interval";
 const std::string OlcSyncRepl::STARTTLS="starttls";
 const std::string OlcSyncRepl::RETRY="retry";
 const std::string OlcSyncRepl::TLS_REQCERT="tls_reqcert";
+const std::string OlcSyncRepl::TIMEOUT="timeout";
+const std::string OlcSyncRepl::NETWORK_TIMEOUT="network-timeout";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
-        rid(1), 
+        rid(1),
         bindmethod("simple"),
+        networkTimeout(0),
+        timeout(0),
         starttls( OlcSyncRepl::StartTlsNo )
 {
     log_it(SLAPD_LOG_DEBUG, "OlcSyncRepl::OlcSyncRepl(" + syncreplLine + ")");
@@ -1029,6 +1033,16 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
             {
                 this->setTlsReqCert(value);
             }
+            else if ( key == NETWORK_TIMEOUT )
+            {
+                std::istringstream s(value);
+                s >> networkTimeout;
+            }
+            else if ( key == TIMEOUT )
+            {
+                std::istringstream s(value);
+                s >> timeout;
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -1069,6 +1083,15 @@ std::string OlcSyncRepl::toSyncReplLine() const
     srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
               << "credentials=\"" << this->credentials << "\"";
+
+    if ( this->networkTimeout )
+    {
+        srlStream << " network-timeout=" << this->networkTimeout;
+    }
+    if ( this->timeout )
+    {
+        srlStream << " timeout=" << this->timeout;
+    }
 
     std::vector<std::pair<std::string,std::string> >::const_iterator i;
     for ( i = otherValues.begin(); i != otherValues.end(); i++ )
@@ -1137,6 +1160,16 @@ void OlcSyncRepl::setTlsReqCert( const std::string &value )
     tlsReqCert = value;
 }
 
+void OlcSyncRepl::setNetworkTimeout( int value )
+{
+    networkTimeout = value;
+}
+
+void OlcSyncRepl::setTimeout( int value )
+{
+    timeout = value;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -1190,6 +1223,16 @@ OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
 std::string OlcSyncRepl::getTlsReqCert() const
 {
     return tlsReqCert;
+}
+
+int OlcSyncRepl::getNetworkTimeout() const
+{
+    return networkTimeout;
+}
+
+int OlcSyncRepl::getTimeout() const
+{
+    return timeout;
 }
 
 OlcSecurity::OlcSecurity(const std::string &securityVal)
