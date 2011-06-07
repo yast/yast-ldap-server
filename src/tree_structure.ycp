@@ -1082,11 +1082,12 @@ define boolean cb_write_synccons()
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     map <string,any> syncrepl = LdapDatabase::DbSyncConsWrite( index );
     boolean result = false;
-    result = LdapServer::WriteSyncRepl(index, syncrepl);
+    result = LdapServer::WriteSyncRepl(index, syncrepl["syncrepl"]:$[]);
     if ( ! result ) {
         map<string, string> err = LdapServer::ReadError();
         callback_error = err["msg"]:"" + "\n" + err["details"]:"";
     }
+    LdapServer::WriteUpdateRef(index, syncrepl["updateref"]:$[]);
     return result;
 }
 
