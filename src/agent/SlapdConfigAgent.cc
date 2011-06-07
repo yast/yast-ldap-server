@@ -1813,43 +1813,30 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                 }
                             }
                             (*i)->setSyncRepl(srl);
-                            if ( argMap->value(YCPString("updateref")).isNull() )
-                            {
-                                // set provider URL as updateref if no customer URI was supplied
-                                (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
-                            }
-                            else
-                            {
-                                YCPMap updaterefMap = argMap->value(YCPString("updateref"))->asMap();
-                                if ( updaterefMap.size() > 0 )
-                                {
-                                    if ( !updaterefMap->value(YCPString("use_provider")).isNull() &&
-                                         updaterefMap->value(YCPString("use_provider"))->asBoolean()->value() )
-                                    {
-                                        (*i)->setStringValue("olcUpdateRef", prvuri.getURLString() );
-                                    }
-                                    else
-                                    {
-                                        LDAPUrl updaterefUrl;
-                                        updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                                        updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
-                                        updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
-                                        (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
-                                    }
-                                }
-                                else
-                                {
-                                    (*i)->setStringValue("olcUpdateRef", "" );
-                                }
-                            }
                         }
                         else
                         {
                             // clear syncrepl config
                             (*i)->setStringValue("olcSyncRepl", "" );
-                            (*i)->setStringValue("olcUpdateRef", "" );
                             ret = true;
                         }
+                    }
+                    else if ( dbComponent == "updateref" )
+                    {
+                        YCPMap updaterefMap = arg->asMap();
+                        if ( updaterefMap.size() > 0 )
+                        {
+                            LDAPUrl updaterefUrl;
+                            updaterefUrl.setScheme( updaterefMap->value(YCPString("protocol"))->asString()->value_cstr() );
+                            updaterefUrl.setHost( updaterefMap->value(YCPString("target"))->asString()->value_cstr() );
+                            updaterefUrl.setPort( updaterefMap->value(YCPString("port"))->asInteger()->value() );
+                            (*i)->setStringValue("olcUpdateRef", updaterefUrl.getURLString() );
+                        }
+                        else
+                        {
+                            (*i)->setStringValue("olcUpdateRef", "" );
+                        }
+                        ret = true;
                     }
                     else if ( dbComponent == "dbconfig" )
                     {

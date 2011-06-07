@@ -1772,7 +1772,8 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     global map<string,any> DbSyncConsWrite( integer index )
     {
         y2milestone("DbSyncConsWrite %1", index);
-        map<string,any> result = $[];
+        map<string,any> syncrepl = $[];
+        map<string,any> updateref = $[];
         if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
         {
             string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
@@ -1783,11 +1784,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
-            result = add(result, "provider", provider );
-            result = add(result, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
+            syncrepl = add(syncrepl, "provider", provider );
+            syncrepl = add(syncrepl, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
 
             string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
-            result = add(result, "type", type );
+            syncrepl = add(syncrepl, "type", type );
 
             if ( type == "refreshOnly" )
             {
@@ -1797,7 +1798,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         "mins" : (integer)UI::QueryWidget( `if_sync_int_m, `Value ),
                         "secs" : (integer)UI::QueryWidget( `if_sync_int_s, `Value ),
                     ];
-                result = add( result, "interval", iv );
+                syncrepl = add( syncrepl, "interval", iv );
             }
             map db = baseDb;
             if ( index >= 0)
@@ -1807,23 +1808,25 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             string basedn = (string)db["suffix"]:"";
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
-            result = add(result, "basedn", basedn );
-            result = add(result, "binddn", binddn );
-            result = add(result, "credentials", cred );
+            syncrepl = add(syncrepl, "basedn", basedn );
+            syncrepl = add(syncrepl, "binddn", binddn );
+            syncrepl = add(syncrepl, "credentials", cred );
             if ( (boolean) UI::QueryWidget( `cb_update_ref, `Value) )
             {
-                map<string,any> updateref = $[];
                 if ( (string)UI::QueryWidget(`te_updateref_target, `Value) != "" )
                 {
                     updateref = add(updateref, "protocol", (string)UI::QueryWidget(`cb_updateref_prot, `Value) );
                     updateref = add(updateref, "target", (string)UI::QueryWidget(`te_updateref_target, `Value) );
                     updateref = add(updateref, "port", (integer)UI::QueryWidget(`if_updateref_port, `Value) );
                 }
-                result = add(result, "updateref", updateref );
+            }
+            else
+            {
+                updateref = provider;
             }
         }
-        y2milestone("DbSyncConsWrite result: %1", result);
-        return result;
+        y2milestone("DbSyncConsWrite syncrepl: %1", syncrepl);
+        return $[ "syncrepl" : syncrepl, "updateref" : updateref ];
     }
 
     global term GetSyncProvWidget()

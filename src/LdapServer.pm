@@ -2254,17 +2254,6 @@ sub WriteSyncRepl
     {
         $syncrepl->{'provider'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'provider'}->{'port'} );
     }
-    if (defined $syncrepl->{'updateref'} )
-    {
-        if ( defined $syncrepl->{'updateref'}->{'port'} )
-        {
-            $syncrepl->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncrepl->{'updateref'}->{'port'} );
-        }
-        if ( defined $syncrepl->{'updateref'}->{'use_provider'} )
-        {
-            $syncrepl->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncrepl->{'updateref'}->{'use_provider'} );
-        }
-    }
     if ( defined $syncrepl->{'interval'} )
     {
         $syncrepl->{'interval'}->{'days'} = YaST::YCP::Integer( $syncrepl->{'interval'}->{'days'} );
@@ -2317,6 +2306,24 @@ sub ReadUpdateRef
         $updateref->{'port'} = YaST::YCP::Integer( $updateref->{'port'} );
     }
     return $updateref;
+}
+
+BEGIN { $TYPEINFO {WriteUpdateRef} = ["function", "boolean" , "integer", ["map", "string", "any" ] ]; }
+sub WriteUpdateRef
+{
+    my ( $self, $dbindex, $updateref) = @_;
+    y2milestone("WriteUpdateref");
+    if ( defined $updateref->{'port'} )
+    {
+        $updateref->{'port'} = YaST::YCP::Integer( $updateref->{'port'} );
+    }
+    y2debug("Updateref: ".Data::Dumper->Dump([$updateref]) );
+    if ( ! SCR->Write(".ldapserver.database.{".$dbindex."}.updateref", $updateref ) )
+    {
+        my $err = SCR->Error(".ldapserver");
+        $self->SetError( $err->{'summary'}, $err->{'description'} );
+        return YaST::YCP::Boolean(0);
+    }
 }
 
 BEGIN { $TYPEINFO {ReadSchemaList} = ["function", [ "list" , "string"] ]; }
