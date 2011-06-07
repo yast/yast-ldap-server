@@ -1047,7 +1047,7 @@ define boolean cb_read_synccons()
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     list<map<string,any> > srl = LdapServer::ReadSyncRepl(index);
     map<string,any> sr = srl[0]:$[];
-    y2milestone("cb_read_synccons() %1", sr);
+    y2debug("cb_read_synccons() %1", sr);
     if ( sr == nil )
     {
         map<string, string> err = LdapServer::ReadError();
