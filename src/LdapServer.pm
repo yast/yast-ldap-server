@@ -2881,6 +2881,7 @@ sub SetupRemoteForReplication
     my $dbs = $self->ReadDatabaseList();
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
+        y2milestone("Checking SyncProvider Overlay configuration");
         my $type = $dbs->[$i+1]->{'type'};
         my $suffix = $dbs->[$i+1]->{'suffix'};
         if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
@@ -2932,6 +2933,24 @@ sub SetupRemoteForReplication
 
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
+        y2milestone("Checking Update Referral");
+        my $type = $dbs->[$i+1]->{'type'};
+        my $suffix = $dbs->[$i+1]->{'suffix'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            my $updateref = SCR->Read(".ldapserver.database.{".$i."}.updateref" );
+            if ( ! defined $updateref  )
+            {
+                y2milestone("Adding Update Referral");
+                SCR->Write(".ldapserver.database.{".$i."}.updateref",
+                           $syncreplbaseconfig->{'provider'} );
+            }
+        }
+    }
+
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        y2milestone("Checking Database ACLs");
         my $type = $dbs->[$i+1]->{'type'};
         my $suffix = $dbs->[$i+1]->{'suffix'};
         if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
@@ -3019,6 +3038,7 @@ sub SetupRemoteForReplication
     }
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
+        y2milestone("Checking Database Limits");
         my $type = $dbs->[$i+1]->{'type'};
         my $suffix = $dbs->[$i+1]->{'suffix'};
         if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
