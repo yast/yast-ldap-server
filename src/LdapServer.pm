@@ -2945,6 +2945,10 @@ sub SetupRemoteForReplication
             else
             {
                 my $acl = SCR->Read(".ldapserver.database.{".$i."}.acl" );
+                if ( ! $acl )
+                {
+                    next;
+                }
                 y2debug("Database $i acl:".  Data::Dumper->Dump([ $acl ]) );
                 my $needacl = 1;
                 foreach my $rule ( @{$acl} )
