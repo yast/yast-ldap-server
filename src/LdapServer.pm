@@ -3096,17 +3096,6 @@ sub WriteSyncreplBaseConfig
     {
         $syncreplbaseconfig->{'starttls'} = YaST::YCP::Boolean($syncreplbaseconfig->{'starttls'} );
     }
-    if (defined $syncreplbaseconfig->{'updateref'} )
-    {
-        if ( defined $syncreplbaseconfig->{'updateref'}->{'port'} )
-        {
-            $syncreplbaseconfig->{'updateref'}->{'port'} = YaST::YCP::Integer( $syncreplbaseconfig->{'updateref'}->{'port'} );
-        }
-        if ( defined $syncreplbaseconfig->{'updateref'}->{'use_provider'} )
-        {
-            $syncreplbaseconfig->{'updateref'}->{'use_provider'} = YaST::YCP::Boolean( $syncreplbaseconfig->{'updateref'}->{'use_provider'} );
-        }
-    }
     return 1;
 }
 
