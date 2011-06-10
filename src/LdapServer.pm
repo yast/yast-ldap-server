@@ -3175,7 +3175,7 @@ sub WriteSetupMaster
 }
 
 ##
- # @return true, if the current setup will creat a Syncrepl Master server
+ # @return true, if the current setup will create a Syncrepl Master server
  #         false otherwise
  #
 BEGIN { $TYPEINFO {ReadSetupMaster} = ["function",  "boolean" ]; }
