@@ -197,6 +197,7 @@ my $ppolicy_objects = {};
 
 my $syncreplaccount = {};
 my $syncreplbaseconfig = {};
+my $masterldif = "";
 
 ##
  # Read all ldap-server settings
@@ -735,12 +736,15 @@ sub Write {
             my $tmpfile = $rc->{'stdout'};
             chomp $tmpfile;
             y2milestone("using tempfile: ".$tmpfile );
-            my $overrideCsn = {};
+            my $ldif = "";
             if ( $setupSyncreplSlave )
             {
-                $overrideCsn = { resetCsn => 0 };
+                $ldif = $masterldif;
             }
-            my $ldif = SCR->Read('.ldapserver.configAsLdif', $overrideCsn );
+            else
+            {
+                $ldif = SCR->Read('.ldapserver.configAsLdif');
+            }
             y2debug($ldif);
             if ( ! $ldif )
             {
@@ -1710,15 +1714,9 @@ sub ReadFromDefaults
     my $frontenddb = { 'type' => 'frontend' };
 
     $self->InitGlobals();
-   
-    if ( $self->ReadSetupSlave() )
-    {
-        SCR->Execute('.ldapserver.initDatabases', [ $frontenddb, $cfgdatabase ] );
-        SCR->Write(".ldapserver.database.{0}.syncrepl", $syncreplbaseconfig );
-        my $ldif = SCR->Read('.ldapserver.configAsLdif' );
-        y2debug($ldif);
-    }
-    else    #master or standalone
+
+    if (! $self->ReadSetupSlave() ) # Slave setup was already initialized by dumping Master
+                                    # Database to $masterldif, nothing to do here.
     {
         SCR->Execute('.ldapserver.initSchema' );
         my $rc = SCR->Write(".ldapserver.schema.addFromLdif", "/etc/openldap/schema/core.ldif" );
@@ -3087,7 +3085,9 @@ sub SetupRemoteForReplication
             }
         }
     }
+    y2milestone("Updating remote configuration");
     SCR->Execute(".ldapserver.commitChanges" );
+    $masterldif = SCR->Execute(".ldapserver.dumpConfDb" );
     SCR->Execute(".ldapserver.reset" );
     
     $globals_initialized = 0;

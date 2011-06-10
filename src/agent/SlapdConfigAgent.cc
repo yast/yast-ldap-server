@@ -113,14 +113,7 @@ YCPValue SlapdConfigAgent::Read( const YCPPath &path,
         }
         else if ( path->component_str(0) == "configAsLdif" )
         {
-            if ( arg.isNull() || !arg->asMap()->size())
-            {
-                return ConfigToLdif();
-            }
-            else
-            {
-                return ConfigToLdif(true);
-            }
+            return ConfigToLdif();
         }
     } catch ( std::runtime_error e ) {
         y2error("Error during Read: %s", e.what() );
@@ -404,6 +397,37 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         } catch ( std::runtime_error e ) {
             lastError->add(YCPString("summary"),
                     YCPString("Error while trying to update LDAP Entries") );
+            lastError->add(YCPString("description"), 
+                    YCPString(std::string( e.what() ) ) );
+            return YCPBoolean(false);
+        }
+    }
+    else if ( path->component_str(0) == "dumpConfDb" )
+    {
+        try {
+            StringList attrs;
+            attrs.add("*");
+            attrs.add("+");
+            LDAPSearchResults *sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_SUB,
+                                                  "objectclass=*", attrs );
+            std::ostringstream ldifStream;
+            LdifWriter ldif(ldifStream);
+            while ( LDAPEntry *e = sr->getNext() )
+            {
+                ldif.writeRecord( *e );
+            }
+            return YCPString( ldifStream.str() );
+        } catch ( LDAPException e ) {
+            std::string errstring = "Error while reading remote Database";
+            std::string details = e.getResultMsg() + ": " + e.getServerMsg();
+
+            lastError->add(YCPString("summary"),
+                    YCPString(errstring) );
+            lastError->add(YCPString("description"), YCPString( details ) );
+            return YCPBoolean(false);
+        } catch ( std::runtime_error e ) {
+            lastError->add(YCPString("summary"),
+                    YCPString("Error while trying to read remote Database") );
             lastError->add(YCPString("description"), 
                     YCPString(std::string( e.what() ) ) );
             return YCPBoolean(false);
@@ -2092,7 +2116,7 @@ YCPBoolean SlapdConfigAgent::WriteSchema( const YCPPath &path,
     return YCPBoolean(false);
 }
 
-YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
+YCPString SlapdConfigAgent::ConfigToLdif() const
 {
     y2milestone("ConfigToLdif");
     std::ostringstream ldif;
@@ -2100,34 +2124,19 @@ YCPString SlapdConfigAgent::ConfigToLdif( bool resetCsn ) const
     {
         throw std::runtime_error("Configuration not initialized. Can't create LDIF dump." );
     }
-    if ( resetCsn )
-    {
-        globals->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
-        // schemaBase entryCSN won't be resetted as it cause trouble during replication
-        // of hardcoded schema values
-    }
     ldif << globals->toLdif() << std::endl;
     if ( schemaBase )
     {
-        if ( resetCsn )
-            schemaBase->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
-
         ldif << schemaBase->toLdif() << std::endl;
         OlcSchemaList::const_iterator j;
         for ( j = schema.begin(); j != schema.end() ; j++ )
         {
-            if ( resetCsn )
-                (*j)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
-
             ldif << (*j)->toLdif() << std::endl;
         }
     }
     OlcDatabaseList::const_iterator i = databases.begin();
     for ( ; i != databases.end(); i++ )
     {
-        if ( resetCsn )
-            (*i)->setStringValue("entryCSN", "19700101000000.000000Z#000000#000#000000");
-        
         ldif << (*i)->toLdif() << std::endl;
         OlcOverlayList overlays = (*i)->getOverlays();
         OlcOverlayList::iterator k;
