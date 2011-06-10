@@ -882,7 +882,13 @@ any SlaveSetupDialog()
                     if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
                                                _("Click Continue to create it now.") ) )
                     {
-                        continue;
+                        syncrepl = $[
+                                "provider" : testparm["target"]:$[],
+                                "starttls" : testparm["starttls"]:true,
+                                "binddn"   : testparm["binddn"]:"cn=config",
+                                "credentials" : testparm["credentials"]:"",
+                                "type"     : "refreshAndPersist"
+                            ];
                     }
                     else
                     {
@@ -980,7 +986,8 @@ any SlaveSetupDialog()
                         "provider" : testparm["target"]:$[],
                         "starttls" : testparm["starttls"]:true,
                         "binddn"   : testparm["binddn"]:"cn=config",
-                        "credentials" : testparm["credentials"]:""
+                        "credentials" : testparm["credentials"]:"",
+                        "type"     : "refreshAndPersist"
                     ];
                 LdapServer::WriteSyncreplBaseConfig( syncrepl );
             }
