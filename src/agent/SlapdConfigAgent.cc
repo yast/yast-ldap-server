@@ -961,10 +961,7 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                         resMap.add( YCPString("target"), YCPString( updateUrl.getHost() ) );
                         resMap.add( YCPString("port"), YCPInteger( updateUrl.getPort() ) );
                     }
-                    else
-                    {
-                        resMap.add( YCPString("updateref"), YCPMap() );
-                    }
+                    resMap = YCPNull();
                     return resMap;
                 }
                 else
