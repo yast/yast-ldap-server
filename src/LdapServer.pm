@@ -2904,47 +2904,23 @@ sub SetupRemoteForReplication
 
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
+        y2milestone("Checking SyncConsumer configuration");
         my $type = $dbs->[$i+1]->{'type'};
         my $suffix = $dbs->[$i+1]->{'suffix'};
         if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
         {
-            my $cons = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
-            my $needsyncrepl = 0;
-            if ( keys %{$cons} == 0 )
+            my $conslist = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
+            my $needsyncrepl = 1;
+            foreach my $cons ( @{$conslist} )
             {
-                y2milestone("Database $i needs syncrepl config");
-                $needsyncrepl = 1;
-            }
-            else
-            {
-                my $provider = $cons->{'provider'};
-                if ( $provider->{'target'} ne $syncreplbaseconfig->{'provider'}->{'target'} )
+                if ( SyncReplMatch( $cons, $syncreplbaseconfig ) )
                 {
-                    y2milestone("Provider Hostname doesn't match");
-                    $needsyncrepl = 1;
-                }
-                elsif ( $provider->{'port'} ne $syncreplbaseconfig->{'provider'}->{'port'}->value )
-                {
-                    y2milestone("Provider Port doesn't match");
-                    $needsyncrepl = 1;
-                }
-                elsif ( $provider->{'protocol'} ne $syncreplbaseconfig->{'provider'}->{'protocol'} )
-                {
-                    y2milestone("Provider Protocol doesn't match");
-                    $needsyncrepl = 1;
-                }
-                elsif ( $cons->{'binddn'} ne $syncreplbaseconfig->{'binddn'} )
-                {
-                    y2milestone("binddn doesn't match syncreplbaseconfig");
-                    $needsyncrepl = 1;
-                }
-                elsif ( $cons->{'credentials'} ne $syncreplbaseconfig->{'credentials'} )
-                {
-                    y2milestone("credentials don't match syncreplbaseconfig");
-                    $needsyncrepl = 1;
+                    y2milestone("Syncrepl defintion already present");
+                    $needsyncrepl = 0;
+                    last;
                 }
             }
-            if ( $needsyncrepl ) 
+            if ( $needsyncrepl )
             {
                 y2milestone("Adding syncrepl consumer configuration for database $i");
                 $syncreplbaseconfig->{'basedn'} = $suffix;
@@ -3258,6 +3234,40 @@ sub VerifyTlsSetup
         return 0;
     }
     return 1;
+}
+
+sub SyncReplMatch
+{
+    y2milestone("SyncReplMatch");
+    my ($syncrepl1, $syncrepl2) = @_;
+    my $ret = 1;
+
+    if ( $syncrepl1->{'provider'}->{'target'} ne $syncrepl2->{'provider'}->{'target'} )
+    {
+        y2debug("Provider Hostname doesn't match");
+        $ret = 0;
+    }
+    elsif ( $syncrepl1->{'provider'}->{'port'} ne $syncrepl2->{'provider'}->{'port'}->value )
+    {
+        y2debug("Provider Port doesn't match");
+        $ret = 0;
+    }
+    elsif ( $syncrepl1->{'provider'}->{'protocol'} ne $syncrepl2->{'provider'}->{'protocol'} )
+    {
+        y2debug("Provider Protocol doesn't match");
+        $ret = 0;
+    }
+    elsif ( $syncrepl1->{'binddn'} ne $syncrepl2->{'binddn'} )
+    {
+        y2debug("binddn doesn't match syncreplbaseconfig");
+        $ret = 0;
+    }
+    elsif ( $syncrepl1->{'credentials'} ne $syncrepl2->{'credentials'} )
+    {
+        y2debug("credentials don't match syncreplbaseconfig");
+        $ret = 0;
+    }
+    return $ret;
 }
 
 1;
