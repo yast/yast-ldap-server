@@ -1046,21 +1046,14 @@ define boolean cb_read_synccons()
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
     list<map<string,any> > srl = LdapServer::ReadSyncRepl(index);
-    map<string,any> sr = srl[0]:$[];
-    y2debug("cb_read_synccons() %1", sr);
-    if ( sr == nil )
-    {
-        map<string, string> err = LdapServer::ReadError();
-        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
-        return false;
-    }
-    else if (size(sr) > 1 )
+    if (size(srl) > 1 )
     {
         UI::ReplaceWidget( `syncConsWidget, `Label( _("Multiple Replication Consumers not supported currently") ) );
         return true;
     }
     else
     {
+        map<string,any> sr = srl[0]:$[];
         map<string,any> updateref = LdapServer::ReadUpdateRef( index );
         return LdapDatabase::DbSyncConsRead( index, sr, updateref );
     }
