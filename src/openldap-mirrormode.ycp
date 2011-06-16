@@ -1,0 +1,50 @@
+/**
+ * File:	clients/openldap-mirror-mode.ycp
+ * Package:	Configuration of OpenLDAP MirrorMode replication
+ * Summary:	Main file
+ * Authors:	Ralf Haferkamp <rhafer@suse.de>
+ *
+ * $Id$
+ *
+ */
+
+{
+
+/***
+ * <h3>Configuration of OpenLDAP MirrorMode</h3>
+ */
+
+textdomain "ldap-server";
+
+/* The main () */
+y2milestone ("----------------------------------------");
+y2milestone ("OpenLDAP MirrorMode module started");
+
+import "Progress";
+import "Report";
+import "Summary";
+import "RichText";
+import "CommandLine";
+include "ldap-server/mirrormode-wizard.ycp";
+
+map cmdline_description = $[
+    "id" 	: "openldap-mirrormode",
+    /* Command line help text for the Xldap-server module */
+    "help"	: _("Configuration of OpenLDAP MirrorMode replication"),
+    "guihandler"        : MirrorModeSequence,
+    "initialize"        : LdapServer::Read,
+    "finish"            : LdapServer::Write,
+];
+
+/* main ui function */
+any ret = CommandLine::Run(cmdline_description);
+y2debug("ret=%1", ret);
+
+/* Finish */
+y2milestone("OpenLDAP MirrorMode module finished");
+y2milestone("----------------------------------------");
+
+return ret;
+
+/* EOF */
+}
