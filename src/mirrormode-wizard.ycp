@@ -1,0 +1,71 @@
+/**
+ * File:	include/ldap-server/mirrormode-wizard.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Wizards definitions
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *              Ralf Haferkamp <rhafer@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ldap-server";
+
+import "Sequencer";
+import "Wizard";
+
+include "ldap-server/complex.ycp";
+include "ldap-server/dialogs.ycp";
+
+any MirrorModeSequence() {
+
+    /* Initialization dialog caption */
+    string caption = _("LDAP Server Configuration");
+    /* Initialization dialog contents */
+    term contents = `Label(_("Initializing..."));
+
+    Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetContentsButtons(caption, contents, "",
+           Label::BackButton(), Label::NextButton());
+
+    LdapServer::WriteSetupSlave(true);
+    LdapServer::WriteSetupMirrorMode(true);
+    map aliases = $[
+        "startup"           : ``( EnableServiceDialog() ),
+        "slavesetup"        : ``( SlaveSetupDialog() ),
+        "replicationsummary": ``( ReplicatonSetupSummaryDialog() ),
+        "write"             : ``( WriteDialog() )
+    ];
+
+    map sequence = $[
+        "ws_start"  : "startup",
+        "startup"   : $[
+            `next   : "slavesetup",
+            `abort  : `abort,
+            `finish : `disable
+        ],
+        "slavesetup" : $[
+            `next : "replicationsummary"
+        ],
+        "replicationsummary" : $[
+            `next : "write"
+        ],
+        "write" : $[
+            `abort      : `abort,
+            `next       : `next
+        ]
+    ];
+
+    y2milestone( "--> starting ProposalSequence" );
+
+    any ret = Sequencer::Run(aliases, sequence);
+
+    y2milestone( "<-- ProposalSequence finished " );
+
+    UI::CloseDialog();
+
+    return ret;
+}
+}
