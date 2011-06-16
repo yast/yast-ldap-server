@@ -1,4 +1,19 @@
 -------------------------------------------------------------------
+Thu Jun 16 11:46:06 UTC 2011 - rhafer@suse.de
+
+- Version 2.17.36
+- added support for MirrorMode replication and a basic wizard for
+  setting up a new MirrorMode node (fate#312032)
+- Warn user, when creating a database with a non-standard base DN
+  and disable base-object creation in such case (bnc#669213)
+- Allow non-standard db-directory when creating the first database
+- fixed typos (bnc#631743)
+- Create LDAP base object after writing /etc/openldap/ldap.conf to avoid
+  libldap initialization issues (bnc#619549)
+- Write CA cert option to ldap.conf (bnc#619549)
+- Fixed button alignment (bnc#421040)
+
+-------------------------------------------------------------------
 Tue Jul 20 14:48:59 UTC 2010 - rhafer@novell.com
 
 - Version 2.17.35
