@@ -45,6 +45,7 @@ my $slapdConfChanged = 0;
 my $overwriteConfig = 0;
 my $setupSyncreplSlave = 0;
 my $setupSyncreplMaster = 0;
+my $setupMirrorMode = 0;
 my $modeInstProposal = 0;
 my $serviceEnabled = 0;
 my $serviceRunning = 1;
@@ -1807,6 +1808,10 @@ sub ReadFromDefaults
             $self->UpdateDatabase(0 ,$changes);
             if ( $self->ReadSetupMaster() )
             {
+                if ( $self->ReadSetupMirrorMode() )
+                {
+                    $self->AssignServerId();
+                }
                 # create helpful indexes for syncrepl
                 $self->ChangeDatabaseIndex(1, { "name" => "entryUUID", "eq" => 1 } );
                 $self->ChangeDatabaseIndex(1, { "name" => "entryCSN", "eq" => 1 } );
@@ -3189,6 +3194,30 @@ BEGIN { $TYPEINFO {ReadSetupMaster} = ["function",  "boolean" ]; }
 sub ReadSetupMaster
 {
     return $setupSyncreplMaster;
+}
+
+##
+ # Set "true" here if we are setting up a Syncrepl Master for acting as a
+ # MirrorMode Node. (it will result in a olcServerId being created)
+ # (this function is only useful for the installation wizards)
+ #
+ # @return true
+ #
+BEGIN { $TYPEINFO {WriteSetupMirrorMode} = ["function",  "boolean", "boolean"]; }
+sub WriteSetupMirrorMode
+{
+    my ($self, $value) = @_;
+    $setupMirrorMode=$value;
+}
+
+##
+ # @return true, if the current setup will create a Syncrepl Mirror Mode Master
+ #         false otherwise
+ #
+BEGIN { $TYPEINFO {ReadSetupMirrorMode} = ["function",  "boolean" ]; }
+sub ReadSetupMirrorMode
+{
+    return $setupMirrorMode;
 }
 
 ##

@@ -1053,7 +1053,9 @@ any MasterSetupDialog()
                     `VSpacing( 0.5 ),
                     `Password( `id( `te_rootpw ), `opt( `hstretch ), _("Enter new &Password") ),
                     `VSpacing( 0.5 ),
-                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") )
+                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") ),
+                    `VSpacing( 0.5 ),
+                    `CheckBox( `id( `cb_mirror_mode ), _("MirrorMode") )
                 )
             )
         );
@@ -1089,6 +1091,7 @@ any MasterSetupDialog()
                 map <string, any> defaults = LdapServer::CreateInitialDefaults();
                 defaults["configpw"] = pw;
                 LdapServer::SetInitialDefaults(defaults);
+                LdapServer::WriteSetupMirrorMode( (boolean)UI::QueryWidget( `cb_mirror_mode, `Value ) );
                 break;
             }
         }
