@@ -1325,7 +1325,42 @@ void OlcSecurity::setSsf(const std::string& key, int value)
     }
 }
 
+OlcServerId::OlcServerId( const std::string &idVal )
+{
+    std::istringstream serverIdStr( idVal );
 
+    serverIdStr >> serverId;
+    serverIdStr >> serverUri;
+}
+
+std::string OlcServerId::toStringVal() const
+{
+    std::ostringstream ostr;
+
+    ostr << serverId << " " << serverUri;
+
+    return ostr.str();
+}
+
+int OlcServerId::getServerId() const
+{
+    return serverId;
+}
+
+std::string OlcServerId::getServerUri() const
+{
+    return serverUri;
+}
+
+void OlcServerId::setServerId( int id )
+{
+    serverId = id;
+}
+
+void OlcServerId::setServerUri( const std::string &uri )
+{
+    serverUri = uri;
+}
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {
@@ -1954,6 +1989,37 @@ OlcTlsSettings OlcGlobalConfig::getTlsSettings() const
 void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
 {
     tls.applySettings( *this );
+}
+
+const std::vector<OlcServerId> OlcGlobalConfig::getServerIds() const
+{
+    const StringList values = this->getStringValues("olcServerId");
+
+    std::vector<OlcServerId> v_serverIds;
+    StringList::const_iterator i;
+    for ( i = values.begin(); i != values.end(); i++ )
+    {
+        v_serverIds.push_back( OlcServerId(*i) );
+    }
+    return v_serverIds;
+}
+
+void OlcGlobalConfig::setServerIds(const std::vector<OlcServerId> &serverIds)
+{
+    StringList values;
+
+    std::vector<OlcServerId>::const_iterator i;
+
+    for ( i = serverIds.begin(); i != serverIds.end(); i++ )
+    {
+        values.add( i->toStringVal() );
+    }
+    this->setStringValues( "olcServerId", values );
+}
+
+void OlcGlobalConfig::addServerId(const OlcServerId &serverId)
+{
+    this->addStringValue( "olcServerId", serverId.toStringVal() );
 }
 
 const std::string OlcSchemaConfig::schemabase = "cn=schema,cn=config";
