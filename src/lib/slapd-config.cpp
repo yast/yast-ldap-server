@@ -1580,6 +1580,11 @@ void OlcDatabase::addSyncRepl(const std::string& value, int index )
     this->addIndexedStringValue( "olcSyncrepl", value, index );
 }
 
+void OlcDatabase::addSyncRepl( const boost::shared_ptr<OlcSyncRepl> sr, int index )
+{
+    this->addSyncRepl( sr->toSyncReplLine(), index );
+}
+
 void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
 {
     this->setStringValue("olcSyncRepl", "" );
@@ -1588,7 +1593,7 @@ void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
     int j = 0;
     for ( i = srl.begin(); i != srl.end(); i++,j++ )
     {
-        this->addSyncRepl( (*i)->toSyncReplLine(), j );
+        this->addSyncRepl( *i, j );
     }
 }
 

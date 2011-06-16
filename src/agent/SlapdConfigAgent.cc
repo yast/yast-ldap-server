@@ -1748,116 +1748,74 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                         ret = true;
                     }
                     else if ( dbComponent == "syncrepl" )
-                    {   
-                        YCPMap argMap = arg->asMap();
-                        if ( argMap->size() > 0 )
+                    {
+                        if ( path->length() == 3 )
                         {
-                            ret = true;
-                            OlcSyncReplList srl = (*i)->getSyncRepl();
-                            boost::shared_ptr<OlcSyncRepl> sr;
-                            if ( srl.empty() )
-                            {   
-                                sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
-                                srl.push_back(sr);
-
-                                // find available rid (rid must be unique accross the server)
-                                OlcDatabaseList::const_iterator k;
-                                int largest_rid=0;
-                                for ( k = databases.begin(); k != databases.end() ; k++ )
+                            std::string srComp = path->component_str(2);
+                            y2milestone("Component '%s'", srComp.c_str());
+                            if ( srComp == "add" )
+                            {
+                                YCPMap argMap = arg->asMap();
+                                boost::shared_ptr<OlcSyncRepl> sr( new OlcSyncRepl() );
+                                ret = this->ycpMap2SyncRepl( argMap, sr );
+                                if ( ret )
                                 {
-                                    OlcSyncReplList srl1 = (*k)->getSyncRepl();
-                                    if ( srl1.empty() )
+                                    int rid =  this->getNextRid();
+                                    y2milestone( "New Rid: %d", rid );
+                                    if ( rid )
                                     {
-                                        continue;
-                                    }
-                                    boost::shared_ptr<OlcSyncRepl> sr1;
-                                    int currid = (*srl1.begin())->getRid();
-                                    if ( currid > largest_rid )
-                                    {
-                                        largest_rid=currid;
-                                    }
-                                }
-                                sr->setRid(largest_rid+1);
-                            }
-                            else
-                            {
-                                sr = *srl.begin();
-                            }
-                            YCPMap providerMap = argMap->value(YCPString("provider"))->asMap();
-                            std::string protocol( providerMap->value(YCPString("protocol"))->asString()->value_cstr() );
-                            std::string target( providerMap->value(YCPString("target"))->asString()->value_cstr() );
-                            int port = providerMap->value(YCPString("port"))->asInteger()->value();
-                            std::string type( argMap->value(YCPString("type"))->asString()->value_cstr() );
-                            std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
-                            std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
-                            std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
-                            bool starttls = false;
-                            if (! argMap->value(YCPString("starttls")).isNull() )
-                            {
-                                starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
-                            }
-
-                            LDAPUrl prvuri;
-                            prvuri.setScheme(protocol);
-                            prvuri.setHost(target);
-                            if ( ( protocol == "ldap" && port != 389 ) || ( protocol == "ldaps" && port != 636 ) )
-                            {
-                                prvuri.setPort(port);
-                            }
-
-                            sr->setType( type );
-                            sr->setProvider( prvuri );
-                            sr->setSearchBase( basedn );
-                            sr->setBindDn( binddn );
-                            sr->setCredentials( cred );
-                            // default retry (every 120 seconds)
-                            sr->setRetryString( "120 +" );
-                            sr->setTlsReqCert("demand");
-
-                            if ( starttls )
-                            {
-                                sr->setStartTls( OlcSyncRepl::StartTlsCritical );
-                            }
-                            else
-                            {
-                                sr->setStartTls( OlcSyncRepl::StartTlsNo );
-                            }
-
-                            if ( type == "refreshOnly" )
-                            {
-                                if ( argMap->value(YCPString("interval")).isNull() )
-                                {
-                                    lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
-                                    lastError->add(YCPString("description"), YCPString("\"RefreshOnly needs Interval\"") );
-                                    ret = false;
-                                }
-                                else
-                                {
-                                    YCPMap ivMap =  argMap->value(YCPString("interval"))->asMap();
-                                    int days = ivMap->value(YCPString("days"))->asInteger()->value();
-                                    int hours = ivMap->value(YCPString("hours"))->asInteger()->value();
-                                    int mins = ivMap->value(YCPString("mins"))->asInteger()->value();
-                                    int secs = ivMap->value(YCPString("secs"))->asInteger()->value();
-
-                                    if ( days == 0 && hours == 0 && mins == 0 && secs == 0 )
-                                    {
-                                        lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
-                                        lastError->add(YCPString("description"), YCPString("\"Syncrepl Interval is 00:00:00\"") );
-                                        ret = false;
-                                    }
-                                    else
-                                    {
-                                        sr->setInterval( days, hours, mins, secs );
+                                        sr->setRid( rid );
+                                        (*i)->addSyncRepl(sr);
                                     }
                                 }
                             }
-                            (*i)->setSyncRepl(srl);
                         }
                         else
                         {
-                            // clear syncrepl config
-                            (*i)->setStringValue("olcSyncRepl", "" );
-                            ret = true;
+                            // for backwards compatiblity
+                            YCPMap argMap = arg->asMap();
+                            if ( argMap->size() > 0 )
+                            {
+                                ret = true;
+                                OlcSyncReplList srl = (*i)->getSyncRepl();
+                                boost::shared_ptr<OlcSyncRepl> sr;
+                                if ( srl.empty() )
+                                {
+                                    sr = boost::shared_ptr<OlcSyncRepl>(new OlcSyncRepl());
+                                    srl.push_back(sr);
+
+                                    // find available rid (rid must be unique accross the server)
+                                    OlcDatabaseList::const_iterator k;
+                                    int largest_rid=0;
+                                    for ( k = databases.begin(); k != databases.end() ; k++ )
+                                    {
+                                        OlcSyncReplList srl1 = (*k)->getSyncRepl();
+                                        if ( srl1.empty() )
+                                        {
+                                            continue;
+                                        }
+                                        boost::shared_ptr<OlcSyncRepl> sr1;
+                                        int currid = (*srl1.begin())->getRid();
+                                        if ( currid > largest_rid )
+                                        {
+                                            largest_rid=currid;
+                                        }
+                                    }
+                                    sr->setRid(largest_rid+1);
+                                }
+                                else
+                                {
+                                    sr = *srl.begin();
+                                }
+                                ret = this->ycpMap2SyncRepl( argMap, sr );
+                                (*i)->setSyncRepl(srl);
+                            }
+                            else
+                            {
+                                // clear syncrepl config
+                                (*i)->setStringValue("olcSyncRepl", "" );
+                                ret = true;
+                            }
                         }
                     }
                     else if ( dbComponent == "updateref" )

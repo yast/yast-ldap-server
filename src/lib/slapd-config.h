@@ -389,6 +389,7 @@ class OlcDatabase : public OlcConfigEntry
         OlcSyncReplList getSyncRepl() const;
         void setSyncRepl( const OlcSyncReplList& srl );
         void addSyncRepl( const std::string& value, int index=-1 );
+        void addSyncRepl( const boost::shared_ptr<OlcSyncRepl> sr, int index=-1 );
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;
