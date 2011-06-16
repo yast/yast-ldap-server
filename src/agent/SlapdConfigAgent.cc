@@ -2357,3 +2357,118 @@ void SlapdConfigAgent::assignServerId( const std::string &uri )
         }
     }
 }
+
+class CompareRid
+{
+    private:
+        int theRid;
+
+    public:
+        CompareRid( int val ) : theRid(val) {}
+
+        bool operator() ( const boost::shared_ptr<OlcSyncRepl> sr ) const
+        {
+            return theRid == sr->getRid();
+        }
+};
+
+int SlapdConfigAgent::getNextRid() const
+{
+    OlcDatabaseList::const_iterator i;
+    int rid;
+    for ( rid = 1; rid < 999; rid++ )
+    {
+        bool isFree = true;
+
+        for ( i = databases.begin(); i != databases.end() ; i++ )
+        {
+            OlcSyncReplList::const_iterator found;
+            OlcSyncReplList srl = (*i)->getSyncRepl();
+            found = find_if( srl.begin(), srl.end(), CompareRid(rid) );
+            if ( found != srl.end() )
+            {
+                isFree = false;
+                break;
+            }
+        }
+        if ( isFree )
+        {
+            return rid;
+        }
+    }
+    return 0;
+}
+
+bool SlapdConfigAgent::ycpMap2SyncRepl( const YCPMap &srMap, boost::shared_ptr<OlcSyncRepl> sr )
+{
+    bool ret = true;
+    YCPMap providerMap = srMap->value(YCPString("provider"))->asMap();
+    std::string protocol( providerMap->value(YCPString("protocol"))->asString()->value_cstr() );
+    std::string target( providerMap->value(YCPString("target"))->asString()->value_cstr() );
+    int port = providerMap->value(YCPString("port"))->asInteger()->value();
+    std::string type( srMap->value(YCPString("type"))->asString()->value_cstr() );
+    std::string basedn( srMap->value(YCPString("basedn"))->asString()->value_cstr() );
+    std::string binddn( srMap->value(YCPString("binddn"))->asString()->value_cstr() );
+    std::string cred( srMap->value(YCPString("credentials"))->asString()->value_cstr() );
+    bool starttls = false;
+    if (! srMap->value(YCPString("starttls")).isNull() )
+    {
+        starttls = srMap->value(YCPString("starttls"))->asBoolean()->value();
+    }
+
+    LDAPUrl prvuri;
+    prvuri.setScheme(protocol);
+    prvuri.setHost(target);
+    if ( ( protocol == "ldap" && port != 389 ) || ( protocol == "ldaps" && port != 636 ) )
+    {
+        prvuri.setPort(port);
+    }
+
+    sr->setType( type );
+    sr->setProvider( prvuri );
+    sr->setSearchBase( basedn );
+    sr->setBindDn( binddn );
+    sr->setCredentials( cred );
+    // default retry (every 120 seconds)
+    sr->setRetryString( "120 +" );
+    sr->setTlsReqCert("demand");
+
+    if ( starttls )
+    {
+        sr->setStartTls( OlcSyncRepl::StartTlsCritical );
+    }
+    else
+    {
+        sr->setStartTls( OlcSyncRepl::StartTlsNo );
+    }
+
+    if ( type == "refreshOnly" )
+    {
+        if ( srMap->value(YCPString("interval")).isNull() )
+        {
+            lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+            lastError->add(YCPString("description"), YCPString("\"RefreshOnly needs Interval\"") );
+            ret = false;
+        }
+        else
+        {
+            YCPMap ivMap =  srMap->value(YCPString("interval"))->asMap();
+            int days = ivMap->value(YCPString("days"))->asInteger()->value();
+            int hours = ivMap->value(YCPString("hours"))->asInteger()->value();
+            int mins = ivMap->value(YCPString("mins"))->asInteger()->value();
+            int secs = ivMap->value(YCPString("secs"))->asInteger()->value();
+
+            if ( days == 0 && hours == 0 && mins == 0 && secs == 0 )
+            {
+                lastError->add(YCPString("summary"), YCPString("Writing SyncRepl config failed") );
+                lastError->add(YCPString("description"), YCPString("\"Syncrepl Interval is 00:00:00\"") );
+                ret = false;
+            }
+            else
+            {
+                sr->setInterval( days, hours, mins, secs );
+            }
+        }
+    }
+    return ret;
+}

@@ -77,6 +77,8 @@ class SlapdConfigAgent : public SCRAgent {
         void syncCheck( LDAPConnection &c,
                         const std::string &basedn );
         void assignServerId( const std::string &uri );
+        int getNextRid() const;
+        bool ycpMap2SyncRepl( const YCPMap &srMap, boost::shared_ptr<OlcSyncRepl> sr );
 
     private:
         YCPMap lastError;
