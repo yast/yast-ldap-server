@@ -337,6 +337,24 @@ class OlcSecurity
         std::map<std::string, int> secMap;
 };
 
+class OlcServerId
+{
+    public:
+        OlcServerId( const std::string &idVal );
+        OlcServerId( int id, const std::string &uri ) : serverId( id ), serverUri( uri ) {}
+
+        std::string toStringVal() const;
+        int getServerId() const;
+        std::string getServerUri() const;
+
+        void setServerId( int id );
+        void setServerUri( const std::string &uri );
+
+    private:
+        int serverId;
+        std::string serverUri;
+};
+
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
 typedef std::list<boost::shared_ptr<OlcAccess> > OlcAccessList;
 typedef std::list<boost::shared_ptr<OlcLimits> > OlcLimitList;
@@ -423,6 +441,10 @@ class OlcGlobalConfig : public OlcConfigEntry
 
         OlcTlsSettings getTlsSettings() const;
         void setTlsSettings( const OlcTlsSettings& tls);
+
+        const std::vector<OlcServerId> getServerIds() const;
+        void setServerIds(const std::vector<OlcServerId> &serverIds);
+        void addServerId(const OlcServerId &serverId);
 };
 
 class OlcSchemaConfig : public OlcConfigEntry
