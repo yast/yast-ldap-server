@@ -55,6 +55,10 @@ static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
     return false;
 }
 
+static std::string db_sort_attrs[] = { "olcSyncRepl", "olcMirrorMode" };
+const std::list<std::string> OlcConfigEntry::orderedAttrs;
+const std::list<std::string> OlcDatabase::orderedAttrs(db_sort_attrs, db_sort_attrs + sizeof(db_sort_attrs) / sizeof(std::string) );
+
 bool OlcConfigEntry::isDatabaseEntry ( const LDAPEntry& e )
 {
     StringList oc = e.getAttributeByName("objectclass")->getValues();
@@ -267,7 +271,8 @@ bool OlcConfigEntry::isDeletedEntry() const
 
 LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
-    LDAPModList modifications;
+    std::list<LDAPModification> modlist;
+
     log_it(SLAPD_LOG_INFO, "Old Entry DN: " + m_dbEntry.getDN());
     log_it(SLAPD_LOG_INFO,"New Entry DN: " + m_dbEntryChanged.getDN());
     for(; i != m_dbEntry.getAttributes()->end(); i++ )
@@ -315,27 +320,27 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
             if ( delValues.size() > 0 ) {
                 if ( (addValues.size() > 0) && ( (int)delValues.size() == i->getNumValues()) ) {
                     log_it(SLAPD_LOG_INFO,"All Values deleted, this is a replace" );
-                    modifications.addModification(
+                    modlist.push_back(
                             LDAPModification( LDAPAttribute(i->getName(), addValues), 
                                     LDAPModification::OP_REPLACE) 
                             );
                     replace = true;
                 } else {
-                    modifications.addModification(
+                    modlist.push_back(
                             LDAPModification( LDAPAttribute(i->getName(), delValues ), 
                                     LDAPModification::OP_DELETE) 
                             );
                 }
             }
             if (addValues.size() > 0 && !replace ) {
-                modifications.addModification(
+               modlist.push_back(
                         LDAPModification( LDAPAttribute(i->getName(), addValues), 
                                 LDAPModification::OP_ADD) 
                         );
             }
         } else {
             log_it(SLAPD_LOG_INFO,"removed Attribute: " + i->getName() );
-            modifications.addModification(
+            modlist.push_back(
                     LDAPModification( LDAPAttribute(i->getName()), 
                             LDAPModification::OP_DELETE)
                     );
@@ -350,12 +355,32 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
             log_it(SLAPD_LOG_INFO,"Attribute added: " + i->getName());
             if (! i->getValues().empty() )
             {
-                modifications.addModification(
+                modlist.push_back(
                         LDAPModification( LDAPAttribute(i->getName(), i->getValues()), 
                                     LDAPModification::OP_ADD) 
                         );
             }
         }
+    }
+    LDAPModList modifications;
+    std::list<std::string>::const_iterator k;
+    std::list<LDAPModification>::iterator j;
+    for ( k = this->getOrderedAttrs()->begin(); k != this->getOrderedAttrs()->end(); k++ )
+    {
+        log_it( SLAPD_LOG_INFO, "ordered Attribute " + *k );
+        for ( j = modlist.begin(); j != modlist.end(); j++ )
+        {
+            if ( strCaseIgnoreEquals(*k, j->getAttribute()->getName() ) )
+            {
+                modifications.addModification( *j );
+                modlist.erase( j );
+                break;
+            }
+        }
+    }
+    for ( j = modlist.begin(); j != modlist.end(); j++ )
+    {
+        modifications.addModification( *j );
     }
     return modifications;
 }
