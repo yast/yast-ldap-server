@@ -1710,7 +1710,7 @@ BEGIN { $TYPEINFO {ReadFromDefaults} = ["function", "boolean"]; }
 sub ReadFromDefaults
 {
     my $self = shift;
-
+    y2milestone( "ReadFromDefaults" );
     $self->WriteServiceEnabled( $dbDefaults{'serviceEnabled'} );
     $self->WriteSLPEnabled( $dbDefaults{'slpRegister'} );
     my $pwHash = "";
@@ -2901,6 +2901,13 @@ sub SetupRemoteForReplication
 {
     my ( $self ) = @_;
 
+    if ( $self->ReadSetupMirrorMode() )
+    {
+        y2milestone("Assigning new ServerID");
+        $self->AssignServerId( $syncreplbaseconfig->{'provider'}->{'target'} );
+        $self->AssignServerId();
+    }
+
     my $dbs = $self->ReadDatabaseList();
     for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
     {
@@ -2935,12 +2942,36 @@ sub SetupRemoteForReplication
         {
             my $conslist = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
             my $needsyncrepl = 1;
+            my $needsyncreplMM = 1;
+            my %syncReplMM = %{$syncreplbaseconfig};
+            my $mmprovider = { 'protocol' => $syncreplbaseconfig->{'provider'}->{'protocol'},
+                               'target'   => $self->ReadHostnameFQ(),
+                               'port'     => $syncreplbaseconfig->{'provider'}->{'port'}
+                             };
+            $syncReplMM{'provider'} = $mmprovider;
+            $syncReplMM{'basedn'} = $suffix;
+            y2milestone("MM syncrepl: ". Data::Dumper->Dump( [\%syncReplMM] ));
             foreach my $cons ( @{$conslist} )
             {
                 if ( SyncReplMatch( $cons, $syncreplbaseconfig ) )
                 {
                     y2milestone("Syncrepl defintion already present");
                     $needsyncrepl = 0;
+                }
+                if ( $self->ReadSetupMirrorMode() )
+                {
+                    if ( SyncReplMatch( $cons, \%syncReplMM ) )
+                    {
+                        y2milestone("Syncrepl defintion for MirrorMode already present");
+                        $needsyncreplMM = 0;
+                    }
+                }
+                else
+                {
+                    $needsyncreplMM = 0;
+                }
+                if ( !$needsyncreplMM && !$needsyncrepl )
+                {
                     last;
                 }
             }
@@ -2948,25 +2979,43 @@ sub SetupRemoteForReplication
             {
                 y2milestone("Adding syncrepl consumer configuration for database $i");
                 $syncreplbaseconfig->{'basedn'} = $suffix;
-                SCR->Write(".ldapserver.database.{".$i."}.syncrepl", $syncreplbaseconfig );
+                SCR->Write(".ldapserver.database.{".$i."}.syncrepl.add", $syncreplbaseconfig );
             }
+            if ( $self->ReadSetupMirrorMode() )
+            {
+                SCR->Write(".ldapserver.database.{".$i."}.mirrormode", YaST::YCP::Boolean(1) );
+                if ( $needsyncreplMM )
+                {
+                    my $mmprovider = { 'protocol' => $syncreplbaseconfig->{'provider'}->{'protocol'},
+                                       'target'   => $self->ReadHostnameFQ(),
+                                       'port'     => $syncreplbaseconfig->{'provider'}->{'port'}
+                                     };
+                    $syncReplMM{'provider'} = $mmprovider;
+                    $syncReplMM{'basedn'} = $suffix;
+                    y2milestone("Database $i needs MM syncrepl.". Data::Dumper->Dump( [\%syncReplMM] ));
 
+                    SCR->Write(".ldapserver.database.{".$i."}.syncrepl.add", \%syncReplMM );
+                }
+            }
         }
     }
 
-    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    if ( ! $self->ReadSetupMirrorMode() )
     {
-        y2milestone("Checking Update Referral");
-        my $type = $dbs->[$i+1]->{'type'};
-        my $suffix = $dbs->[$i+1]->{'suffix'};
-        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
         {
-            my $updateref = SCR->Read(".ldapserver.database.{".$i."}.updateref" );
-            if ( ! defined $updateref  )
+            y2milestone("Checking Update Referral");
+            my $type = $dbs->[$i+1]->{'type'};
+            my $suffix = $dbs->[$i+1]->{'suffix'};
+            if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
             {
-                y2milestone("Adding Update Referral");
-                SCR->Write(".ldapserver.database.{".$i."}.updateref",
-                           $syncreplbaseconfig->{'provider'} );
+                my $updateref = SCR->Read(".ldapserver.database.{".$i."}.updateref" );
+                if ( ! defined $updateref  )
+                {
+                    y2milestone("Adding Update Referral");
+                    SCR->Write(".ldapserver.database.{".$i."}.updateref",
+                               $syncreplbaseconfig->{'provider'} );
+                }
             }
         }
     }
