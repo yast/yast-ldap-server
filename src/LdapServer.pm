@@ -1395,6 +1395,24 @@ sub WriteLogLevels
     return 1;
 }
 
+BEGIN { $TYPEINFO {AssignServerId} = ["function", "boolean" ]; }
+sub AssignServerId
+{
+    my ( $self, $fqdn ) = @_;
+    if ( ! $fqdn )
+    {
+        $fqdn = $self->ReadHostnameFQ();
+    }
+    if ( $fqdn eq "" )
+    {
+        y2error("Unable to determine full-qualified hostname");
+        return 0;
+    }
+
+    SCR->Execute('.ldapserver.assignServerId', "ldap://".$fqdn );
+    return 1;
+}
+
 BEGIN { $TYPEINFO {ReadAllowFeatures} = ["function", [ "list", "string" ] ]; }
 sub ReadAllowFeatures
 {

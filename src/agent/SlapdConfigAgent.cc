@@ -433,6 +433,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             return YCPBoolean(false);
         }
     }
+    else if ( path->component_str(0) == "assignServerId" )
+    {
+        std::string url( arg->asString()->value_cstr() );
+        this->assignServerId( url );
+    }
     else if ( path->component_str(0) == "waitForBackgroundTasks" )
     {
         olc.waitForBackgroundTasks();
@@ -2283,5 +2288,58 @@ void SlapdConfigAgent::syncCheck( LDAPConnection &c, const std::string &basedn )
     {
         lastError->add(YCPString("summary"), YCPString("Initiating the LDAPsync Operation failed") );
         throw;
+    }
+}
+
+class CompareUri
+{
+    private:
+        const std::string &theUri;
+
+    public:
+        CompareUri( const std::string &val ) : theUri(val) {}
+
+        bool operator() ( const OlcServerId &id ) const
+        {
+            return theUri == id.getServerUri();
+        }
+};
+
+class CompareId
+{
+    private:
+        int theId;
+
+    public:
+        CompareId( int val ) : theId(val) {}
+
+        bool operator() ( const OlcServerId &id ) const
+        {
+            return theId == id.getServerId();
+        }
+};
+
+void SlapdConfigAgent::assignServerId( const std::string &uri )
+{
+    // check if uri has already a Id assigned
+    std::vector<OlcServerId> serverIds = globals->getServerIds();
+
+    std::vector<OlcServerId>::const_iterator found;
+    found = find_if(serverIds.begin(), serverIds.end(), CompareUri(uri) );
+    if ( found != serverIds.end() )
+    {
+        y2milestone("Found ServerId %s", found->toStringVal().c_str() );
+        return;
+    }
+
+    for ( int j=1; j < 999; j++ )
+    {
+        found = find_if(serverIds.begin(), serverIds.end(), CompareId(j) );
+        if ( found == serverIds.end() )
+        {
+            y2milestone( "Free ServerId %d", j);
+            globals->addServerId( OlcServerId( j, uri ) );
+            return;
+        }
     }
 }
