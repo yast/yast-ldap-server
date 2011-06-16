@@ -1787,7 +1787,11 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             std::string basedn( argMap->value(YCPString("basedn"))->asString()->value_cstr() );
                             std::string binddn( argMap->value(YCPString("binddn"))->asString()->value_cstr() );
                             std::string cred( argMap->value(YCPString("credentials"))->asString()->value_cstr() );
-                            bool starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
+                            bool starttls = false;
+                            if (! argMap->value(YCPString("starttls")).isNull() )
+                            {
+                                starttls = argMap->value(YCPString("starttls"))->asBoolean()->value();
+                            }
 
                             LDAPUrl prvuri;
                             prvuri.setScheme(protocol);
