@@ -85,10 +85,15 @@ class OlcConfigEntry
     protected:
         virtual void resetMemberAttrs() {};
         virtual void updateEntryDn( bool origEntry = false);
+        virtual const std::list<std::string>* getOrderedAttrs() const {
+            return &orderedAttrs;
+        }
 
         int entryIndex;
         LDAPEntry m_dbEntry;
         LDAPEntry m_dbEntryChanged;
+
+        static const std::list<std::string> orderedAttrs;
 };
 
 enum IndexType {
@@ -397,8 +402,13 @@ class OlcDatabase : public OlcConfigEntry
     protected:
         virtual void resetMemberAttrs();
         virtual void updateEntryDn( bool origEntry = false );
+        virtual const std::list<std::string>* getOrderedAttrs() const {
+            return &orderedAttrs;
+        }
         std::string m_type;
         OlcOverlayList m_overlays;
+
+        static const std::list<std::string> orderedAttrs;
 };
 
 class OlcBdbDatabase : public  OlcDatabase 
