@@ -972,6 +972,10 @@ YCPValue SlapdConfigAgent::ReadDatabase( const YCPPath &path,
                     }
                     return resMap;
                 }
+                else if ( dbComponent == "mirrormode" )
+                {
+                    return YCPBoolean((*i)->getMirrorMode());
+                }
                 else
                 {
                     lastError->add(YCPString("summary"), YCPString("Read Failed") );
@@ -1882,6 +1886,12 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                             dbConfList.add( argList->value(j)->asString()->value_cstr() );
                         }
                         (*i)->setStringValues("olcDbConfig", dbConfList );
+                        ret = true;
+                    }
+                    else if ( dbComponent == "mirrormode" )
+                    {
+                        YCPBoolean argVal = arg->asBoolean();
+                        (*i)->setMirrorMode( argVal->value() );
                         ret = true;
                     }
                     else
