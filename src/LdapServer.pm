@@ -2984,6 +2984,8 @@ sub SetupRemoteForReplication
             if ( $self->ReadSetupMirrorMode() )
             {
                 SCR->Write(".ldapserver.database.{".$i."}.mirrormode", YaST::YCP::Boolean(1) );
+                # Remove any existing updateRef, they don't make sense in a mirrormode setup
+                SCR->Write(".ldapserver.database.{".$i."}.updateref", {} );
                 if ( $needsyncreplMM )
                 {
                     my $mmprovider = { 'protocol' => $syncreplbaseconfig->{'provider'}->{'protocol'},
