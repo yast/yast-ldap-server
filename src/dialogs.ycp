@@ -876,7 +876,8 @@ any SlaveSetupDialog()
                     continue;
                 }
                 // Check if the syncrepl config of cn=config makes sense
-                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0)[0]:$[];
+                list<map<string,any> > srl = LdapServer::ReadSyncRepl(0);
+                map <string,any> syncrepl = srl[0]:$[];
                 if ( size(syncrepl) == 0 )
                 {
                     if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
@@ -899,34 +900,37 @@ any SlaveSetupDialog()
                 else
                 {
                     // 1. Verify that the provider uri points to the provider itself
-                    map<string, any> provider = syncrepl["provider"]:$[];
-                    boolean setupok=true;
-                    if ( size(provider) > 0 )
+                    if ( size(srl) == 1 ) // this test needs only be done in a non-MirrorMode setup
                     {
-                        if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                        map<string, any> provider = syncrepl["provider"]:$[];
+                        boolean setupok=true;
+                        if ( size(provider) > 0 )
                         {
-                            y2error("Provider target names do not match: <%1> vs. <%2>",
-                                    (string)provider["target"]:"",(string)testparm["target","target"]:"");
-                            setupok=false;
-                        }
-                        if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
-                        {
-                            y2error("Provider protocols do not match: <%1> vs. <%2>",
-                                    (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
-                            setupok=false;
-                        }
-                        if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
-                        {
-                            y2error("Provider ports do not match: <%1> vs. <%2>",
-                                    (string)provider["port"]:"",(string)testparm["target","port"]:"");
-                            setupok=false;
-                        }
-                        if ( ! setupok )
-                        {
-                            Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
-                                          _("Setting up cascaded replication of the cn=config is not supported currently.") );
-                            ret = `cancel;
-                            break;
+                            if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                            {
+                                y2error("Provider target names do not match: <%1> vs. <%2>",
+                                        (string)provider["target"]:"",(string)testparm["target","target"]:"");
+                                setupok=false;
+                            }
+                            if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
+                            {
+                                y2error("Provider protocols do not match: <%1> vs. <%2>",
+                                        (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
+                                setupok=false;
+                            }
+                            if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
+                            {
+                                y2error("Provider ports do not match: <%1> vs. <%2>",
+                                        (string)provider["port"]:"",(string)testparm["target","port"]:"");
+                                setupok=false;
+                            }
+                            if ( ! setupok )
+                            {
+                                Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
+                                              _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                                ret = `cancel;
+                                break;
+                            }
                         }
                     }
                     // 2. Verify that the binddn/credential combination acutally works
