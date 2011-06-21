@@ -407,7 +407,13 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
         try {
             StringList attrs;
             attrs.add("*");
-            attrs.add("+");
+            attrs.add("structuralObjectClass");
+            attrs.add("entryUUID");
+            attrs.add("creatorsName");
+            attrs.add("createTimestamp");
+            attrs.add("entryCSN");
+            attrs.add("modifiersName");
+            attrs.add("modifyTimestamp");
             LDAPSearchResults *sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_SUB,
                                                   "objectclass=*", attrs );
             std::ostringstream ldifStream;
