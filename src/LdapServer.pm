@@ -2365,7 +2365,14 @@ sub RemoveMMSyncrepl
         {
             SCR->Write(".ldapserver.database.{".$i."}.syncrepl.del", $uri );
         }
+        # Disable MirrorMode if needed
+        my $syncrepl = SCR->Read(".ldapserver.database.{".$i."}.syncrepl" );
+        if ( scalar( @{$syncrepl} ) <= 1 )
+        {
+            SCR->Write(".ldapserver.database.{".$i."}.mirrormode", YaST::YCP::Boolean(0) );
+        }
     }
+    SCR->Execute(".ldapserver.commitChanges" );
 
     return YaST::YCP::Boolean(1);
 }
