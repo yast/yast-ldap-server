@@ -116,16 +116,23 @@ any MirrorModeOverview()
                     continue;
                 }
 
-                LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );
-                serverids = remove( serverids, selected );
-                LdapServer::WriteServerIds( serverids );
-                itemlist = maplist (map v, serverids,
-                    {
-                        pos=pos+1;
-                        return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
-                    }
-                );
-                UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+                if( Popup::YesNo( _("Do you really want to remove ") +
+                                  "\"" + serverids[ selected, "uri" ]:"" + "\"" +
+                                  _("From the MirrorMode setup?\n" ) +
+                                  _("Changes will take effect immediately after clicking \"Yes\"") ) )
+                {
+                    LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );
+                    serverids = remove( serverids, selected );
+                    LdapServer::WriteServerIds( serverids );
+                    itemlist = maplist (map v, serverids,
+                        {
+                            pos=pos+1;
+                            return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
+                        }
+                    );
+                    UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+                    Wizard::HideAbortButton();
+                }
             }
         }
     }
