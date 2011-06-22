@@ -96,9 +96,28 @@ any MirrorModeOverview()
         event = UI::WaitForEvent ();
         ret = event["ID"]:nil;
 
-        if( ret == `back || ret == `abort || ret == `cancel) break;
-        else if( ret == `next || ret == `finish )
+        if ( ret == `back || ret == `abort || ret == `cancel ||
+             ret == `next || ret == `finish )
         {
+            break;
+        }
+        else if ( ret == `pb_del )
+        {
+            integer selected = (integer) UI::QueryWidget( `serverid_tab, `CurrentItem );
+            if ( selected != nil )
+            {
+                y2milestone("Delete Server: %1", serverids[selected]:$[] );
+                LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );
+                serverids = remove( serverids, selected );
+                LdapServer::WriteServerIds( serverids );
+                itemlist = maplist (map v, serverids,
+                    {
+                        pos=pos+1;
+                        return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
+                    }
+                );
+                UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+            }
         }
     }
 
