@@ -86,7 +86,7 @@ any MirrorModeOverview()
     list itemlist = maplist (map v, serverids,
         {
             pos=pos+1;
-            return `item( `id(pos), v["id"]:"" , v["uri"]:"");
+            return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
         }
     );
 

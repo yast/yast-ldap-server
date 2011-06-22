@@ -1402,6 +1402,10 @@ sub ReadServerIds
     my $self = shift;
 
     my $serverids = SCR->Read( '.ldapserver.global.serverIds' );
+    foreach my $sid ( @{$serverids} )
+    {
+        $sid->{'id'} = YaST::YCP::Integer( $sid->{'id'} );
+    }
     return $serverids;
 }
 
