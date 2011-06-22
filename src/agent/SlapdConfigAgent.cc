@@ -1255,13 +1255,16 @@ YCPBoolean SlapdConfigAgent::WriteGlobal( const YCPPath &path,
         if ( path->component_str(0) == "serverIds" )
         {
             YCPList ycpServerIds = arg->asList();
-            StringList values;
+            std::vector<OlcServerId> serverids;
+
             for ( YCPListIterator i = ycpServerIds.begin(); 
                   i != ycpServerIds.end(); i++ )
             {
-                values.add( (*i)->asString()->value_cstr() );
+                YCPMap yServerId = (*i)->asMap();
+                serverids.push_back( OlcServerId( yServerId->value( YCPString("id") )->asInteger()->value(),
+                                                  yServerId->value( YCPString("uri") )->asString()->value_cstr() ) );
             }
-            globals->setStringValues("olcServerId", values);
+            globals->setServerIds(serverids);
         }
 
     }
@@ -1777,6 +1780,27 @@ YCPBoolean SlapdConfigAgent::WriteDatabase( const YCPPath &path,
                                         (*i)->addSyncRepl(sr);
                                     }
                                 }
+                            }
+                            else if ( srComp == "del" )
+                            {
+                                LDAPUrl destUrl( std::string( arg->asString()->value_cstr() ) );
+                                OlcSyncReplList srl = (*i)->getSyncRepl();
+                                OlcSyncReplList::iterator j;
+                                for ( j = srl.begin(); j != srl.end(); j++ )
+                                {
+                                    std::string proto, target;
+                                    int port;
+                                    (*j)->getProviderComponents( proto, target, port );
+                                    if ( proto == destUrl.getScheme() &&
+                                         target == destUrl.getHost() &&
+                                         port == destUrl.getPort() )
+                                    {
+                                        srl.erase(j);
+                                        break;
+                                    }
+                                }
+                                (*i)->setSyncRepl( srl );
+                                ret = true;
                             }
                         }
                         else

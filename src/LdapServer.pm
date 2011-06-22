@@ -1409,6 +1409,19 @@ sub ReadServerIds
     return $serverids;
 }
 
+BEGIN { $TYPEINFO {WriteServerIds} = ["function", "boolean", [ "list", [ "map", "string", "any"  ] ] ]; }
+sub WriteServerIds
+{
+    my ( $self, $serverids ) = @_;
+    y2milestone( "WriteServerIds" );
+    foreach my $sid ( @{$serverids} )
+    {
+        $sid->{'id'} = YaST::YCP::Integer( $sid->{'id'} );
+    }
+    my $ret = SCR->Write( '.ldapserver.global.serverIds', $serverids );
+    return $ret;
+}
+
 BEGIN { $TYPEINFO {AssignServerId} = ["function", "boolean" ]; }
 sub AssignServerId
 {
@@ -2329,6 +2342,31 @@ sub WriteSyncRepl
             }
         }
     }
+    return YaST::YCP::Boolean(1);
+}
+
+##
+ # Remove the Syncrepl Configuration matching the supplied URI from all databases
+ #
+ # @param The LDAP Url of the syncrepl consumer configuration to be deleted
+ #
+ # @return boolean True on success
+ #
+BEGIN { $TYPEINFO {RemoveMMSyncrepl} = ["function", "boolean", "string" ]; }
+sub RemoveMMSyncrepl
+{
+    my ( $self, $uri ) = @_;
+
+    my $dbs = $self->ReadDatabaseList();
+    for ( my $i=0; $i < scalar(@{$dbs})-1; $i++)
+    {
+        my $type = $dbs->[$i+1]->{'type'};
+        if ( $type eq "config" || $type eq "bdb" || $type eq "hdb" )
+        {
+            SCR->Write(".ldapserver.database.{".$i."}.syncrepl.del", $uri );
+        }
+    }
+
     return YaST::YCP::Boolean(1);
 }
 
