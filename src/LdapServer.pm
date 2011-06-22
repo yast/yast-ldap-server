@@ -3281,6 +3281,16 @@ sub ReadSetupMirrorMode
 }
 
 ##
+ # @return true, if the currently connected server is member of a mirrormode setup
+ #
+BEGIN { $TYPEINFO {HasMirrorMode} = ["function",  "boolean" ]; }
+sub HasMirrorMode
+{
+    my $self = shift;
+    return SCR->Read(".ldapserver.database.{0}.mirrormode" );
+}
+
+##
  # Initializes the ldapserver agent to connect to a remote cn=config database
  # @param A Map containing the details for the remote connections. Required keys:
  #      "provider": A Map with the keys "protocol" (can be "ldap" or "ldaps"), 
