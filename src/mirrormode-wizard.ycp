@@ -14,6 +14,7 @@ textdomain "ldap-server";
 
 import "Sequencer";
 import "Wizard";
+import "URL";
 
 include "ldap-server/complex.ycp";
 include "ldap-server/dialogs.ycp";
@@ -107,6 +108,14 @@ any MirrorModeOverview()
             if ( selected != nil )
             {
                 y2milestone("Delete Server: %1", serverids[selected]:$[] );
+                map url = URL::Parse( serverids[selected,"uri"]:"" );
+                if ( (string)url["host"]:"" == LdapServer::ReadHostnameFQ() )
+                {
+                    Popup::Error( _("Deleting the Host on which you started this YaST Module is not possible.\n") +
+                                  _("Please start yast2 openldap-mirrormode on a different MirrorMode server.") );
+                    continue;
+                }
+
                 LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );
                 serverids = remove( serverids, selected );
                 LdapServer::WriteServerIds( serverids );
