@@ -1396,6 +1396,15 @@ sub WriteLogLevels
     return 1;
 }
 
+BEGIN { $TYPEINFO {ReadServerIds} = ["function", [ "list", [ "map", "string", "any"  ] ] ]; }
+sub ReadServerIds
+{
+    my $self = shift;
+
+    my $serverids = SCR->Read( '.ldapserver.global.serverIds' );
+    return $serverids;
+}
+
 BEGIN { $TYPEINFO {AssignServerId} = ["function", "boolean" ]; }
 sub AssignServerId
 {
