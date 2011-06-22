@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Wed Jun 22 12:09:35 UTC 2011 - rhafer@suse.de
+
+- Version 2.17.37
+- added some missing pieces to the MirrorMode wizard (fate#312032,
+  bnc#701494)
+- fixed handling of server-generated Attributes when cloning the
+  "cn=config" database (bnc#701310)
+- fixed setup of additional (more than two) mirrormode nodes
+  (bnc#701311)
+
+-------------------------------------------------------------------
 Thu Jun 16 11:46:06 UTC 2011 - rhafer@suse.de
 
 - Version 2.17.36
