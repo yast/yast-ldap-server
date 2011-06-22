@@ -17,8 +17,93 @@ import "Wizard";
 
 include "ldap-server/complex.ycp";
 include "ldap-server/dialogs.ycp";
+include "ldap-server/wizards.ycp";
 
 caption = "OpenLDAP MirrorMode Configuration";
+term dlg_mm_overview =
+    `HSquash(
+        `VBox(
+            `Heading( _("MirrorMode Node List") ),
+            `VSpacing(),
+            `VBox(
+                `VBox(
+                    `MinSize( 60, 7,
+                        `Table( `id( `serverid_tab ),`opt(`keepSorting), `header(_("Server ID"), _("Server URI") ) )
+                    ),
+                    `Left(
+                        `HBox(
+                            `PushButton( `id( `pb_del ), Label::DeleteButton() )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+term dlg_nomm_message =
+    `HSquash(
+        `VBox(
+            `Label( _("This server is not setup as a MirrorMode Node. "
+                      "Click \"Next\" to launch the standard OpenLDAP configuration wizard.") )
+        )
+    );
+
+any MirrorModeOverview()
+{
+    any ret = nil;
+    map event = $[];
+    if( ! LdapServer::HasMirrorMode() )
+    {
+        Wizard::SetContentsButtons( caption, dlg_nomm_message,
+                                    HELPS["service_dialog"]:"help not found",
+                                    Label::BackButton(), Label::NextButton() );
+        Wizard::HideBackButton();
+        Wizard::SetAbortButton(`abort, Label::CancelButton());
+
+        while( true )
+        {
+            event = UI::WaitForEvent ();
+
+            ret = event["ID"]:nil;
+            if( ret == `abort || ret == `cancel) break;
+            else if ( ret == `next )
+            {
+                ret = `nomirror;
+                break;
+            }
+        }
+        return ret;
+    }
+    string caption = _("OpenLDAP MirrorMode Overview");
+    Wizard::SetContentsButtons( caption, dlg_mm_overview,
+                                HELPS["service_dialog"]:"help not found",
+                                Label::BackButton(), Label::OKButton() );
+    Wizard::HideBackButton();
+    Wizard::SetAbortButton(`abort, Label::CancelButton());
+
+    list<map<string,any> > serverids = LdapServer::ReadServerIds();
+    integer pos = -1;
+    list itemlist = maplist (map v, serverids,
+        {
+            pos=pos+1;
+            return `item( `id(pos), v["id"]:"" , v["uri"]:"");
+        }
+    );
+
+    UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+    while( true )
+    {
+        event = UI::WaitForEvent ();
+        ret = event["ID"]:nil;
+
+        if( ret == `back || ret == `abort || ret == `cancel) break;
+        else if( ret == `next || ret == `finish )
+        {
+        }
+    }
+
+    return ret;
+}
 
 any MirrorModeSequence() {
 
@@ -33,15 +118,22 @@ any MirrorModeSequence() {
     LdapServer::WriteSetupSlave(true);
     LdapServer::WriteSetupMirrorMode(true);
     map aliases = $[
-        "startup"           : ``( EnableServiceDialog() ),
+	"read"	            : ``( ReadDialog() ),
+        "newnode"           : ``( EnableServiceDialog() ),
         "slavesetup"        : ``( SlaveSetupDialog() ),
         "replicationsummary": ``( ReplicatonSetupSummaryDialog() ),
+	"main"	            : ``( MirrorModeOverview() ),
         "write"             : ``( WriteDialog() )
     ];
 
     map sequence = $[
-        "ws_start"  : "startup",
-        "startup"   : $[
+        "ws_start"  : "read",
+	"read" : $[
+	    `abort	: `abort,
+            `initial    : "newnode",
+	    `next	: "main",
+	],
+        "newnode"   : $[
             `next   : "slavesetup",
             `abort  : `abort,
             `finish : `disable
@@ -52,6 +144,12 @@ any MirrorModeSequence() {
         "replicationsummary" : $[
             `next : "write"
         ],
+	"main" : $[
+	    `abort	: `abort,
+	    `next	: "write",
+	    `nomirror	:  `nomirror,
+            `reread     : "read"
+	],
         "write" : $[
             `abort      : `abort,
             `next       : `next
@@ -66,6 +164,10 @@ any MirrorModeSequence() {
 
     UI::CloseDialog();
 
+    if ( ret == `nomirror )
+    {
+        ret = LdapServerSequence();
+    }
     return ret;
 }
 }
