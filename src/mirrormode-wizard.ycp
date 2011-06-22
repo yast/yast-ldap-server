@@ -18,10 +18,10 @@ import "Wizard";
 include "ldap-server/complex.ycp";
 include "ldap-server/dialogs.ycp";
 
+caption = "OpenLDAP MirrorMode Configuration";
+
 any MirrorModeSequence() {
 
-    /* Initialization dialog caption */
-    string caption = _("LDAP Server Configuration");
     /* Initialization dialog contents */
     term contents = `Label(_("Initializing..."));
 
@@ -58,11 +58,11 @@ any MirrorModeSequence() {
         ]
     ];
 
-    y2milestone( "--> starting ProposalSequence" );
+    y2milestone( "--> starting MirrorModeSequence" );
 
     any ret = Sequencer::Run(aliases, sequence);
 
-    y2milestone( "<-- ProposalSequence finished " );
+    y2milestone( "<-- MirrorModeSequence finished " );
 
     UI::CloseDialog();
 

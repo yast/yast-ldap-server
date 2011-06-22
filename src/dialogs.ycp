@@ -778,7 +778,8 @@ any SlaveSetupDialog()
     term widget =
         `HSquash(
             `VBox(
-                `Heading( _("Slave server setup") ),
+                `Heading( _("Provider details") ),
+                `VSpacing(0.3),
                 `VSpacing(),
                 `VSquash(
                     `HBox(
