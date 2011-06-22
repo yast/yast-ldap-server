@@ -577,11 +577,14 @@ YCPValue SlapdConfigAgent::ReadGlobal( const YCPPath &path,
         if ( path->component_str(0) == "serverIds" )
         {
             YCPList resList;
-            StringList serverIds = globals->getStringValues("olcserverid");
-            for ( StringList::const_iterator i =  serverIds.begin(); 
+            std::vector<OlcServerId> serverIds = globals->getServerIds();
+            for ( std::vector<OlcServerId>::const_iterator i =  serverIds.begin();
                   i != serverIds.end(); i++ )
             {
-                resList.add(YCPString(*i));
+                YCPMap idMap;
+                idMap.add( YCPString("id"), YCPInteger( i->getServerId() ) );
+                idMap.add( YCPString("uri"), YCPString( i->getServerUri() ) );
+                resList.add( idMap );
             }
             return resList;
         }
