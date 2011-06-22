@@ -414,6 +414,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
             attrs.add("entryCSN");
             attrs.add("modifiersName");
             attrs.add("modifyTimestamp");
+            attrs.add("contextCSN");
             LDAPSearchResults *sr = m_lc->search( "cn=config", LDAPConnection::SEARCH_SUB,
                                                   "objectclass=*", attrs );
             std::ostringstream ldifStream;
