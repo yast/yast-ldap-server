@@ -24,7 +24,7 @@ part of the boot process. Select <b>No</b> if the LDAP server should not be star
 After selecting <b>No</b> you will not be able to make any changes to the OpenLDAP 
 configuration.</p>") +
         _("<h4>Protocol Listeners</h4>") +
-            _("<p>Here you can enable and disable the various protocol listeneres of OpenLDAP</p>") +
+            _("<p>Here you can enable and disable the various protocol listeners of OpenLDAP</p>") +
             _("<p><b>LDAP</b> is the standard LDAP interface on Port 389. TLS/SSL secured communication
 is possible with the StartTLS operation when you have a server certificate configured.</p>") +
             _("<p><b>LDAPS</b> enables the \"LDAP over SSL (ldaps)\" interface for SSL protected
@@ -48,7 +48,7 @@ needs a larger <b>idlcachesize</b> for good search performance than a <b>bdb</b>
         _("<p>The <b>Base DN</b> option specifies the name of the root entry 
 of the database being created.</p>") +
         _("<p>The <b>Administrator DN</b> along with a <b>LDAP Administrator Password</b> 
-specifieds a superuser identity for the database, surpassing all ACLs and other 
+specifies a superuser identity for the database, surpassing all ACLs and other 
 administrative limit restrictions. Checking <b>Append Base DN</b> appends the 
 <b>Base DN</b> entered above, for example, a base DN of <tt>dc=example,dc=com</tt>
 and Administrator DN of <tt>c=Admin</tt> would combine to an effective Administrator DN
@@ -67,7 +67,7 @@ is selected by default when creating the first database on a Server.</p>"),
 change any configuration settings here.") ,
 
     "database_detail_config" :
-        _("<p>To enabled or disable plaintext authentication (LDAP Simple Bind)
+        _("<p>To enable or disable plaintext authentication (LDAP Simple Bind)
 for the configuration database click the associated checkbox. Plaintext authentication
 to the configuration database will only be allowed when using sufficiently protected 
 (e.g. SSL/TLS encrypted) connections.</p>")+
@@ -115,7 +115,7 @@ from the server.</p>"),
         _("<p>The table displays a list of attribute which have an index defined currently.</p>") +
         _("<p>Indexes are used by OpenLDAP to improve search performance on specific type of
 searches. Indexes should be configured corresponding to the most common searches that are used
-on a database. This YaST modul allows to setup three different types indexes.</p>") +
+on a database. This YaST module allows to setup three different types indexes.</p>") +
         _("<p><b>Presence</b>: This index is used for searches using presence filters
 (i.e. <tt>(attributeType=*)</tt> ). Presence indexes should only be configured for attributes
 that occur very rarely in the database</p>")+
@@ -129,7 +129,7 @@ delete an existing index and <b>Edit</b> to change the indexing options of an al
 Attribute.</p>") +
         _("<p>Note: Depending on the database size it can take a while until newly added
 indexes, will get active on a database. After the configuration has been written to the server.
-a background task will start to generated the indexing information for the database.</p>"),
+a background task will start to generate the indexing information for the database.</p>"),
 
     "acl_edit" :
         _("<h3>Access Control Configuration</h3>") +
@@ -173,7 +173,7 @@ the port number if the master server is using non-standard ldap ports.") +
         _("<h4>Replication Type</h4>") +
         _("<p>OpenLDAP supports different modes of replication:</p>") +
         _("<p><b>refreshOnly</b>: The slave server will periodically open a new connection, trigger a 
-synchronization and close the connection again. The intervall how often this synchronization happens can be configured
+synchronization and close the connection again. The interval how often this synchronization happens can be configured
 through the <b>Replication Interval</b> settings.</p>") +
         _("<p><b>refreshAndPersist</b>: The slave server will open a persistent connection to the master server for
 synchronization. Updated entries on the master server are immediately sent to the slave through that connection.</p>") +
@@ -182,7 +182,7 @@ synchronization. Updated entries on the master server are immediately sent to th
 The specified DN needs to have read access to all entries in the replicated database on the master.</p>") +
         _("<h4>Update Referral</h4>") +
         _("<p>As the slave database is readonly. The slave server will answer write operations with an LDAP referral.
-This referral by default points the client to the master server. You can configure a differen update referral here.
+This referral by default points the client to the master server. You can configure a different update referral here.
 This is e.g. useful in a cascaded replication setup i.e. when the provider for the slave server is as slave server
 itself. </p>"),
 
@@ -204,7 +204,7 @@ is safe to do so.  </p> "),
     /* Summary dialog help 1/3 */
     "summary" :
         _("<h3>LDAP Server Configuration Summary</h3>") +
-        _("<p>This dialog just gives a short summary about the configartion you just
+        _("<p>This dialog just gives a short summary about the configuration you just
 created. Click <b>Finish</b> to write that configuration and leave the LDAP
 Server module</p>"),
 
@@ -240,7 +240,7 @@ you can check <b>Use common Server Certificate</b> to have the OpenLDAP server u
 
         _("<h4>Import Certificate</h4>") +
         _("<p>If you have no Common Server Certificate or you want OpenLDAP to use a different certificate
-you can enter the file names of the <b>CA Certifciate File</b>, <b>Certificate File</b> and 
+you can enter the file names of the <b>CA Certificate File</b>, <b>Certificate File</b> and 
 <b>Certificate Key File</b> into the corresponding textfields</p>") +
         _("<p>To create a new CA or certificate you can launch the CA-Management Module by clicking
 <b>Launch CA Management Module</b></p>"),

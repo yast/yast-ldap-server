@@ -2396,7 +2396,7 @@ sub IsSubordinate
     }
     if ( $baseDN->hasMultivaluedRDNs() )
     {
-        $self->SetError("\"". $base ."\" ". _("has mulitvalued RDNs."), "");
+        $self->SetError("\"". $base ."\" ". _("has multivalued RDNs."), "");
         return undef;
     }
     my $childDN = X500::DN->ParseRFC2253($child);
@@ -2406,7 +2406,7 @@ sub IsSubordinate
     }
     if ( $childDN->hasMultivaluedRDNs() )
     {
-        $self->SetError( "\"". $child ."\" ". _("has mulitvalued RDNs."), "");
+        $self->SetError( "\"". $child ."\" ". _("has multivalued RDNs."), "");
         return undef;
     }
     my @base_rdns = $baseDN->getRDNs();
