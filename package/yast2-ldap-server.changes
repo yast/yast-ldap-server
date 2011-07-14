@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Jul 13 15:27:41 UTC 2011 - rhafer@suse.de
+
+- Version 2.21.0
+- Fixed typos (bnc#703175, bnc#692812)
+- silence perl error message when creating db without rootpw
+
+-------------------------------------------------------------------
 Wed Feb 16 11:00:52 UTC 2011 - rhafer@suse.de
 
 - Version 2.20.0
