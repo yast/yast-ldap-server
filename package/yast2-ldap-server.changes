@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Mon Jul 18 13:07:51 UTC 2011 - rhafer@suse.de
+
+- Version 2.17.38
+- fixed typos (bnc#703175, bnc#692812)
+- Allow to select a CA Certificate when setting up a slave
+  (bnc#706447)
+
+-------------------------------------------------------------------
 Wed Jun 22 12:09:35 UTC 2011 - rhafer@suse.de
 
 - Version 2.17.37
