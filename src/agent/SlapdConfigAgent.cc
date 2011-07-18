@@ -203,6 +203,11 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 }
                 else
                 {
+                    TlsOptions tls = m_lc->getTlsOptions();
+                    if ( ! argMap->value(YCPString("cacert")).isNull() )
+                    {
+                        tls.setOption( TlsOptions::CACERTFILE, argMap->value( YCPString("cacert"))->asString()->value_cstr() );
+                    }
                     if ( argMap->value(YCPString("starttls"))->asBoolean()->value() )
                     {
                         m_lc->start_tls();
