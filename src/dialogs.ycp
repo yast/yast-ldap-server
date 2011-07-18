@@ -800,7 +800,17 @@ any SlaveSetupDialog()
                     )
                 ),
                 `VSpacing(0.3),
-                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" )
+                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" ),
+                `VSpacing(0.3),
+                `VSquash(
+                    `HBox(
+                        `InputField( `id( `te_ca_file ), `opt( `hstretch ), _("C&A Certificate File (PEM Format)") ),
+                        `HSpacing( 0.5 ),
+                        `Bottom(
+                            `PushButton( `id( `pb_ca_file ), _("Bro&wse...") )
+                        )
+                    )
+                )
             )
         );
 
@@ -810,9 +820,12 @@ any SlaveSetupDialog()
             Label::BackButton(),
             Label::NextButton() );
     any ret = nil;
+    string cacert = "/etc/ssl/certs/YaST-CA.pem";
+
     while ( true )
     {
         UI::ChangeWidget(`cb_start_tls, `Enabled, false );
+        UI::ChangeWidget(`te_ca_file, `Value, cacert );
         map synbase = LdapServer::ReadSyncreplBaseConfig();
         if ( size(synbase) > 0 )
         {
@@ -830,8 +843,23 @@ any SlaveSetupDialog()
             ret = UI::UserInput();
         }
         y2milestone( "SlaveSetupDialog: seeing return value '%1'", ret );
-        if ( ret == `next )
+        if( ret == `pb_ca_file )
         {
+            string name = UI::AskForExistingFile( "/etc/ssl/certs", "*.pem *.crt *", _("Select CA Certificate File") );
+            if( name != nil )
+            {
+                cacert = name;
+            }
+            continue;
+        }
+        else if ( ret == `next )
+        {
+            if ( cacert == "" || cacert == nil )
+            {
+                Popup::Error( _("Please select a valid CA Certificate File") );
+                continue;
+            }
+
             // test connection
             map<string,any> provider = $[
                     "protocol" : (string)UI::QueryWidget( `cb_sync_prot, `Value ),
@@ -852,6 +880,11 @@ any SlaveSetupDialog()
             testparm = add(testparm, "basedn", "cn=config" );
             testparm = add(testparm, "binddn", "cn=config" );
             testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
+            if ( cacert != "" &&  cacert != nil )
+            {
+                testparm = add( testparm, "cacert", cacert );
+            }
+
             if (! LdapServer::ReadModeInstProposal() ) // Doing these checks during installation will 
                                                        // most probably fail
             {
