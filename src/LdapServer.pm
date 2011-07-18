@@ -3396,7 +3396,7 @@ sub VerifyTlsSetup
         if ( $rc->{'exit'} != 0 )
         {
             $self->SetError( _("Error while trying to verify the Server Certificate of the Provider server.\n").
-                             _("Please make sure that \"".$tls->{"caCertFile"}."\" constains the correct\nCA file to verify the remote Server Certificate."),
+                             _("Please make sure that \"".$tls->{"caCertFile"}."\" contains the correct\nCA file to verify the remote Server Certificate."),
                              $rc->{'stderr'} );
             return 0;
         }
