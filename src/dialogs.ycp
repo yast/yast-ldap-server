@@ -1093,7 +1093,9 @@ any MasterSetupDialog()
                     `VSpacing( 0.5 ),
                     `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") ),
                     `VSpacing( 0.5 ),
-                    `CheckBox( `id( `cb_mirror_mode ), _("MirrorMode") )
+                    `Left(
+                        `CheckBox( `id( `cb_mirror_mode ), _("Prepare for MirrorMode replication (generates the serverId attribute)") )
+                    )
                 )
             )
         );
