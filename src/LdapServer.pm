@@ -1903,7 +1903,22 @@ sub ReadFromDefaults
                 SCR->Write(".ldapserver.database.{1}.limits", \@newlimits );
             }
         }
-        
+
+        # remove existing DB_CONFIG to have it regenerated at slapd startup from
+        # settings in the database object
+        my $db_config = $database->{'directory'}."/DB_CONFIG";
+        if ( SCR->Read(".target.size", $db_config) > 0 ) {
+            SCR->Execute('.target.bash', 'rm -f '.$db_config );
+        }
+        # add DB_CONFIG settings to the database object
+        my $dbconfig = [
+            "set_cachesize 0 15000000 1",
+            "set_lg_regionmax 262144",
+            "set_lg_bsize 2097152",
+            "set_flags DB_LOG_AUTOREMOVE"
+        ];
+        $rc = SCR->Write(".ldapserver.database.{1}.dbconfig", $dbconfig );
+
         # add default ACLs
         $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
         $rc = SCR->Write(".ldapserver.database.{1}.acl", $defaultDbAcls );
