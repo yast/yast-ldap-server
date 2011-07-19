@@ -558,7 +558,7 @@ define boolean cb_input_databases()
             }
             LdapDatabase::ResetCreateBase();
             map <string,any> syncrepl = LdapDatabase::GetSyncRepl();
-            if ( size(syncrepl) > 0 )
+            if ( size(syncrepl) > 0 && size(syncrepl["syncrepl"]:$[]) > 0 )
             {
                 list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
                 integer dbindex=0;
@@ -571,12 +571,13 @@ define boolean cb_input_databases()
                 });
                 if (dbindex > 0)
                 {
-                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl ) )
+                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl["syncrepl"]:$[] ) )
                     {
                         map<string, string> err = LdapServer::ReadError();
                         callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                         return false;
                     }
+                    LdapServer::WriteUpdateRef(dbindex, syncrepl["updateref"]:$[]);
                 }
             }
             map <string,any> ppolicy = LdapDatabase::GetPpolicy();
