@@ -19,6 +19,7 @@ import "LdapPopup";
 import "LdapServer";
 import "HTML";
 import "Report";
+import "Pkg";
 
 include "ldap-server/helps.ycp";
 include "ldap-server/tree_structure.ycp";
@@ -34,6 +35,7 @@ string caption = _("LDAP Server Configuration");
  **********************/
 
 string error_str = "";
+boolean sourcemanager_started = false;
 
 list<map> generateTreeRec( list<map> tree, string parent, list<string> children )
 {
@@ -1079,6 +1081,22 @@ any ReplicatonSetupSummaryDialog() {
 
 any MasterSetupDialog()
 {
+    if ( ! sourcemanager_started )
+    {
+        Pkg::SourceStartManager(true);
+    }
+    list<map<string,any> > products = Pkg::ResolvableProperties ("sle-hae", `product, "");
+    boolean allowMirrorMode = false;
+    if ( size(products) > 0 )
+    {
+        foreach( map<string,any> product, products, {
+            if ( (symbol)product["status"]:`none == `available )
+            {
+                allowMirrorMode = true;
+            }
+        });
+    }
+    y2debug("MirrorMode allowed: %1", allowMirrorMode );
     term widget =
         `HSquash(
             `VSquash(
@@ -1094,7 +1112,9 @@ any MasterSetupDialog()
                     `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") ),
                     `VSpacing( 0.5 ),
                     `Left(
-                        `CheckBox( `id( `cb_mirror_mode ), _("Prepare for MirrorMode replication (generates the serverId attribute)") )
+                        `ReplacePoint( `id( `rp_mirrormode ),
+                            `Empty()
+                        )
                     )
                 )
             )
@@ -1104,6 +1124,12 @@ any MasterSetupDialog()
             HELPS["master_setup_dialog"]:"help not found",
             Label::BackButton(),
             Label::NextButton() );
+    if ( allowMirrorMode )
+    {
+        UI::ReplaceWidget(`rp_mirrormode,
+            `CheckBox( `id( `cb_mirror_mode ), _("Prepare for MirrorMode replication (generates the serverId attribute)") )
+        );
+    }
     any ret = nil;
     while ( true )
     {
@@ -1131,7 +1157,10 @@ any MasterSetupDialog()
                 map <string, any> defaults = LdapServer::CreateInitialDefaults();
                 defaults["configpw"] = pw;
                 LdapServer::SetInitialDefaults(defaults);
-                LdapServer::WriteSetupMirrorMode( (boolean)UI::QueryWidget( `cb_mirror_mode, `Value ) );
+                if ( allowMirrorMode )
+                {
+                    LdapServer::WriteSetupMirrorMode( (boolean)UI::QueryWidget( `cb_mirror_mode, `Value ) );
+                }
                 break;
             }
         }
