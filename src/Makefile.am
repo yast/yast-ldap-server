@@ -20,7 +20,8 @@ ynclude_DATA =			\
 	mirrormode-wizard.ycp
 
 desktop_DATA =			\
-	ldap-server.desktop
+	ldap-server.desktop	\
+	openldap-mirrormode.desktop
 
 module_DATA =			\
 	LdapServer.pm		\
