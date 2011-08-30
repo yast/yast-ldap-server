@@ -93,9 +93,6 @@ define boolean cb_read_daemon()
     else
     {
         UI::ChangeWidget( `rb_service_enable, `CurrentButton, `rb_no );
-        UI::ChangeWidget( `cb_register_slp, `Enabled, false );
-        UI::ChangeWidget( `fr_listener, `Enabled, false );
-        UI::ChangeWidget( `fr_firewall, `Enabled, false );
     }
     if ( LdapServer::ReadSLPEnabled() )
     {
@@ -129,27 +126,6 @@ define boolean cb_read_daemon()
     {
         UI::ChangeWidget( `cb_interface_ldapi, `Value, false );
     }
-    return true;
-}
-
-define boolean cb_input_daemon()
-``{
-    y2milestone("calling input handler for item \"daemon\"");
-    y2milestone("Handlercmd = %1", handler_cmd);
-
-    if ( handler_cmd == `rb_no ) // service was just disabled
-    {
-        UI::ChangeWidget( `cb_register_slp, `Enabled, false );
-        UI::ChangeWidget( `fr_listener, `Enabled, false );
-        UI::ChangeWidget( `fr_firewall, `Enabled, false );
-    }
-    else if ( handler_cmd == `rb_yes ) // service was just disabled
-    {
-        UI::ChangeWidget( `cb_register_slp, `Enabled, true );
-        UI::ChangeWidget( `fr_listener, `Enabled, true );
-        UI::ChangeWidget( `fr_firewall, `Enabled, true );
-    }
-
     return true;
 }
 
@@ -1164,7 +1140,6 @@ widget_map = $[
         "name"      : _("Startup Configuration"),
         "widget"    : dlg_service,
         "cb_read"   : ``( cb_read_daemon() ),
-        "cb_input"  : ``( cb_input_daemon() ),
         "cb_write"  : ``( cb_write_daemon() ),
         "help_page" : "startup_config"
     ],
