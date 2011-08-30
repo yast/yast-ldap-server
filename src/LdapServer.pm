@@ -652,7 +652,7 @@ sub WriteServiceSettings {
         Progress->Finish();
         return 0;
     }
-    elsif ( ! $serviceRunning && $serviceEnabled )
+    elsif ( (! $serviceRunning && $serviceEnabled) || $restartRequired )
     {
         my $progressItems = [_("Starting LDAP Server") ];
         Progress->New(_("Restarting OpenLDAP Server"), "", 1, $progressItems, $progressItems, "");
@@ -1331,6 +1331,13 @@ BEGIN { $TYPEINFO {ReadServiceRunning} = ["function", "boolean"]; }
 sub ReadServiceRunning {
     y2milestone("ReadServiceRunning $serviceRunning");
     return $serviceRunning;
+}
+
+BEGIN { $TYPEINFO {WriteRestartRequired} = ["function", "boolean", "boolean"]; }
+sub WriteRestartRequired {
+    my $self = shift;
+    $restartRequired = shift;
+    return 1;
 }
 
 BEGIN { $TYPEINFO {ReadSLPEnabled} = ["function", "boolean"]; }
