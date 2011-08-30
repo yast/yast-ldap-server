@@ -100,7 +100,7 @@ without installing the required packages."));
             LdapServer::InitDbDefaults();
             return `initial;
         }
-        else if ( !serviceEnabled || !serviceRunning )
+        else if ( !serviceRunning )
         {
             symbol ret = Popup::AnyQuestion3( _("Existing configuration detected."), 
                 _("You have an existing configuration, but the LDAP server is currently not running.
@@ -109,7 +109,7 @@ want to create a new configuration from scratch?"),
                 _("Restart"), Label::CancelButton(), _("New Configuration"), `focus_yes );
             if ( ret == `yes )
             {
-                LdapServer::WriteServiceEnabled( true );
+                LdapServer::WriteRestartRequired( true );
                 return `reread;
             }
             else  if (ret == `no )

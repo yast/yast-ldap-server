@@ -114,14 +114,7 @@ string showTreeDialog( string name, boolean focus_tree )
 {
     //create new item
     term widget = nil;
-    if ( !LdapServer::ReadServiceEnabled() )
-    {
-        if ( name != "daemon" ) {
-            Popup::Error( _("The LDAP Server is currently disabled, no configuration changes are possible.") );
-            name = "daemon";
-        }
-    }
-    else if ( !LdapServer::ReadServiceRunning() )
+    if ( !LdapServer::ReadServiceRunning() )
     {
         if ( name != "daemon" ) {
             symbol ret = Popup::AnyQuestion3( _("The LDAP Server is not running."),
