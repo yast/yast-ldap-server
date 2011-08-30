@@ -999,7 +999,13 @@ sub Write {
             # before restarting the server (bnc#450457)
             Progress->NextStage();
             y2milestone("slapd might be running a background task, waiting for completion");
-            SCR->Execute('.ldapserver.waitForBackgroundTasks') ;
+            if (! SCR->Execute('.ldapserver.waitForBackgroundTasks') ) {
+                y2error("Error while waiting for background task.");
+                $self->SetError( _("An error happend while waiting for waiting for the OpenLDAP database indexer to finish.\n").
+                                 _("Please restart OpenLDAP manually.") );
+                Progress->Finish();
+                return 0;
+            }
             y2milestone("background tasks completed");
             Progress->NextStage();
             Service->Restart("ldap");
