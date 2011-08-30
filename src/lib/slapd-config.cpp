@@ -2376,7 +2376,9 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 void OlcConfig::waitForBackgroundTasks()
 {
     try {
-        LDAPModification mod( LDAPAttribute("objectClass", "olcGlobal"), LDAPModification::OP_ADD );
+        boost::shared_ptr<OlcGlobalConfig> globals = this->getGlobals();
+        std::string attrval = globals->getStringValue("olcArgsFIle");
+        LDAPModification mod( LDAPAttribute("olcArgsFIle", attrval), LDAPModification::OP_ADD );
         LDAPModList ml;
         ml.addModification(mod);
         m_lc->modify( "cn=config", &ml );
