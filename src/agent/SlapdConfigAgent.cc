@@ -452,8 +452,14 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
     }
     else if ( path->component_str(0) == "waitForBackgroundTasks" )
     {
-        olc.waitForBackgroundTasks();
-        return YCPBoolean(true);
+        bool ret = true;
+        try {
+            olc.waitForBackgroundTasks();
+        } catch ( std::runtime_error e ) {
+            ret = false;
+        }
+
+        return YCPBoolean(ret);
     }
     else if ( path->component_str(0) == "addRootSaslRegexp" )
     {
