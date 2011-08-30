@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Tue Aug 30 08:44:28 UTC 2011 - rhafer@suse.de
+
+- Version 2.17.41
+- Fixed crash when waiting for slapd background tasks to finish
+  (bnc#714723)
+- Allow configuration changes when init script is disabled 
+  (bnc#714719)
+
+-------------------------------------------------------------------
 Thu Jul 28 09:43:10 UTC 2011 - rhafer@suse.de
 
 - Version 2.17.40
