@@ -436,7 +436,7 @@ any TreeDialog()
     //close service dialog
 //    UI::CloseDialog();
     Wizard::CreateTreeDialog();
-    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetDesktopTitleAndIcon("ldap-server");
     //item selected at start
     current_tree_item = "daemon";
 
@@ -653,7 +653,7 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
     string rootdn = (string)db["rootdn"]:"";
 
     Wizard::CreateDialog();
-    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetDesktopTitleAndIcon("ldap-server");
     Wizard::SetContents( _("Configure Account for Replication"), widget,
 			     "",
 			     true, true);
