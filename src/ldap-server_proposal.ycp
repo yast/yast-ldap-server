@@ -236,7 +236,7 @@ without installing the required packages."));
         if ( LdapServer::ReadSetupSlave() )
         {
             Wizard::CreateDialog();
-            Wizard::SetDesktopIcon("ldap-server");
+            Wizard::SetDesktopTitleAndIcon("ldap-server");
             symbol slave_ret = (symbol) SlaveSetupDialog();
             Wizard::CloseDialog();
             if ( slave_ret == `next )
