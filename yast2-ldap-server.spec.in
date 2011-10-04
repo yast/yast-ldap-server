@@ -2,7 +2,7 @@
 
 @HEADER@
 Group:	System/YaST
-License: GPL v2 or later X11/MIT
+License: GPL-2.0+ X11/MIT
 BuildRequires:	boost-devel gcc-c++ libldapcpp-devel perl-Digest-SHA1 perl-gettext perl-X500-DN pkg-config update-desktop-files yast2 yast2-core-devel yast2-devtools yast2-ldap-client
 Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 yast2-ca-management yast2-ldap-client yast2-perl-bindings yast2-users
 
