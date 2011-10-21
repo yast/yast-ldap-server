@@ -184,6 +184,15 @@ my $defaultIndexes = [
         }
     ];
 
+my $dbconfig_defaults = [
+    "set_cachesize 0 15000000 1",
+    "set_lg_regionmax 262144",
+    "set_lg_bsize 2097152",
+    "set_flags DB_LOG_AUTOREMOVE",
+    "set_lk_max_locks 30000",
+    "set_lk_max_objects 30000"
+];
+
 my @schema = ();
 
 my @added_databases = ();
@@ -1924,13 +1933,7 @@ sub ReadFromDefaults
             SCR->Execute('.target.bash', 'rm -f '.$db_config );
         }
         # add DB_CONFIG settings to the database object
-        my $dbconfig = [
-            "set_cachesize 0 15000000 1",
-            "set_lg_regionmax 262144",
-            "set_lg_bsize 2097152",
-            "set_flags DB_LOG_AUTOREMOVE"
-        ];
-        $rc = SCR->Write(".ldapserver.database.{1}.dbconfig", $dbconfig );
+        $rc = SCR->Write(".ldapserver.database.{1}.dbconfig", $dbconfig_defaults );
 
         # add default ACLs
         $rc = SCR->Write(".ldapserver.database.{-1}.acl", $defaultGlobalAcls );
@@ -2723,13 +2726,7 @@ sub AddDatabase
     }
 
     # add some defaults to DB_CONFIG
-    my $dbconfig = [
-        "set_cachesize 0 15000000 1",
-        "set_lg_regionmax 262144",
-        "set_lg_bsize 2097152",
-        "set_flags DB_LOG_AUTOREMOVE"
-    ];
-    $rc = SCR->Write(".ldapserver.database.{$index}.dbconfig", $dbconfig );
+    $rc = SCR->Write(".ldapserver.database.{$index}.dbconfig", $dbconfig_defaults );
     if(! $rc ) {
         my $err = SCR->Error(".ldapserver");
         y2error("Adding DB_CONFIG failed: ".$err->{'summary'}." ".$err->{'description'});
