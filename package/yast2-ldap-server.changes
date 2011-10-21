@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Oct 20 15:35:33 UTC 2011 - rhafer@suse.de
+
+- Version 2.17.42
+- Increased default settings for bdb locking subsystem of new
+  added databases (bnc#719803)
+
+-------------------------------------------------------------------
 Tue Aug 30 08:44:28 UTC 2011 - rhafer@suse.de
 
 - Version 2.17.41
