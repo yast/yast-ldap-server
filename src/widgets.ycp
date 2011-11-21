@@ -250,7 +250,7 @@
                 `VSpacing( 0.5 ),
                 `VBox(
                     `Left(
-                        `Label( _("Checkpoint settings") )
+                        `Label( _("Checkpoint Settings") )
                     ),
                     `HBox(
                         `HSquash(
@@ -276,7 +276,7 @@
                 `Heading( _("Change Configuration Database Settings") ),
                 `VSpacing( 1 ),
                 `CheckBox( `id( `cb_conf_ldapsimplebind), `opt(`notify),
-                        _("Allow Plaintext Authentication (Simple Bind) for this Database. " ) +
+                        _("Allow Plaintext Authentication (Simple Bind) for this Database. ") +
                         _("(Remote Connection needs to be encrypted)"), false ),
                 `VSpacing( 0.3 ),
                 `ReplacePoint( `id( `rp_confpw ),
@@ -339,7 +339,7 @@
                 string hashAlgo = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
                 if ( size(pw) == 0 )
                 {
-                    Popup::Error( _("Please enter a password") );
+                    Popup::Error( _("Enter a password") );
                     UI::ChangeWidget( `te_rootpw, `Value, "" );
                     UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
                 }
@@ -352,7 +352,7 @@
                 }
                 else
                 {
-                    Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                    Popup::Error( _("The passwords you have entered do not match. Try again.") );
                     UI::ChangeWidget( `te_rootpw, `Value, "" );
                     UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
                 }

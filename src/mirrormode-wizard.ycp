@@ -111,14 +111,14 @@ any MirrorModeOverview()
                 map url = URL::Parse( serverids[selected,"uri"]:"" );
                 if ( (string)url["host"]:"" == LdapServer::ReadHostnameFQ() )
                 {
-                    Popup::Error( _("Deleting the Host on which you started this YaST Module is not possible.\n") +
-                                  _("Please start yast2 openldap-mirrormode on a different MirrorMode server.") );
+                    Popup::Error( _("Deleting the host on which you started this YaST Module is not possible.\n") +
+                                  _("Start yast2 openldap-mirrormode on a different MirrorMode server.") );
                     continue;
                 }
 
                 if( Popup::YesNo( _("Do you really want to remove ") +
                                   "\"" + serverids[ selected, "uri" ]:"" + "\"" +
-                                  _("From the MirrorMode setup?\n" ) +
+                                  _("from the MirrorMode setup?\n") +
                                   _("Changes will take effect immediately after clicking \"Yes\"") ) )
                 {
                     LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );

@@ -371,17 +371,17 @@ define boolean cb_write_tls()
             ];
         if ( (string)tlsSettings["caCertFile"]:"" == "" )
         {
-            callback_error = _("Please select a valid CA Certificate File");
+            callback_error = _("Select a Valid CA Certificate File");
             return false;
         }
         if ( (string)tlsSettings["certFile"]:"" == "" )
         {
-            callback_error = _("Please select a valid Certificate File");
+            callback_error = _("Select a valid Certificate File");
             return false;
         }
         if ( (string)tlsSettings["certKeyFile"]:"" == "" )
         {
-            callback_error = _("Please select a valid Certificate Key File");
+            callback_error = _("Select a valid Certificate Key File");
             return false;
         }
         if ( ! LdapServer::WriteTlsConfig( tlsSettings ) )
@@ -454,7 +454,7 @@ define boolean cb_input_tls()
                 UI::ChangeWidget( `te_key_file, `Value, "/etc/ssl/servercerts/serverkey.pem");
                 UI::ChangeWidget( `fr_import_cert, `Enabled, false );
             } else {
-                Popup::Error( _("A common server certificate is not available") );
+                Popup::Error( _("A common server certificate is not available.") );
                 UI::ChangeWidget( `cb_use_common_cert, `Value, false );
                 UI::ChangeWidget( `cb_use_common_cert, `Enabled, false );
             }
@@ -597,11 +597,11 @@ define boolean cb_input_databases()
                 y2milestone("Trying to delete datbase %1 %2", db["suffix"]:"", db["type"]:"" );
                 if (db["type"]:"" == "frontend" )
                 {
-                    Popup::Error(_("Can not delete Frontend database") );
+                    Popup::Error(_("Cannot delete Frontend database") );
                 }
                 else if (db["type"]:"" == "config" )
                 {
-                    Popup::Error( _("Can not delete Config database") );
+                    Popup::Error( _("Cannot delete Config database") );
                 }
                 else
                 {
@@ -746,14 +746,14 @@ define boolean cb_write_confdb()
             string hashAlgo = (string)UI::QueryWidget( `cb_cryptmethod, `Value );
             if ( size(pw) == 0 )
             {
-                Popup::Error( _("Please enter a password") );
+                Popup::Error( _("Enter a password") );
                 UI::ChangeWidget( `te_rootpw, `Value, "" );
                 UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
                 return false;
             }
             else if ( pw != verifypw )
             {
-                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                Popup::Error( _("The passwords you have entered do not match. Try again.") );
                 UI::ChangeWidget( `te_rootpw, `Value, "" );
                 UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
                 pw = "";
@@ -1187,7 +1187,7 @@ widget_map = $[
         "name"      : _("Databases"),
         "widget"    : `VBox(
             `MinSize( 60, 7,
-                `Table( `id( `tab_db ),`opt(`keepSorting), `header(_("Suffix DN"), _("Database type") ) )
+                `Table( `id( `tab_db ),`opt(`keepSorting), `header(_("Suffix DN"), _("Database Type") ) )
             ),
             `Left(
                 `HBox(

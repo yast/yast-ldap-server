@@ -245,7 +245,7 @@ without installing the required packages."));
             }
             else
             {
-                Report::Error( _("OpenLDAP Replication Setup failed. Please reconfigure after the installation finished.") );
+                Report::Error( _("OpenLDAP Replication Setup failed. Reconfigure after the installation has finished.") );
                 return ret;
             }
         }
