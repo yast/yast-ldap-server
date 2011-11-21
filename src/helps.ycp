@@ -298,12 +298,14 @@ You can not delete the \"config\" and \"frontend\" databases.</p>"),
 
     "master_setup_dialog" :
         _("<p>Enter a password for the configuration database (\"<i>cn=config</i>\") here. This is required to make
-the configuration database accessible remotely.</p>"),
+the configuration database accessible remotely.</p>") +
+        _("<p>If the server is supposed to participate in a MirrorMode setup, select the \"<b>Prepare for MirrorMode replication</b>\"
+checkbox. This will ensure that the serverId Attribute is generated as needed for MirrorMode replication.</p>"),
 
     "slave_dialog" :
         _("<p>To setup a slave server some details need to be queried from the master server. Please enter the master
 server's hostname, adjust the protocol (either \"<i>ldap</i>\" or \"<i>ldaps</i>\") and port number as needed and enter the password
-for the master's configuration database (\"<i>cn=config</i>\").</p>"),
+for the master's configuration database (\"<i>cn=config</i>\").</p>")
 ];
 
 /* EOF */

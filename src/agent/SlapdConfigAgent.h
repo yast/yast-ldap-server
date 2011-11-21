@@ -67,7 +67,7 @@ class SlapdConfigAgent : public SCRAgent {
         YCPBoolean WriteSchema( const YCPPath &path,
                              const YCPValue &arg = YCPNull(),
                              const YCPValue &opt = YCPNull());
-        YCPString ConfigToLdif( bool resetCsn = false ) const;
+        YCPString ConfigToLdif() const;
         bool remoteBindCheck( const YCPValue &arg );
         bool remoteSyncCheck( const YCPValue &arg );
         void startTlsCheck( LDAPConnection &c);
@@ -76,6 +76,9 @@ class SlapdConfigAgent : public SCRAgent {
                         const std::string &bindpw);
         void syncCheck( LDAPConnection &c,
                         const std::string &basedn );
+        void assignServerId( const std::string &uri );
+        int getNextRid() const;
+        bool ycpMap2SyncRepl( const YCPMap &srMap, boost::shared_ptr<OlcSyncRepl> sr );
 
     private:
         YCPMap lastError;

@@ -85,10 +85,15 @@ class OlcConfigEntry
     protected:
         virtual void resetMemberAttrs() {};
         virtual void updateEntryDn( bool origEntry = false);
+        virtual const std::list<std::string>* getOrderedAttrs() const {
+            return &orderedAttrs;
+        }
 
         int entryIndex;
         LDAPEntry m_dbEntry;
         LDAPEntry m_dbEntryChanged;
+
+        static const std::list<std::string> orderedAttrs;
 };
 
 enum IndexType {
@@ -272,6 +277,8 @@ class OlcSyncRepl
         const static std::string STARTTLS;
         const static std::string RETRY;
         const static std::string TLS_REQCERT;
+        const static std::string TIMEOUT;
+        const static std::string NETWORK_TIMEOUT;
 
         std::string toSyncReplLine() const;
 
@@ -286,6 +293,8 @@ class OlcSyncRepl
         void setStartTls( StartTls tls );
         void setRetryString( const std::string &value );
         void setTlsReqCert( const std::string &value );
+        void setNetworkTimeout( int sec );
+        void setTimeout( int sec );
 
         int getRid() const;
         LDAPUrl getProvider() const;
@@ -297,6 +306,8 @@ class OlcSyncRepl
         void getInterval( int &days, int &hours, int &mins, int &secs ) const;
         StartTls getStartTls() const;
         std::string getTlsReqCert() const;
+        int getNetworkTimeout() const;
+        int getTimeout() const;
 
     private:
         int rid;
@@ -312,6 +323,8 @@ class OlcSyncRepl
         int refreshOnlyHours;
         int refreshOnlyMins;
         int refreshOnlySecs;
+        int networkTimeout;
+        int timeout;
         std::vector<std::pair<std::string, std::string> > otherValues;
         StartTls starttls;
 };
@@ -327,6 +340,24 @@ class OlcSecurity
 
     private:
         std::map<std::string, int> secMap;
+};
+
+class OlcServerId
+{
+    public:
+        OlcServerId( const std::string &idVal );
+        OlcServerId( int id, const std::string &uri ) : serverId( id ), serverUri( uri ) {}
+
+        std::string toStringVal() const;
+        int getServerId() const;
+        std::string getServerUri() const;
+
+        void setServerId( int id );
+        void setServerUri( const std::string &uri );
+
+    private:
+        int serverId;
+        std::string serverUri;
 };
 
 typedef std::list<boost::shared_ptr<OlcOverlay> > OlcOverlayList;
@@ -347,9 +378,11 @@ class OlcDatabase : public OlcConfigEntry
         void setSuffix( const std::string &suffix);
         void setRootDn( const std::string &rootdn);
         void setRootPw( const std::string &rootpw);
+        void setMirrorMode( bool mm );
 
         const std::string getSuffix() const;
         const std::string getType() const;
+        bool getMirrorMode() const;
 
         bool getAcl( OlcAccessList& accessList ) const;
         virtual void addAccessControl( const std::string& acl, int index=-1 );
@@ -361,6 +394,7 @@ class OlcDatabase : public OlcConfigEntry
         OlcSyncReplList getSyncRepl() const;
         void setSyncRepl( const OlcSyncReplList& srl );
         void addSyncRepl( const std::string& value, int index=-1 );
+        void addSyncRepl( const boost::shared_ptr<OlcSyncRepl> sr, int index=-1 );
 
         void addOverlay(boost::shared_ptr<OlcOverlay> overlay);
         OlcOverlayList& getOverlays() ;
@@ -368,8 +402,13 @@ class OlcDatabase : public OlcConfigEntry
     protected:
         virtual void resetMemberAttrs();
         virtual void updateEntryDn( bool origEntry = false );
+        virtual const std::list<std::string>* getOrderedAttrs() const {
+            return &orderedAttrs;
+        }
         std::string m_type;
         OlcOverlayList m_overlays;
+
+        static const std::list<std::string> orderedAttrs;
 };
 
 class OlcBdbDatabase : public  OlcDatabase 
@@ -413,6 +452,10 @@ class OlcGlobalConfig : public OlcConfigEntry
 
         OlcTlsSettings getTlsSettings() const;
         void setTlsSettings( const OlcTlsSettings& tls);
+
+        const std::vector<OlcServerId> getServerIds() const;
+        void setServerIds(const std::vector<OlcServerId> &serverIds);
+        void addServerId(const OlcServerId &serverId);
 };
 
 class OlcSchemaConfig : public OlcConfigEntry
