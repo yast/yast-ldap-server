@@ -257,7 +257,9 @@ sub Read {
             if ( ! SCR->Execute('.ldapserver.init' ) )
             {
                 my $err = SCR->Error(".ldapserver");
-                $self->SetError( _("Error while initializing the configuration.\nIs the LDAPI listener enabled?"), $err->{'description'} );
+                $self->SetError( _("Error while initializing configuration.
+Is the LDAPI listener enabled?
+"), $err->{'description'} );
                 return 0;
             }
             my $rc = SCR->Read('.ldapserver.databases');
@@ -1010,8 +1012,8 @@ sub Write {
             y2milestone("slapd might be running a background task, waiting for completion");
             if (! SCR->Execute('.ldapserver.waitForBackgroundTasks') ) {
                 y2error("Error while waiting for background task.");
-                $self->SetError( _("An error happend while waiting for waiting for the OpenLDAP database indexer to finish.\n").
-                                 _("Please restart OpenLDAP manually.") );
+                $self->SetError( _("An error occurred while waiting for the OpenLDAP database indexer to finish.\n").
+                                 _("Restart OpenLDAP manually.") );
                 Progress->Finish();
                 return 0;
             }
@@ -1254,7 +1256,7 @@ sub Summary {
 
         if ( $dbDefaults{'serviceEnabled'}->value )
         {
-            $string .= '<h2>'._("Create initial Database with the following Parameters").'</h2>'
+            $string .= '<h2>'._("Create initial database with the following parameters:").'</h2>'
                 .'<p>'._("Database Suffix: ").'<code>'.$dbDefaults{'suffix'}.'</code></p>'
                 .'<p>'._("Administrator DN: ").'<code>'.$dbDefaults{'rootdn'}.'</code></p>';
         }
@@ -1507,7 +1509,7 @@ sub WriteTlsConfig
     {
         if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
         {
-            $self->SetError( _("CA Certificate File does not exist"), "");
+            $self->SetError( _("CA Certificate file does not exist."), "");
             return 0;
         }
         if ( SCR->Read(".target.size", $tls->{"certFile"}) <= 0)
@@ -1517,14 +1519,14 @@ sub WriteTlsConfig
         }
         if ( SCR->Read(".target.size", $tls->{"certKeyFile"}) <= 0)
         {
-            $self->SetError( _("Certificate Key File does not exist"), "");
+            $self->SetError( _("Certificate key file does not exist."), "");
             return 0;
         }
 
         if ( SCR->Execute(".target.bash", 
                                "/usr/bin/setfacl -m u:ldap:r ".$tls->{'certKeyFile'}) )
         {
-            $self->SetError(_("Can not set a filesystem acl on the private key"),
+            $self->SetError(_("Can not set a filesystem ACL on the private key."),
                                    "setfacl -m u:ldap:r ".$tls->{'certKeyFile'}." failed.\n".
                                    "Do you have filesystem acl support disabled?" );
             return 0;
@@ -1556,7 +1558,7 @@ sub WriteTlsConfigCommonCert
     my $ret = SCR->Execute(".target.bash", 
                            "/usr/bin/setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem");
     if($ret != 0) {
-        $self->SetError(_("Can not set a filesystem acl on the private key"),
+        $self->SetError(_("Can not set a filesystem ACL on the private key."),
                                "setfacl -m u:ldap:r /etc/ssl/servercerts/serverkey.pem failed.\n".
                                "Do you have filesystem acl support disabled?" );
         return 0;
@@ -1832,7 +1834,7 @@ sub ReadFromDefaults
             my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
             $ret = SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$database->{directory});
             if ( $ret ) {
-                $self->SetError(_("Could adjust ownership of database directory."), "");
+                $self->SetError(_("Could not adjust ownership of database directory."), "");
                 return $ret;
             }
         }
@@ -1877,8 +1879,8 @@ sub ReadFromDefaults
                 my $hostname = $self->ReadHostnameFQ();
                 if ( $hostname eq "" )
                 {
-                    $self->SetError( _("Could not determine own full qualified hostname"), 
-                         _("A master server for replication cannot work correctly without knowing the own full qualified hostname") );
+                    $self->SetError( _("Could not determine own fully qualified hostname."), 
+                         _("A master server for replication cannot work correctly without knowing its own fully qualified hostname.") );
                     return 0;
                 }
                 my $syncrepl = {
@@ -2562,7 +2564,7 @@ sub CheckSuffixAutoCreate
     if(!defined $attr[0] || !defined $val)
     {
         y2error("Error while extracting RDN values");
-        $self->SetError( _("Invalid LDAP DN: \""). $suffix. _("\", can't extract RDN values"));
+        $self->SetError( _("Invalid LDAP DN: \""). $suffix. _("\", cannot extract RDN values"));
         return -1;
     }
     if( (lc($attr[0]) eq "ou") || ( lc($attr[0]) eq "o") || ( lc($attr[0]) eq "l") ||
@@ -2570,7 +2572,7 @@ sub CheckSuffixAutoCreate
         return 0;
     } elsif( lc($attr[0]) eq "c") {
         if($val !~ /^\w{2}$/) {
-            $self->SetError( _("The value of the \"c\" Attribute must contain a valid ISO-3166 country 2-letter code."), "");
+            $self->SetError( _("The value of the \"c\" attribute must contain a valid ISO-3166 country 2-letter code."), "");
             y2error("The countryName must be an ISO-3166 country 2-letter code.");
             return -1;
         }
@@ -2594,7 +2596,7 @@ sub CheckDatabase
     }
     elsif ( $suffix_object->hasMultivaluedRDNs() )
     {
-        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("has multivalued RDNs. This is not supported in this YaST Module."), "");
+        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("has multivalued RDNs (not supported by YaST)."), "");
         return 0;
     }
 
@@ -2609,7 +2611,7 @@ sub CheckDatabase
         elsif ( $object->hasMultivaluedRDNs() )
         {
             $self->SetError(_("Root DN"). " \"". $db->{'rootdn'} ."\" ". 
-                            _("has multivalued RDNs. This is not supported in this YaST Module."), "");
+                            _("has multivalued RDNs (not supported by YaST)."), "");
             return 0;
         }
 
@@ -2643,7 +2645,7 @@ sub AddDatabase
         my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
         $ret = SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$db->{directory});
         if ( $ret ) {
-            $self->SetError(_("Could adjust ownership of database directory."), "");
+            $self->SetError(_("Could not adjust ownership of database directory."), "");
             return 0;
         }
     }
@@ -3420,7 +3422,7 @@ sub VerifyTlsSetup
         my $rc = SCR->Execute( '.target.bash_output', $ssl_check_command." \"".$remoteuri."\" ".$tls->{"caCertFile"} );
         if ( $rc->{'exit'} != 0 )
         {
-            $self->SetError( _("Error while trying to verify the Server Certificate of the Provider server.\n").
+            $self->SetError( _("Error while trying to verify the server certificate of the provider server.\n").
                              _("Please make sure that \"".$tls->{"caCertFile"}."\" contains the correct\nCA file to verify the remote Server Certificate."),
                              $rc->{'stderr'} );
             return 0;

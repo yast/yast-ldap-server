@@ -130,10 +130,10 @@ want to create a new configuration from scratch?"),
 symbol MigrationMainDialog()
 {
     string caption = "Migrate existing Configuration";
-    string summary = _("Your system is currently configured to use the configuration 
-file /etc/openldap/slapd.conf. This YaST module only supports the dynamic
-configuration database of OpenLDAP (back-config). Do you want to migrate your
-existing configuration to the configuration database?
+    string summary = _("Your system is currently configured to use the configuration file
+/etc/openldap/slapd.conf. YaST only supports the dynamic configuration
+database of OpenLDAP (back-config). Do you want to migrate your existing
+configuration to the configuration database?
 ");
     term contents =
         `VBox(

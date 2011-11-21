@@ -275,7 +275,7 @@ any ServerTypeDialog()
     term serverTypeWidget =
         `HSquash(
             `VBox(
-                `Heading( _("Server type") ),
+                `Heading( _("Server Type") ),
                 `Frame("",
                     `VBox(
                         `VSpacing(),
@@ -334,8 +334,10 @@ any ServerTypeDialog()
             {
                 if ( size( LdapServer::ReadHostnameFQ() ) == 0 )
                 {
-                    Popup::Notify(_("YaST was not able to determine the full qualified hostname of this\ncomputer. ") +
-                                  _("Setting up a replication master it not possible currently.") );
+                    Popup::Notify(_("YaST was not able to determine the fully qualified hostname of this
+computer. 
+") +
+                                  _("Setting up a replication master is currently not possible.") );
                     UI::ChangeWidget( `rb_master, `Enabled, false );
                     UI::ChangeWidget( `rbg_servertype, `CurrentButton, `rb_standalone );
                     continue;
@@ -627,14 +629,14 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                                         )
                                     ),
                                     `Left(
-                                        `CheckBox( `id( `cb_random_pw ), _("Generate a random password"), true)
+                                        `CheckBox( `id( `cb_random_pw ), _("Generate a Random Password"), true)
                                     )
                                 )
                             )
                         ),
                         `VSpacing(0.3),
                         `Left(
-                            `RadioButton( `id( `rb_useconfig ), `opt(`notify), _("Use the \"cn=config\" account for replication") )
+                            `RadioButton( `id( `rb_useconfig ), `opt(`notify), _("Use the \"cn=config\" Account for Replication") )
                         )
                     )
                 )
@@ -728,7 +730,7 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                             string verifypw = (string)UI::QueryWidget( `te_valid_pw, `Value );
                             if ( size(pw) == 0 )
                             {
-                                Popup::Error( _("Please enter a password") );
+                                Popup::Error( _("Enter a password") );
                                 UI::ChangeWidget( `te_pw, `Value, "" );
                                 UI::ChangeWidget( `te_valid_pw, `Value, "" );
                             }
@@ -739,7 +741,7 @@ map <string,any> SyncreplAccountConfig( map<string,any> syncrepl )
                             }
                             else
                             {
-                                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                                Popup::Error( _("The passwords you have entered do not match. Try again.") );
                                 UI::ChangeWidget( `te_pw, `Value, "" );
                                 UI::ChangeWidget( `te_valid_pw, `Value, "" );
                             }
@@ -771,7 +773,7 @@ any SlaveSetupDialog()
     term widget =
         `HSquash(
             `VBox(
-                `Heading( _("Provider details") ),
+                `Heading( _("Provider Details") ),
                 `VSpacing(0.3),
                 `VSpacing(),
                 `VSquash(
@@ -849,7 +851,7 @@ any SlaveSetupDialog()
         {
             if ( cacert == "" || cacert == nil )
             {
-                Popup::Error( _("Please select a valid CA Certificate File") );
+                Popup::Error( _("Select a Valid CA Certificate File") );
                 continue;
             }
 
@@ -884,8 +886,10 @@ any SlaveSetupDialog()
                 if (!(boolean) LdapServer::InitRemoteConnection( testparm ) )
                 {
                     map<string,any> err = LdapServer::ReadError();
-                    Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" Database on the Provider Server.\n") +
-                             _("Please verify that the Provider Server allows remote connections to the  \"cn=config\" Database\nand that you entered the correct password"),
+                    Popup::ErrorDetails( _("Failed to open connection to the \"cn=config\" database on the provider server.\n") +
+                             _("Verify that the provider server allows remote connections to the 
+\"cn=config\" database and that you entered the correct password.
+"),
                              _("The following error messages were returned:") + "\n\n\"" +
                              (string)err["msg"]:"" + "\"\n\"" +
                              (string)err["details"]:"" + "\"" );
@@ -894,7 +898,7 @@ any SlaveSetupDialog()
                 if (!(boolean) LdapServer::VerifyTlsSetup( testparm["target"]:$[] ) )
                 {
                     map<string,any> err = LdapServer::ReadError();
-                    Popup::ErrorDetails( _("Error while verifying the TLS/SSL configuration"),
+                    Popup::ErrorDetails( _("An error occurred while verifying the TLS/SSL configuration."),
                                          (string)err["msg"]:"" + "\n" + (string)err["details"]:"" + "\n" );
                     if (Popup::YesNo( _("Do you want to import a different CA/Server Certificate?") ) )
                     {
@@ -907,7 +911,7 @@ any SlaveSetupDialog()
                 map <string,any> syncrepl = srl[0]:$[];
                 if ( size(syncrepl) == 0 )
                 {
-                    if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
+                    if (Popup::ContinueCancel( _("The replication configuration on the provider server is missing.\n") +
                                                _("Click Continue to create it now.") ) )
                     {
                         syncrepl = $[
@@ -953,8 +957,10 @@ any SlaveSetupDialog()
                             }
                             if ( ! setupok )
                             {
-                                Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
-                                              _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                                Popup::Error( _("The replication configuration on the master server indicates that
+it is already acting as a replication consumer.
+") +
+                                              _("Setting up cascaded replication of the cn=config is currently not supported.") );
                                 ret = `cancel;
                                 break;
                             }
@@ -971,12 +977,12 @@ any SlaveSetupDialog()
                     if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, bindtestparm ) )
                     {
                         map<string,any> err = SCR::Error(.ldapserver);
-                        if ( Popup::ContinueCancel( _("Checking the Authentication credentials defined in the Replication Configuration on the Provider Server failed.\n") +
+                        if ( Popup::ContinueCancel( _("Checking the authentication credentials defined in the replication configuration on the provider server failed.\n") +
                                                     _("The test returned the following error messages:")
                                                     + "\n\n\"" +
                                                     (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
                                                     + "\"\n\n" +
-                                                    _("Click Continue to correct that now.") ) )
+                                                    _("Click \"Continue\" to correct this now.") ) )
                         {
                             syncrepl = SyncreplAccountConfig( syncrepl );
                             if ( syncrepl["binddn"]:"" == "cn=config" )
@@ -1078,8 +1084,13 @@ any MasterSetupDialog()
                 `VBox(
                     `Heading( _("Replication Master setup") ),
                     `VSpacing( 0.5 ),
-                    `Label( _("In order to act as a Master Server for Replication, the Configuration database needs\nto be remotely accessible. Please set a password for the Configuration database." ) +
-                            _("\n(Remote access to the Configuration database will be restricted to encrypted\nLDAP Connections)")
+                    `Label( _("To act as a master server for replication, the configuration database needs
+to be remotely accessible. Set a password for the configuration database.
+") +
+                            _("
+(Remote access to the Configuration database will be restricted to encrypted
+LDAP Connections.)
+")
                     ),
                     `VSpacing( 0.5 ),
                     `Password( `id( `te_rootpw ), `opt( `hstretch ), _("Enter new &Password") ),
@@ -1107,13 +1118,13 @@ any MasterSetupDialog()
             string verifypw = (string)UI::QueryWidget( `te_valid_rootpw, `Value );
             if ( size(pw) == 0 )
             {
-                Popup::Error( _("Please enter a password") );
+                Popup::Error( _("Enter a password") );
                 UI::ChangeWidget( `te_rootpw, `Value, "" );
                 UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
             }
             else if ( pw != verifypw )
             {
-                Popup::Error( _("The passwords you have enter do not match. Please try again") );
+                Popup::Error( _("The passwords you have entered do not match. Try again.") );
                 UI::ChangeWidget( `te_rootpw, `Value, "" );
                 UI::ChangeWidget( `te_valid_rootpw, `Value, "" );
                 pw = "";

@@ -495,7 +495,7 @@ sub AddDatabase {
     my $group = SCR->Read('.sysconfig.openldap.OPENLDAP_GROUP');
     if ( SCR->Execute(".target.bash", "chown ".$owner.":".$group." ".$data->{directory}) )
     {
-        return $self->SetError( summary => _("Could adjust ownership of database directory."),
+        return $self->SetError( summary => _("Could not adjust ownership of database directory."),
                                 description => "",
                                 code => "DIR_CHOWN_FAILED" );
     }

@@ -251,7 +251,7 @@
                     foreach(map<string, string> db, dblist, {
                         if ( suffix == db["suffix"]:"" )
                         {
-                            Popup::Error( _("A database with that Base DN already exists.") );
+                            Popup::Error( _("A database with this Base DN already exists.") );
                             exists = true;
                             break;
                         }
@@ -638,7 +638,7 @@
 
     map<string, string> whatString2Label = $[
         "*"       : _("All Entries"),
-        "subtree" : _("All Entries in the subtree"),
+        "subtree" : _("All Entries in the Subtree"),
         "base"    : _("The Entry with the DN")
     ];
 
@@ -724,8 +724,8 @@
                             ),
                             `RadioButtonGroup(`id(`rbg_aclcontrol),
                                 `VBox(
-                                    `Left(`RadioButton(`id( "stop" ), _("Stop Access Control evaluation here (default)"), true )),
-                                    `Left(`RadioButton(`id( "break" ), _("Continue with next Access Control rule (\"break\")") )),
+                                    `Left(`RadioButton(`id( "stop" ), _("Stop access control evaluation here (default)"), true )),
+                                    `Left(`RadioButton(`id( "break" ), _("Continue with next access control rule (\"break\")") )),
                                     `Left(`RadioButton(`id( "continue" ), _("Continue evaluation of this rule (\"continue\")") ))
                                 )
                             ),
@@ -771,7 +771,7 @@
                     res["value"] = UI::QueryWidget( `id( `te_who_dn), `Value );
                     if ( res["value"]:"" == "" )
                     {
-                        Popup::Error(_("Please enter a DN into the Textfield") );
+                        Popup::Error(_("Please enter a DN in the textfield") );
                         continue;
                     }
                     else
@@ -868,7 +868,7 @@
                                     ),
                                     `VSpacing(0.5),
                                     `Left(
-                                        `CheckBox( `id( `cb_attrs ), `opt( `notify ), _("Apply this rule only to the listed Attribute") )
+                                        `CheckBox( `id( `cb_attrs ), `opt( `notify ), _("Apply this rule only to the listed attribute") )
                                     ),
                                     `HBox(
                                         `Left(
@@ -1019,7 +1019,7 @@
                     }
                     else
                     {
-                        Popup::Error(_("Please enter a List of valid Attributes into the \"Attributes\" textfield") );
+                        Popup::Error(_("Enter a list of valid attributes in the <b>Attributes</b> textfield") );
                         continue;
                     }
                 }
@@ -1032,13 +1032,13 @@
                     }
                     else
                     {
-                        Popup::Error(_("Please enter valid LDAP Filter into textfield") );
+                        Popup::Error(_("Enter valid a LDAP filter in the textfield") );
                         continue;
                     }
                 }
                 if ( size(accesslist) == 0 )
                 {
-                    Popup::Error(_("You must add at least one item to the \"Access Level\" list") );
+                    Popup::Error(_("You must add at least one item to the \"Access Level\" list.") );
                     continue;
                 }
 
@@ -1210,8 +1210,9 @@
             UI::ChangeWidget( `id(`pb_add), `Enabled, false) ;
             UI::ChangeWidget( `id(`pb_del), `Enabled, false) ;
             UI::ChangeWidget( `id(`pb_edit), `Enabled, false) ;
-            Popup::Error(_("The selected Database contains Access Control Rules that are currently
-not supported by this YaST Module. The Access Control Dialog will be disabled.") );
+            Popup::Error(_("The selected database contains access control rules that are currently
+not supported by YaST. The Access Control Dialog will be disabled.
+") );
         }
         else
         {
@@ -1433,7 +1434,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         `VBox(
                             `VSpacing(0.5),
                             `Left(
-                                `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
+                                `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer."), false )
                             ),
                             `VSpacing(0.3),
                             `VBox( `id( `f_synccons ),
@@ -1719,7 +1720,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                 integer secs = (integer)UI::QueryWidget( `if_sync_int_s, `Value );
                 if(days == 0 && hours == 0 && mins == 0 && secs == 0 )
                 {
-                    Popup::Error( _("Invalid Replication Interval specified") );
+                    Popup::Error( _("Invalid replication interval specified") );
                     return false;
                 }
             }
@@ -1748,7 +1749,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if(!(boolean)SCR::Execute( .ldapserver.remoteBindCheck, testparm ) )
             {
                 map<string,any> err = SCR::Error(.ldapserver);
-                return Popup::ContinueCancelHeadline( _("Checking LDAP connectivity to the provider failed"),
+                return Popup::ContinueCancelHeadline( _("Checking LDAP connectivity to the provider failed."),
                                                _("The test returned the following error messages:")
                                                + "\n\n\"" +
                                                (string)err["summary"]:"" + "\"\n\"" + (string)err["description"]:""
@@ -1758,7 +1759,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             if(!(boolean)SCR::Execute( .ldapserver.remoteLdapSyncCheck, testparm ) )
             {
                 map<string,any> err = SCR::Error(.ldapserver);
-                return Popup::ContinueCancelHeadline( _("Checking the LDAPsync capabilities of the provider failed"),
+                return Popup::ContinueCancelHeadline( _("Checking the LDAPsync capabilities of the provider failed."),
                                                _("Please verify that the target server is enabled to be a LDAPsync provider")
                                                + "\n\n" +
                                                _("The test returned the following error messages:")
@@ -1845,7 +1846,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                             `HSpacing( `opt(`hstretch))
                         ),
                         `VSpacing(0.5),
-                        `Frame(  `id( `f_sync_settings ), _("Checkpoint settings"),
+                        `Frame(  `id( `f_sync_settings ), _("Checkpoint Settings"),
                             `VBox(
                                 `HBox(
                                     `HSquash(
@@ -1864,11 +1865,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                             )
                         ),
                         `VSpacing(0.5),
-                        `Frame( `id( `f_sync_slog ), _("Session log"),
+                        `Frame( `id( `f_sync_slog ), _("Session Log"),
                             `VBox(
                                 `Left(
                                     `CheckBox( `id( `cb_sync_slog ), `opt(`notify),
-                                        _("Enable Session log") )
+                                        _("Enable Session Log") )
                                 ),
                                 `Left(
                                     `HSquash(
@@ -1967,7 +1968,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
 
     define symbol DbPpolicy()
     {
-        string caption = _("Password Policy settings");
+        string caption = _("Password Policy Settings");
         term contents = editPolicy;
         Wizard::SetContentsButtons(caption, contents, HELPS["ppolicy_edit"]:"",
                 Label::BackButton(), Label::FinishButton());
@@ -2005,7 +2006,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
 
     define symbol DbSyncRepl()
     {
-        string caption = _("Replication settings");
+        string caption = _("Replication Settings");
         term contents = GetSyncConsWidget();
         Wizard::SetContentsButtons(caption, contents, HELPS["synccons_edit"]:"",
                 Label::BackButton(), Label::NextButton());
