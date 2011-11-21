@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Nov 21 13:46:09 UTC 2011 - rhafer@suse.de
+
+- Version 2.22.0
+- merged SLE-11-SP2 changes (mirrormode support)
+- merged results from proofreading
+
+-------------------------------------------------------------------
 Sun Nov 20 06:30:02 UTC 2011 - coolo@suse.com
 
 - add libtool as buildrequire to avoid implicit dependency
