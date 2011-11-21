@@ -279,15 +279,6 @@ Is the LDAPI listener enabled?
                 # server started
                 $slapdConfChanged = 1;
             }
-#            y2milestone("Using slapcat to import configuration");
-#            my $rc = SCR->Execute('.target.bash_output', 
-#                    "/usr/sbin/slapcat -F /etc/openldap/slapd.d -b cn=config" );
-#            y2milestone("slapcat result: ". Data::Dumper->Dump([$rc]));
-#            SCR->Execute('.ldapserver.initFromLdif', $rc->{'stdout'});
-#            $rc = SCR->Read('.ldapserver.databases' );
-#            y2milestone("Databases: ". Data::Dumper->Dump([$rc]));
-#            #$rc = SCR->Read('.ldapserver.global.tlsSettings' );
-#            #y2milestone("tlsSettings: ". Data::Dumper->Dump([$rc]));
         }
     }
     else
