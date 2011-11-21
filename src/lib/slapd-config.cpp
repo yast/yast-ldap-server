@@ -55,6 +55,10 @@ static bool strCaseIgnoreEquals(const std::string &s1, const std::string &s2)
     return false;
 }
 
+static std::string db_sort_attrs[] = { "olcSyncRepl", "olcMirrorMode" };
+const std::list<std::string> OlcConfigEntry::orderedAttrs;
+const std::list<std::string> OlcDatabase::orderedAttrs(db_sort_attrs, db_sort_attrs + sizeof(db_sort_attrs) / sizeof(std::string) );
+
 bool OlcConfigEntry::isDatabaseEntry ( const LDAPEntry& e )
 {
     StringList oc = e.getAttributeByName("objectclass")->getValues();
@@ -267,7 +271,8 @@ bool OlcConfigEntry::isDeletedEntry() const
 
 LDAPModList OlcConfigEntry::entryDifftoMod() const {
     LDAPAttributeList::const_iterator i = m_dbEntry.getAttributes()->begin();
-    LDAPModList modifications;
+    std::list<LDAPModification> modlist;
+
     log_it(SLAPD_LOG_INFO, "Old Entry DN: " + m_dbEntry.getDN());
     log_it(SLAPD_LOG_INFO,"New Entry DN: " + m_dbEntryChanged.getDN());
     for(; i != m_dbEntry.getAttributes()->end(); i++ )
@@ -315,27 +320,27 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
             if ( delValues.size() > 0 ) {
                 if ( (addValues.size() > 0) && ( (int)delValues.size() == i->getNumValues()) ) {
                     log_it(SLAPD_LOG_INFO,"All Values deleted, this is a replace" );
-                    modifications.addModification(
+                    modlist.push_back(
                             LDAPModification( LDAPAttribute(i->getName(), addValues), 
                                     LDAPModification::OP_REPLACE) 
                             );
                     replace = true;
                 } else {
-                    modifications.addModification(
+                    modlist.push_back(
                             LDAPModification( LDAPAttribute(i->getName(), delValues ), 
                                     LDAPModification::OP_DELETE) 
                             );
                 }
             }
             if (addValues.size() > 0 && !replace ) {
-                modifications.addModification(
+               modlist.push_back(
                         LDAPModification( LDAPAttribute(i->getName(), addValues), 
                                 LDAPModification::OP_ADD) 
                         );
             }
         } else {
             log_it(SLAPD_LOG_INFO,"removed Attribute: " + i->getName() );
-            modifications.addModification(
+            modlist.push_back(
                     LDAPModification( LDAPAttribute(i->getName()), 
                             LDAPModification::OP_DELETE)
                     );
@@ -350,12 +355,32 @@ LDAPModList OlcConfigEntry::entryDifftoMod() const {
             log_it(SLAPD_LOG_INFO,"Attribute added: " + i->getName());
             if (! i->getValues().empty() )
             {
-                modifications.addModification(
+                modlist.push_back(
                         LDAPModification( LDAPAttribute(i->getName(), i->getValues()), 
                                     LDAPModification::OP_ADD) 
                         );
             }
         }
+    }
+    LDAPModList modifications;
+    std::list<std::string>::const_iterator k;
+    std::list<LDAPModification>::iterator j;
+    for ( k = this->getOrderedAttrs()->begin(); k != this->getOrderedAttrs()->end(); k++ )
+    {
+        log_it( SLAPD_LOG_INFO, "ordered Attribute " + *k );
+        for ( j = modlist.begin(); j != modlist.end(); j++ )
+        {
+            if ( strCaseIgnoreEquals(*k, j->getAttribute()->getName() ) )
+            {
+                modifications.addModification( *j );
+                modlist.erase( j );
+                break;
+            }
+        }
+    }
+    for ( j = modlist.begin(); j != modlist.end(); j++ )
+    {
+        modifications.addModification( *j );
     }
     return modifications;
 }
@@ -927,10 +952,14 @@ const std::string OlcSyncRepl::INTERVAL="interval";
 const std::string OlcSyncRepl::STARTTLS="starttls";
 const std::string OlcSyncRepl::RETRY="retry";
 const std::string OlcSyncRepl::TLS_REQCERT="tls_reqcert";
+const std::string OlcSyncRepl::TIMEOUT="timeout";
+const std::string OlcSyncRepl::NETWORK_TIMEOUT="network-timeout";
 
 OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine): 
-        rid(1), 
+        rid(1),
         bindmethod("simple"),
+        networkTimeout(0),
+        timeout(0),
         starttls( OlcSyncRepl::StartTlsNo )
 {
     log_it(SLAPD_LOG_DEBUG, "OlcSyncRepl::OlcSyncRepl(" + syncreplLine + ")");
@@ -1029,6 +1058,16 @@ OlcSyncRepl::OlcSyncRepl( const std::string &syncreplLine):
             {
                 this->setTlsReqCert(value);
             }
+            else if ( key == NETWORK_TIMEOUT )
+            {
+                std::istringstream s(value);
+                s >> networkTimeout;
+            }
+            else if ( key == TIMEOUT )
+            {
+                std::istringstream s(value);
+                s >> timeout;
+            }
             else
             {
                 otherValues.push_back(make_pair(key, value));
@@ -1069,6 +1108,15 @@ std::string OlcSyncRepl::toSyncReplLine() const
     srlStream << "bindmethod=\"" << this->bindmethod << "\" "
               << "binddn=\"" << this->binddn << "\" "
               << "credentials=\"" << this->credentials << "\"";
+
+    if ( this->networkTimeout )
+    {
+        srlStream << " network-timeout=" << this->networkTimeout;
+    }
+    if ( this->timeout )
+    {
+        srlStream << " timeout=" << this->timeout;
+    }
 
     std::vector<std::pair<std::string,std::string> >::const_iterator i;
     for ( i = otherValues.begin(); i != otherValues.end(); i++ )
@@ -1137,6 +1185,16 @@ void OlcSyncRepl::setTlsReqCert( const std::string &value )
     tlsReqCert = value;
 }
 
+void OlcSyncRepl::setNetworkTimeout( int value )
+{
+    networkTimeout = value;
+}
+
+void OlcSyncRepl::setTimeout( int value )
+{
+    timeout = value;
+}
+
 int OlcSyncRepl::getRid() const
 {
     return rid;
@@ -1190,6 +1248,16 @@ OlcSyncRepl::StartTls OlcSyncRepl::getStartTls() const
 std::string OlcSyncRepl::getTlsReqCert() const
 {
     return tlsReqCert;
+}
+
+int OlcSyncRepl::getNetworkTimeout() const
+{
+    return networkTimeout;
+}
+
+int OlcSyncRepl::getTimeout() const
+{
+    return timeout;
 }
 
 OlcSecurity::OlcSecurity(const std::string &securityVal)
@@ -1282,7 +1350,42 @@ void OlcSecurity::setSsf(const std::string& key, int value)
     }
 }
 
+OlcServerId::OlcServerId( const std::string &idVal )
+{
+    std::istringstream serverIdStr( idVal );
 
+    serverIdStr >> serverId;
+    serverIdStr >> serverUri;
+}
+
+std::string OlcServerId::toStringVal() const
+{
+    std::ostringstream ostr;
+
+    ostr << serverId << " " << serverUri;
+
+    return ostr.str();
+}
+
+int OlcServerId::getServerId() const
+{
+    return serverId;
+}
+
+std::string OlcServerId::getServerUri() const
+{
+    return serverUri;
+}
+
+void OlcServerId::setServerId( int id )
+{
+    serverId = id;
+}
+
+void OlcServerId::setServerUri( const std::string &uri )
+{
+    serverUri = uri;
+}
 
 OlcDatabase::OlcDatabase( const LDAPEntry& le=LDAPEntry()) : OlcConfigEntry(le)
 {
@@ -1329,9 +1432,26 @@ void OlcDatabase::setRootPw( const std::string &rootpw)
     this->setStringValue("olcRootPW", rootpw); 
 }
 
+void OlcDatabase::setMirrorMode( bool mm )
+{
+    if ( mm )
+    {
+        this->setStringValue( "olcMirrorMode", "TRUE" );
+    }
+    else if ( ! this->getStringValue( "olcMirrorMode" ).empty() )
+    {
+        this->setStringValue( "olcMirrorMode", "" );
+    }
+}
+
 const std::string OlcDatabase::getSuffix() const
 {
     return this->getStringValue("olcSuffix");
+}
+
+bool OlcDatabase::getMirrorMode() const
+{
+    return ( this->getStringValue( "olcMirrorMode" ) == "TRUE" );
 }
 
 const std::string OlcDatabase::getType() const
@@ -1455,14 +1575,12 @@ OlcSyncReplList OlcDatabase::getSyncRepl() const
     }
 
     StringList values = srAttr->getValues();
-    if ( values.size() != 1 )
-    {
-        log_it(SLAPD_LOG_ERR, "Multiple syncrepl statements");
-    }
-    else
+    for ( StringList::const_iterator i = values.begin();
+          i != values.end();
+          i++ )
     {
         std::string syncreplLine;
-        splitIndexFromString( *values.begin(), syncreplLine );
+        splitIndexFromString( *i, syncreplLine );
         try {
             boost::shared_ptr<OlcSyncRepl> syncrepl( new OlcSyncRepl(syncreplLine) );
             res.push_back(syncrepl);
@@ -1487,6 +1605,11 @@ void OlcDatabase::addSyncRepl(const std::string& value, int index )
     this->addIndexedStringValue( "olcSyncrepl", value, index );
 }
 
+void OlcDatabase::addSyncRepl( const boost::shared_ptr<OlcSyncRepl> sr, int index )
+{
+    this->addSyncRepl( sr->toSyncReplLine(), index );
+}
+
 void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
 {
     this->setStringValue("olcSyncRepl", "" );
@@ -1495,7 +1618,7 @@ void OlcDatabase::setSyncRepl( const OlcSyncReplList& srl )
     int j = 0;
     for ( i = srl.begin(); i != srl.end(); i++,j++ )
     {
-        this->addSyncRepl( (*i)->toSyncReplLine(), j );
+        this->addSyncRepl( *i, j );
     }
 }
 
@@ -1898,6 +2021,37 @@ void OlcGlobalConfig::setTlsSettings( const OlcTlsSettings& tls )
     tls.applySettings( *this );
 }
 
+const std::vector<OlcServerId> OlcGlobalConfig::getServerIds() const
+{
+    const StringList values = this->getStringValues("olcServerId");
+
+    std::vector<OlcServerId> v_serverIds;
+    StringList::const_iterator i;
+    for ( i = values.begin(); i != values.end(); i++ )
+    {
+        v_serverIds.push_back( OlcServerId(*i) );
+    }
+    return v_serverIds;
+}
+
+void OlcGlobalConfig::setServerIds(const std::vector<OlcServerId> &serverIds)
+{
+    StringList values;
+
+    std::vector<OlcServerId>::const_iterator i;
+
+    for ( i = serverIds.begin(); i != serverIds.end(); i++ )
+    {
+        values.add( i->toStringVal() );
+    }
+    this->setStringValues( "olcServerId", values );
+}
+
+void OlcGlobalConfig::addServerId(const OlcServerId &serverId)
+{
+    this->addStringValue( "olcServerId", serverId.toStringVal() );
+}
+
 const std::string OlcSchemaConfig::schemabase = "cn=schema,cn=config";
 
 OlcSchemaConfig::OlcSchemaConfig() : OlcConfigEntry()
@@ -2222,7 +2376,9 @@ void OlcConfig::updateEntry( OlcConfigEntry &oce )
 void OlcConfig::waitForBackgroundTasks()
 {
     try {
-        LDAPModification mod( LDAPAttribute("objectClass", "olcGlobal"), LDAPModification::OP_ADD );
+        boost::shared_ptr<OlcGlobalConfig> globals = this->getGlobals();
+        std::string attrval = globals->getStringValue("olcArgsFIle");
+        LDAPModification mod( LDAPAttribute("olcArgsFIle", attrval), LDAPModification::OP_ADD );
         LDAPModList ml;
         ml.addModification(mod);
         m_lc->modify( "cn=config", &ml );

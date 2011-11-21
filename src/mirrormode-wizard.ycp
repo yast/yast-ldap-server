@@ -1,0 +1,208 @@
+/**
+ * File:	include/ldap-server/mirrormode-wizard.ycp
+ * Package:	Configuration of ldap-server
+ * Summary:	Wizards definitions
+ * Authors:	Andreas Bauer <abauer@suse.de>
+ *              Ralf Haferkamp <rhafer@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ldap-server";
+
+import "Sequencer";
+import "Wizard";
+import "URL";
+
+include "ldap-server/complex.ycp";
+include "ldap-server/dialogs.ycp";
+include "ldap-server/wizards.ycp";
+
+caption = "OpenLDAP MirrorMode Configuration";
+term dlg_mm_overview =
+    `HSquash(
+        `VBox(
+            `Heading( _("MirrorMode Node List") ),
+            `VSpacing(),
+            `VBox(
+                `VBox(
+                    `MinSize( 60, 7,
+                        `Table( `id( `serverid_tab ),`opt(`keepSorting), `header(_("Server ID"), _("Server URI") ) )
+                    ),
+                    `Left(
+                        `HBox(
+                            `PushButton( `id( `pb_del ), Label::DeleteButton() )
+                        )
+                    )
+                )
+            )
+        )
+    );
+
+term dlg_nomm_message =
+    `HSquash(
+        `VBox(
+            `Label( _("This server is not setup as a MirrorMode Node. "
+                      "Click \"Next\" to launch the standard OpenLDAP configuration wizard.") )
+        )
+    );
+
+any MirrorModeOverview()
+{
+    any ret = nil;
+    map event = $[];
+    if( ! LdapServer::HasMirrorMode() )
+    {
+        Wizard::SetContentsButtons( caption, dlg_nomm_message,
+                                    HELPS["service_dialog"]:"help not found",
+                                    Label::BackButton(), Label::NextButton() );
+        Wizard::HideBackButton();
+        Wizard::SetAbortButton(`abort, Label::CancelButton());
+
+        while( true )
+        {
+            event = UI::WaitForEvent ();
+
+            ret = event["ID"]:nil;
+            if( ret == `abort || ret == `cancel) break;
+            else if ( ret == `next )
+            {
+                ret = `nomirror;
+                break;
+            }
+        }
+        return ret;
+    }
+    string caption = _("OpenLDAP MirrorMode Overview");
+    Wizard::SetContentsButtons( caption, dlg_mm_overview,
+                                HELPS["service_dialog"]:"help not found",
+                                Label::BackButton(), Label::OKButton() );
+    Wizard::HideBackButton();
+    Wizard::SetAbortButton(`abort, Label::CancelButton());
+
+    list<map<string,any> > serverids = LdapServer::ReadServerIds();
+    integer pos = -1;
+    list itemlist = maplist (map v, serverids,
+        {
+            pos=pos+1;
+            return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
+        }
+    );
+
+    UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+    while( true )
+    {
+        event = UI::WaitForEvent ();
+        ret = event["ID"]:nil;
+
+        if ( ret == `back || ret == `abort || ret == `cancel ||
+             ret == `next || ret == `finish )
+        {
+            break;
+        }
+        else if ( ret == `pb_del )
+        {
+            integer selected = (integer) UI::QueryWidget( `serverid_tab, `CurrentItem );
+            if ( selected != nil )
+            {
+                y2milestone("Delete Server: %1", serverids[selected]:$[] );
+                map url = URL::Parse( serverids[selected,"uri"]:"" );
+                if ( (string)url["host"]:"" == LdapServer::ReadHostnameFQ() )
+                {
+                    Popup::Error( _("Deleting the Host on which you started this YaST Module is not possible.\n") +
+                                  _("Please start yast2 openldap-mirrormode on a different MirrorMode server.") );
+                    continue;
+                }
+
+                if( Popup::YesNo( _("Do you really want to remove ") +
+                                  "\"" + serverids[ selected, "uri" ]:"" + "\"" +
+                                  _("From the MirrorMode setup?\n" ) +
+                                  _("Changes will take effect immediately after clicking \"Yes\"") ) )
+                {
+                    LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );
+                    serverids = remove( serverids, selected );
+                    LdapServer::WriteServerIds( serverids );
+                    itemlist = maplist (map v, serverids,
+                        {
+                            pos=pos+1;
+                            return `item( `id(pos), v["id"]:-1 , v["uri"]:"");
+                        }
+                    );
+                    UI::ChangeWidget( `serverid_tab, `Items, itemlist) ;
+                    Wizard::HideAbortButton();
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+any MirrorModeSequence() {
+
+    /* Initialization dialog contents */
+    term contents = `Label(_("Initializing..."));
+
+    Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ldap-server");
+    Wizard::SetContentsButtons(caption, contents, "",
+           Label::BackButton(), Label::NextButton());
+
+    LdapServer::WriteSetupSlave(true);
+    LdapServer::WriteSetupMirrorMode(true);
+    map aliases = $[
+	"read"	            : ``( ReadDialog() ),
+        "newnode"           : ``( EnableServiceDialog() ),
+        "slavesetup"        : ``( SlaveSetupDialog() ),
+        "replicationsummary": ``( ReplicatonSetupSummaryDialog() ),
+	"main"	            : ``( MirrorModeOverview() ),
+        "write"             : ``( WriteDialog() )
+    ];
+
+    map sequence = $[
+        "ws_start"  : "read",
+	"read" : $[
+	    `abort	: `abort,
+            `initial    : "newnode",
+	    `next	: "main",
+	],
+        "newnode"   : $[
+            `next   : "slavesetup",
+            `abort  : `abort,
+            `finish : `disable
+        ],
+        "slavesetup" : $[
+            `next : "replicationsummary"
+        ],
+        "replicationsummary" : $[
+            `next : "write"
+        ],
+	"main" : $[
+	    `abort	: `abort,
+	    `next	: "write",
+	    `nomirror	:  `nomirror,
+            `reread     : "read"
+	],
+        "write" : $[
+            `abort      : `abort,
+            `next       : `next
+        ]
+    ];
+
+    y2milestone( "--> starting MirrorModeSequence" );
+
+    any ret = Sequencer::Run(aliases, sequence);
+
+    y2milestone( "<-- MirrorModeSequence finished " );
+
+    UI::CloseDialog();
+
+    if ( ret == `nomirror )
+    {
+        ret = LdapServerSequence();
+    }
+    return ret;
+}
+}

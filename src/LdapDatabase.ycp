@@ -1428,93 +1428,95 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     {
         term widget =
             `Top(
-                `HSquash(
-                    `VBox(
-                        `VSpacing(0.5),
-                        `Left(
-                            `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
-                        ),
-                        `VSpacing(0.3),
-                        `VBox( `id( `f_synccons ),
+                `ReplacePoint( `id( `syncConsWidget ),
+                    `HSquash(
+                        `VBox(
+                            `VSpacing(0.5),
                             `Left(
-                                `VSquash(
-                                    `HBox(
-                                        `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
-                                        `HSpacing(),
-                                        `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Name"), "" ),
-                                        `HSpacing(),
-                                        `HSquash(
-                                            `IntField( `id(`if_sync_port), _("Port"), 0, 65536, 389)
-                                        ),
-                                        `HSpacing(),
-                                        `VBox(
-                                            `Bottom(
-                                                `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
-                                            ),
-                                            `VSpacing(0.3)
-                                        )
-                                    )
-                                )
+                                `CheckBox( `id( `cb_syncrepl ), `opt(`notify), _("This database is a Replication Consumer"), false )
                             ),
                             `VSpacing(0.3),
-                            `Left(
-                                `HBox(
-                                    `ComboBox( `id( `cb_sync_type ), `opt(`notify),
-                                                _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
-                                    `HSpacing(),
+                            `VBox( `id( `f_synccons ),
+                                `Left(
                                     `VSquash(
-                                        `HBox( `id( `hb_rep_interval ),
+                                        `HBox(
+                                            `ComboBox( `id( `cb_sync_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                            `HSpacing(),
+                                            `InputField( `id( `te_sync_target ), `opt(`hstretch), _("Provider Name"), "" ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_sync_port), _("Port"), 0, 65536, 389)
+                                            ),
+                                            `HSpacing(),
                                             `VBox(
                                                 `Bottom(
-                                                    `Label( _("Replication Interval") )
-                                                )
-                                            ),
-                                            `HSpacing(),
-                                            `HSquash(
-                                                `IntField( `id(`if_sync_int_d), _("Days"), 0, 99, 0)
-                                            ),
-                                            `HSpacing(),
-                                            `HSquash(
-                                                `IntField( `id(`if_sync_int_h), _("Hours"), 0, 23, 0)
-                                            ),
-                                            `HSpacing(),
-                                            `HSquash(
-                                                `IntField( `id(`if_sync_int_m), _("Minutes"), 0, 59, 0)
-                                            ),
-                                            `HSpacing(),
-                                            `HSquash(
-                                                `IntField( `id(`if_sync_int_s), _("Seconds"), 0, 59, 0)
-                                            ),
-                                            `HStretch()
+                                                    `CheckBox( `id( `cb_start_tls ), _("Use StartTLS"), true )
+                                                ),
+                                                `VSpacing(0.3)
+                                            )
                                         )
                                     )
-                                )
-                            ),
-                            `VSpacing(0.3),
-                            `Left(
-                                `HBox(
-                                    `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN"), "" ),
-                                    `HSpacing(),
-                                    `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
-                                )
-                            ),
-                            `VSpacing(0.3),
-                            `Left(
-                                `VSquash(
+                                ),
+                                `VSpacing(0.3),
+                                `Left(
                                     `HBox(
-                                        `VBox(
-                                            `Bottom(
-                                                `CheckBox( `id( `cb_update_ref ), `opt(`notify), _("Custom update referral") )
+                                        `ComboBox( `id( `cb_sync_type ), `opt(`notify),
+                                                    _("Replication Type"), [ "refreshAndPersist", "refreshOnly" ] ),
+                                        `HSpacing(),
+                                        `VSquash(
+                                            `HBox( `id( `hb_rep_interval ),
+                                                `VBox(
+                                                    `Bottom(
+                                                        `Label( _("Replication Interval") )
+                                                    )
+                                                ),
+                                                `HSpacing(),
+                                                `HSquash(
+                                                    `IntField( `id(`if_sync_int_d), _("Days"), 0, 99, 0)
+                                                ),
+                                                `HSpacing(),
+                                                `HSquash(
+                                                    `IntField( `id(`if_sync_int_h), _("Hours"), 0, 23, 0)
+                                                ),
+                                                `HSpacing(),
+                                                `HSquash(
+                                                    `IntField( `id(`if_sync_int_m), _("Minutes"), 0, 59, 0)
+                                                ),
+                                                `HSpacing(),
+                                                `HSquash(
+                                                    `IntField( `id(`if_sync_int_s), _("Seconds"), 0, 59, 0)
+                                                ),
+                                                `HStretch()
+                                            )
+                                        )
+                                    )
+                                ),
+                                `VSpacing(0.3),
+                                `Left(
+                                    `HBox(
+                                        `InputField( `id( `te_sync_binddn ), `opt(`hstretch), _("Authentication DN"), "" ),
+                                        `HSpacing(),
+                                        `Password( `id( `te_sync_cred ), `opt(`hstretch), _("Password"), "" )
+                                    )
+                                ),
+                                `VSpacing(0.3),
+                                `Left(
+                                    `VSquash(
+                                        `HBox(
+                                            `VBox(
+                                                `Bottom(
+                                                    `CheckBox( `id( `cb_update_ref ), `opt(`notify), _("Custom update referral") )
+                                                ),
+                                                `VSpacing(0.3)
                                             ),
-                                            `VSpacing(0.3)
-                                        ),
-                                        `HSpacing(),
-                                        `ComboBox( `id( `cb_updateref_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
-                                        `HSpacing(),
-                                        `InputField( `id( `te_updateref_target ), `opt(`hstretch), _("Target Host"), "" ),
-                                        `HSpacing(),
-                                        `HSquash(
-                                            `IntField( `id(`if_updateref_port), _("Port"), 0, 65536, 389)
+                                            `HSpacing(),
+                                            `ComboBox( `id( `cb_updateref_prot ), `opt(`notify), _("Protocol"), [ "ldap", "ldaps" ] ),
+                                            `HSpacing(),
+                                            `InputField( `id( `te_updateref_target ), `opt(`hstretch), _("Target Host"), "" ),
+                                            `HSpacing(),
+                                            `HSquash(
+                                                `IntField( `id(`if_updateref_port), _("Port"), 0, 65536, 389)
+                                            )
                                         )
                                     )
                                 )
@@ -1526,7 +1528,24 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         return widget;
     }
 
-    global boolean DbSyncConsRead( integer index, map synccons )
+    boolean urlComponentsMatch( map url1, map url2 )
+    {
+        if ( (string)url1["protocol"]:"" != (string)url2["protocol"]:"" )
+        {
+            return false;
+        }
+        if ( (string)url1["target"]:"" != (string)url2["target"]:"" )
+        {
+            return false;
+        }
+        if ( (integer)url1["port"]:0 != (integer)url2["port"]:0 )
+        {
+            return false;
+        }
+        return true;
+    }
+
+    global boolean DbSyncConsRead( integer index, map synccons, map updateref )
     {
         y2milestone("DbSyncConsRead %1", index);
         if ( size(synccons) == 0 )
@@ -1564,14 +1583,13 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             }
             UI::ChangeWidget( `te_sync_binddn, `Value, (string)synccons["binddn"]:"");
             UI::ChangeWidget( `te_sync_cred, `Value, (string)synccons["credentials"]:"");
-            map <string,any> updateref = synccons["updateref"]:$[];
             if (size(updateref) == 0 )
             {
                 // no updateref
                 UI::ChangeWidget( `cb_update_ref, `Value, true );
                 UI::ChangeWidget( `te_updateref_target, `Value, "" );
             }
-            else if ( (boolean)updateref["use_provider"]:true )
+            else if ( urlComponentsMatch( provider, updateref )  )
             {
                 UI::ChangeWidget( `cb_update_ref, `Value, false );
                 UI::ChangeWidget( `cb_updateref_prot, `Enabled, false );
@@ -1756,7 +1774,8 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
     global map<string,any> DbSyncConsWrite( integer index )
     {
         y2milestone("DbSyncConsWrite %1", index);
-        map<string,any> result = $[];
+        map<string,any> syncrepl = $[];
+        map<string,any> updateref = $[];
         if ( UI::QueryWidget( `cb_syncrepl, `Value ) == true )
         {
             string prot = (string)UI::QueryWidget( `cb_sync_prot, `Value );
@@ -1767,11 +1786,11 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                     "target"   : target,
                     "port"     : port
                 ];
-            result = add(result, "provider", provider );
-            result = add(result, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
+            syncrepl = add(syncrepl, "provider", provider );
+            syncrepl = add(syncrepl, "starttls", (boolean)UI::QueryWidget(`cb_start_tls, `Value) );
 
             string type = (string)UI::QueryWidget( `cb_sync_type, `Value );
-            result = add(result, "type", type );
+            syncrepl = add(syncrepl, "type", type );
 
             if ( type == "refreshOnly" )
             {
@@ -1781,7 +1800,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
                         "mins" : (integer)UI::QueryWidget( `if_sync_int_m, `Value ),
                         "secs" : (integer)UI::QueryWidget( `if_sync_int_s, `Value ),
                     ];
-                result = add( result, "interval", iv );
+                syncrepl = add( syncrepl, "interval", iv );
             }
             map db = baseDb;
             if ( index >= 0)
@@ -1791,23 +1810,25 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
             string basedn = (string)db["suffix"]:"";
             string binddn = (string)UI::QueryWidget( `te_sync_binddn, `Value );
             string cred = (string)UI::QueryWidget( `te_sync_cred, `Value );
-            result = add(result, "basedn", basedn );
-            result = add(result, "binddn", binddn );
-            result = add(result, "credentials", cred );
+            syncrepl = add(syncrepl, "basedn", basedn );
+            syncrepl = add(syncrepl, "binddn", binddn );
+            syncrepl = add(syncrepl, "credentials", cred );
             if ( (boolean) UI::QueryWidget( `cb_update_ref, `Value) )
             {
-                map<string,any> updateref = $[];
                 if ( (string)UI::QueryWidget(`te_updateref_target, `Value) != "" )
                 {
                     updateref = add(updateref, "protocol", (string)UI::QueryWidget(`cb_updateref_prot, `Value) );
                     updateref = add(updateref, "target", (string)UI::QueryWidget(`te_updateref_target, `Value) );
                     updateref = add(updateref, "port", (integer)UI::QueryWidget(`if_updateref_port, `Value) );
                 }
-                result = add(result, "updateref", updateref );
+            }
+            else
+            {
+                updateref = provider;
             }
         }
-        y2milestone("DbSyncConsWrite result: %1", result);
-        return result;
+        y2milestone("DbSyncConsWrite syncrepl: %1", syncrepl);
+        return $[ "syncrepl" : syncrepl, "updateref" : updateref ];
     }
 
     global term GetSyncProvWidget()
@@ -1989,7 +2010,7 @@ not supported by this YaST Module. The Access Control Dialog will be disabled.")
         Wizard::SetContentsButtons(caption, contents, HELPS["synccons_edit"]:"",
                 Label::BackButton(), Label::NextButton());
         symbol ret = `next;
-        DbSyncConsRead(-1, $[] );
+        DbSyncConsRead(-1, $[], $[] );
         while(true) {
             ret = (symbol)UI::UserInput();
             if (ret == `abort || ret == `cancel )

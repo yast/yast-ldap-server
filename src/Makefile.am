@@ -6,6 +6,7 @@ yncludedir = @yncludedir@/ldap-server
 
 client_DATA =			\
 	ldap-server.ycp		\
+	openldap-mirrormode.ycp \
 	ldap-server_auto.ycp	\
 	ldap-server_proposal.ycp
 
@@ -15,10 +16,12 @@ ynclude_DATA =			\
 	widgets.ycp		\
 	dialogs.ycp		\
 	complex.ycp 		\
-	tree_structure.ycp
+	tree_structure.ycp	\
+	mirrormode-wizard.ycp
 
 desktop_DATA =			\
-	ldap-server.desktop
+	ldap-server.desktop	\
+	openldap-mirrormode.desktop
 
 module_DATA =			\
 	LdapServer.pm		\

@@ -93,9 +93,6 @@ define boolean cb_read_daemon()
     else
     {
         UI::ChangeWidget( `rb_service_enable, `CurrentButton, `rb_no );
-        UI::ChangeWidget( `cb_register_slp, `Enabled, false );
-        UI::ChangeWidget( `fr_listener, `Enabled, false );
-        UI::ChangeWidget( `fr_firewall, `Enabled, false );
     }
     if ( LdapServer::ReadSLPEnabled() )
     {
@@ -129,27 +126,6 @@ define boolean cb_read_daemon()
     {
         UI::ChangeWidget( `cb_interface_ldapi, `Value, false );
     }
-    return true;
-}
-
-define boolean cb_input_daemon()
-``{
-    y2milestone("calling input handler for item \"daemon\"");
-    y2milestone("Handlercmd = %1", handler_cmd);
-
-    if ( handler_cmd == `rb_no ) // service was just disabled
-    {
-        UI::ChangeWidget( `cb_register_slp, `Enabled, false );
-        UI::ChangeWidget( `fr_listener, `Enabled, false );
-        UI::ChangeWidget( `fr_firewall, `Enabled, false );
-    }
-    else if ( handler_cmd == `rb_yes ) // service was just disabled
-    {
-        UI::ChangeWidget( `cb_register_slp, `Enabled, true );
-        UI::ChangeWidget( `fr_listener, `Enabled, true );
-        UI::ChangeWidget( `fr_firewall, `Enabled, true );
-    }
-
     return true;
 }
 
@@ -558,7 +534,7 @@ define boolean cb_input_databases()
             }
             LdapDatabase::ResetCreateBase();
             map <string,any> syncrepl = LdapDatabase::GetSyncRepl();
-            if ( size(syncrepl) > 0 )
+            if ( size(syncrepl) > 0 && size(syncrepl["syncrepl"]:$[]) > 0 )
             {
                 list<map<string,string> > dblist = LdapServer::ReadDatabaseList();
                 integer dbindex=0;
@@ -571,12 +547,13 @@ define boolean cb_input_databases()
                 });
                 if (dbindex > 0)
                 {
-                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl ) )
+                    if ( ! LdapServer::WriteSyncRepl( dbindex, syncrepl["syncrepl"]:$[] ) )
                     {
                         map<string, string> err = LdapServer::ReadError();
                         callback_error = err["msg"]:"" + "\n" + err["details"]:"";
                         return false;
                     }
+                    LdapServer::WriteUpdateRef(dbindex, syncrepl["updateref"]:$[]);
                 }
             }
             map <string,any> ppolicy = LdapDatabase::GetPpolicy();
@@ -1045,16 +1022,17 @@ define boolean cb_read_synccons()
     y2milestone("cb_read_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    map<string,any> sr = LdapServer::ReadSyncRepl(index);
-    y2milestone("cb_read_synccons() %1", sr);
-    if ( sr == nil )
+    list<map<string,any> > srl = LdapServer::ReadSyncRepl(index);
+    if (size(srl) > 1 )
     {
-        map<string, string> err = LdapServer::ReadError();
-        callback_error = err["msg"]:"" + "\n" + err["details"]:"";
+        UI::ReplaceWidget( `syncConsWidget, `Label( _("Multiple Replication Consumers not supported currently") ) );
+        return true;
     }
     else
     {
-        return LdapDatabase::DbSyncConsRead( index, sr );
+        map<string,any> sr = srl[0]:$[];
+        map<string,any> updateref = LdapServer::ReadUpdateRef( index );
+        return LdapDatabase::DbSyncConsRead( index, sr, updateref );
     }
 }
 
@@ -1063,7 +1041,14 @@ define boolean cb_input_synccons()
     y2milestone("cb_input_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    return LdapDatabase::DbSyncConsInput( handler_cmd, index );
+    if ( UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return LdapDatabase::DbSyncConsInput( handler_cmd, index );
+    }
+    else
+    {
+        return true;
+    }
 }
 
 define boolean cb_check_synccons()
@@ -1071,7 +1056,14 @@ define boolean cb_check_synccons()
     y2milestone("cb_check_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
-    return LdapDatabase::DbSyncConsCheck( index );
+    if ( UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return LdapDatabase::DbSyncConsCheck( index );
+    }
+    else
+    {
+        return true;
+    }
 }
 
 define boolean cb_write_synccons()
@@ -1079,13 +1071,18 @@ define boolean cb_write_synccons()
     y2milestone("cb_write_synccons()");
     string treeItem = current_tree_item;
     integer index = (integer)widget_map[current_tree_item,"index"]:nil;
+    if (! UI::WidgetExists( `cb_syncrepl ) )
+    {
+        return true;
+    }
     map <string,any> syncrepl = LdapDatabase::DbSyncConsWrite( index );
     boolean result = false;
-    result = LdapServer::WriteSyncRepl(index, syncrepl);
+    result = LdapServer::WriteSyncRepl(index, syncrepl["syncrepl"]:$[]);
     if ( ! result ) {
         map<string, string> err = LdapServer::ReadError();
         callback_error = err["msg"]:"" + "\n" + err["details"]:"";
     }
+    LdapServer::WriteUpdateRef(index, syncrepl["updateref"]:$[]);
     return result;
 }
 
@@ -1143,7 +1140,6 @@ widget_map = $[
         "name"      : _("Startup Configuration"),
         "widget"    : dlg_service,
         "cb_read"   : ``( cb_read_daemon() ),
-        "cb_input"  : ``( cb_input_daemon() ),
         "cb_write"  : ``( cb_write_daemon() ),
         "help_page" : "startup_config"
     ],

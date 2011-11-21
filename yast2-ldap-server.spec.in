@@ -39,6 +39,7 @@ rm -f $RPM_BUILD_ROOT/@plugindir@/libpy2ag_slapdconfig.so
 @moduledir@/LdapDatabase.*
 @moduledir@/YaPI/LdapServer.pm
 @desktopdir@/ldap-server.desktop
+@desktopdir@/openldap-mirrormode.desktop
 @plugindir@/libpy2ag_slapdconfig.*
 @schemadir@/autoyast/rnc/ldap-server.rnc
 @scrconfdir@/*

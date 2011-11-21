@@ -112,14 +112,7 @@ string showTreeDialog( string name, boolean focus_tree )
 {
     //create new item
     term widget = nil;
-    if ( !LdapServer::ReadServiceEnabled() )
-    {
-        if ( name != "daemon" ) {
-            Popup::Error( _("The LDAP Server is currently disabled, no configuration changes are possible.") );
-            name = "daemon";
-        }
-    }
-    else if ( !LdapServer::ReadServiceRunning() )
+    if ( !LdapServer::ReadServiceRunning() )
     {
         if ( name != "daemon" ) {
             symbol ret = Popup::AnyQuestion3( _("The LDAP Server is not running."),
@@ -778,7 +771,8 @@ any SlaveSetupDialog()
     term widget =
         `HSquash(
             `VBox(
-                `Heading( _("Slave server setup") ),
+                `Heading( _("Provider details") ),
+                `VSpacing(0.3),
                 `VSpacing(),
                 `VSquash(
                     `HBox(
@@ -799,7 +793,17 @@ any SlaveSetupDialog()
                     )
                 ),
                 `VSpacing(0.3),
-                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" )
+                `Password( `id( `te_config_cred ), `opt(`hstretch), _("Administration Password for the \"cn=config\" Database"), "" ),
+                `VSpacing(0.3),
+                `VSquash(
+                    `HBox(
+                        `InputField( `id( `te_ca_file ), `opt( `hstretch ), _("C&A Certificate File (PEM Format)") ),
+                        `HSpacing( 0.5 ),
+                        `Bottom(
+                            `PushButton( `id( `pb_ca_file ), _("Bro&wse...") )
+                        )
+                    )
+                )
             )
         );
 
@@ -809,9 +813,12 @@ any SlaveSetupDialog()
             Label::BackButton(),
             Label::NextButton() );
     any ret = nil;
+    string cacert = "/etc/ssl/certs/YaST-CA.pem";
+
     while ( true )
     {
         UI::ChangeWidget(`cb_start_tls, `Enabled, false );
+        UI::ChangeWidget(`te_ca_file, `Value, cacert );
         map synbase = LdapServer::ReadSyncreplBaseConfig();
         if ( size(synbase) > 0 )
         {
@@ -829,8 +836,23 @@ any SlaveSetupDialog()
             ret = UI::UserInput();
         }
         y2milestone( "SlaveSetupDialog: seeing return value '%1'", ret );
-        if ( ret == `next )
+        if( ret == `pb_ca_file )
         {
+            string name = UI::AskForExistingFile( "/etc/ssl/certs", "*.pem *.crt *", _("Select CA Certificate File") );
+            if( name != nil )
+            {
+                cacert = name;
+            }
+            continue;
+        }
+        else if ( ret == `next )
+        {
+            if ( cacert == "" || cacert == nil )
+            {
+                Popup::Error( _("Please select a valid CA Certificate File") );
+                continue;
+            }
+
             // test connection
             map<string,any> provider = $[
                     "protocol" : (string)UI::QueryWidget( `cb_sync_prot, `Value ),
@@ -851,6 +873,11 @@ any SlaveSetupDialog()
             testparm = add(testparm, "basedn", "cn=config" );
             testparm = add(testparm, "binddn", "cn=config" );
             testparm = add(testparm, "credentials", (string)UI::QueryWidget(`te_config_cred, `Value) );
+            if ( cacert != "" &&  cacert != nil )
+            {
+                testparm = add( testparm, "cacert", cacert );
+            }
+
             if (! LdapServer::ReadModeInstProposal() ) // Doing these checks during installation will 
                                                        // most probably fail
             {
@@ -876,13 +903,20 @@ any SlaveSetupDialog()
                     continue;
                 }
                 // Check if the syncrepl config of cn=config makes sense
-                map <string,any> syncrepl = LdapServer::ReadSyncRepl(0);
+                list<map<string,any> > srl = LdapServer::ReadSyncRepl(0);
+                map <string,any> syncrepl = srl[0]:$[];
                 if ( size(syncrepl) == 0 )
                 {
                     if (Popup::ContinueCancel( _("The Replication Configuration on the Provider Server is missing.\n") +
                                                _("Click Continue to create it now.") ) )
                     {
-                        continue;
+                        syncrepl = $[
+                                "provider" : testparm["target"]:$[],
+                                "starttls" : testparm["starttls"]:true,
+                                "binddn"   : testparm["binddn"]:"cn=config",
+                                "credentials" : testparm["credentials"]:"",
+                                "type"     : "refreshAndPersist"
+                            ];
                     }
                     else
                     {
@@ -893,34 +927,37 @@ any SlaveSetupDialog()
                 else
                 {
                     // 1. Verify that the provider uri points to the provider itself
-                    map<string, any> provider = syncrepl["provider"]:$[];
-                    boolean setupok=true;
-                    if ( size(provider) > 0 )
+                    if ( size(srl) == 1 ) // this test needs only be done in a non-MirrorMode setup
                     {
-                        if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                        map<string, any> provider = syncrepl["provider"]:$[];
+                        boolean setupok=true;
+                        if ( size(provider) > 0 )
                         {
-                            y2error("Provider target names do not match: <%1> vs. <%2>",
-                                    (string)provider["target"]:"",(string)testparm["target","target"]:"");
-                            setupok=false;
-                        }
-                        if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
-                        {
-                            y2error("Provider protocols do not match: <%1> vs. <%2>",
-                                    (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
-                            setupok=false;
-                        }
-                        if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
-                        {
-                            y2error("Provider ports do not match: <%1> vs. <%2>",
-                                    (string)provider["port"]:"",(string)testparm["target","port"]:"");
-                            setupok=false;
-                        }
-                        if ( ! setupok )
-                        {
-                            Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
-                                          _("Setting up cascaded replication of the cn=config is not supported currently.") );
-                            ret = `cancel;
-                            break;
+                            if ( (string)provider["target"]:"" != (string)testparm["target","target"]:"" )
+                            {
+                                y2error("Provider target names do not match: <%1> vs. <%2>",
+                                        (string)provider["target"]:"",(string)testparm["target","target"]:"");
+                                setupok=false;
+                            }
+                            if ( (string)provider["protocol"]:"" != (string)testparm["target","protocol"]:"" )
+                            {
+                                y2error("Provider protocols do not match: <%1> vs. <%2>",
+                                        (string)provider["protocol"]:"",(string)testparm["target","protocol"]:"");
+                                setupok=false;
+                            }
+                            if ( (integer)provider["port"]:0 != (integer)testparm["target","port"]:0 )
+                            {
+                                y2error("Provider ports do not match: <%1> vs. <%2>",
+                                        (string)provider["port"]:"",(string)testparm["target","port"]:"");
+                                setupok=false;
+                            }
+                            if ( ! setupok )
+                            {
+                                Popup::Error( _("The Replication Configuration on the master server indicates that\nit is already acting as a Replication Consumer.\n") +
+                                              _("Setting up cascaded replication of the cn=config is not supported currently.") );
+                                ret = `cancel;
+                                break;
+                            }
                         }
                     }
                     // 2. Verify that the binddn/credential combination acutally works
@@ -980,7 +1017,8 @@ any SlaveSetupDialog()
                         "provider" : testparm["target"]:$[],
                         "starttls" : testparm["starttls"]:true,
                         "binddn"   : testparm["binddn"]:"cn=config",
-                        "credentials" : testparm["credentials"]:""
+                        "credentials" : testparm["credentials"]:"",
+                        "type"     : "refreshAndPersist"
                     ];
                 LdapServer::WriteSyncreplBaseConfig( syncrepl );
             }
@@ -1046,7 +1084,11 @@ any MasterSetupDialog()
                     `VSpacing( 0.5 ),
                     `Password( `id( `te_rootpw ), `opt( `hstretch ), _("Enter new &Password") ),
                     `VSpacing( 0.5 ),
-                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") )
+                    `Password( `id( `te_valid_rootpw ), `opt( `hstretch ), _("&Validate Password") ),
+                    `VSpacing( 0.5 ),
+                    `Left(
+                        `CheckBox( `id( `cb_mirror_mode ), _("Prepare for MirrorMode replication (generates the serverId attribute)") )
+                    )
                 )
             )
         );
@@ -1082,6 +1124,7 @@ any MasterSetupDialog()
                 map <string, any> defaults = LdapServer::CreateInitialDefaults();
                 defaults["configpw"] = pw;
                 LdapServer::SetInitialDefaults(defaults);
+                LdapServer::WriteSetupMirrorMode( (boolean)UI::QueryWidget( `cb_mirror_mode, `Value ) );
                 break;
             }
         }
