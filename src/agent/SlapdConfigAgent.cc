@@ -392,7 +392,7 @@ YCPValue SlapdConfigAgent::Execute( const YCPPath &path,
                 }
             }
         } catch ( LDAPException e ) {
-            std::string errstring = "Error while commiting changes to config database";
+            std::string errstring = "Error while committing changes to config database";
             std::string details = e.getResultMsg() + ": " + e.getServerMsg();
             
             lastError->add(YCPString("summary"),
