@@ -9,7 +9,9 @@
     import "Sequencer";
     import "String";
     import "Wizard";
-    include "helps.ycp";
+
+    include "ldap-server/helps.ycp";
+    include "ldap-server/widgets.ycp";
 
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
@@ -557,7 +559,7 @@
                     }
                 }
             }
-            map ppolicyEntry_new = LdapPopup::PasswordPolicyDialog(ppolicyEntry);
+            map ppolicyEntry_new = PasswordPolicyDialog(ppolicyEntry);
             // PasswordPolicyDialog only returns the changes made to the original
             // Entry, try to merge them here
             foreach ( string key, any val, (map<string,any>) ppolicyEntry_new,
