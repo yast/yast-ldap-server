@@ -12,6 +12,7 @@
 
     include "ldap-server/helps.ycp";
     include "ldap-server/widgets.ycp";
+    include "users/ldap_dialogs.ycp";
 
 
     map <string, any> baseDb = $[ "rootdn" : "cn=Administrator", "directory" : "/var/lib/ldap" ];
