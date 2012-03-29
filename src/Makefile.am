@@ -27,6 +27,11 @@ module_DATA =			\
 	LdapServer.pm		\
 	LdapDatabase.ycp
 
+ldap-server:
+	ln -sf . ldap-server
+
+ycpchook = ldap-server 
+
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
 
 include $(top_srcdir)/Makefile.am.common

@@ -3,8 +3,11 @@
 @HEADER@
 Group:	System/YaST
 License:        GPL-2.0+ ; MIT
-BuildRequires:	boost-devel gcc-c++ libldapcpp-devel libtool perl-Digest-SHA1 perl-gettext perl-X500-DN pkg-config update-desktop-files yast2 yast2-core-devel yast2-devtools yast2-ldap-client
-Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 yast2-ca-management yast2-ldap-client yast2-perl-bindings yast2-users
+BuildRequires:	boost-devel gcc-c++ libldapcpp-devel libtool perl-Digest-SHA1 perl-gettext perl-X500-DN pkg-config update-desktop-files yast2 yast2-core-devel yast2-devtools yast2-ldap-client yast2-users
+Requires:	acl net-tools perl perl-Digest-SHA1 perl-gettext perl-X500-DN yast2 yast2-ca-management yast2-ldap-client yast2-perl-bindings
+
+# users/ldap_dialogs.ycp
+Requires:       yast2-users >= 2.22.3
 
 # Wizard::SetDesktopTitleAndIcon
 Requires:       yast2 >= 2.21.22
