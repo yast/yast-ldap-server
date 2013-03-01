@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Jan 21 16:06:21 UTC 2013 - rhafer@suse.com
+
+- Version 2.17.43
+- Opening the Access Control UI could create duplicated syncrepl
+  ACLs (bnc#798788)
+
+-------------------------------------------------------------------
 Thu Oct 20 15:35:33 UTC 2011 - rhafer@suse.de
 
 - Version 2.17.42
