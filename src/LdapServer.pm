@@ -2095,7 +2095,6 @@ sub ChangeDatabaseAcl
         if ( $found ) 
         {
             # push syncrepl acl on top
-            push @{$acllist_sorted}, $syncacl;
             $acllist = [ $syncacl ];
             push @{$acllist}, @{$acllist_sorted};
         }
