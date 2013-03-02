@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Sat Mar 02 09:51:20 CEST 2013 - jsuchome@suse.cz
+
+- bnc#777449 - Puzzlestring in yasts ldap server module (ldap-server.pot)
+- bnc#757132 - Puzzle-String in ldap-server module
+
+-------------------------------------------------------------------
 Thu Mar 29 10:21:20 CEST 2012 - jsuchome@suse.cz
 
 - fixed build failure (symlink to find include file)

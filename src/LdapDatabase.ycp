@@ -323,9 +323,8 @@
                 {
                     map<string, string> err = LdapServer::ReadError();
                     boolean res = Popup::AnyQuestion(Label::WarningMsg(),
-                                        _("The Base Object: \"") + db["suffix"]:"" +
-                                        _("\" can not be auto created by YaST.\n") +
-                                        err["msg"]:"",
+                                        sformat(_("The Base Object: \"%1\" cannot be auto created by YaST:\n%2"),
+                                            db["suffix"]:"", err["msg"]:""),
                                         Label::OKButton(), Label::CancelButton(), `focus);
                     if ( res == false ) {
                         continue;
