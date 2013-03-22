@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Fri Mar  1 11:21:39 UTC 2013 - rhafer@suse.com
+
+- Opening the Access Control UI could create duplicated syncrepl
+  ACLs (bnc#798788)
+
+-------------------------------------------------------------------
+Fri Mar  1 06:12:51 UTC 2013 - coolo@suse.com
+
+- update license to new format
+
+-------------------------------------------------------------------
 Thu Mar 29 10:21:20 CEST 2012 - jsuchome@suse.cz
 
 - fixed build failure (symlink to find include file)
