@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Sun Jun 16 20:07:33 UTC 2013 - lslezak@suse.cz
+
+- fixed build in Factory/openSUSE-13.1: added cyrus-sasl-devel to
+  BuildRequires
+
+-------------------------------------------------------------------
 Fri Mar  1 11:21:39 UTC 2013 - rhafer@suse.com
 
 - Opening the Access Control UI could create duplicated syncrepl
