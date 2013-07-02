@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Tue Jul  2 11:44:46 UTC 2013 - varkoly@suse.com
+
+- bnc#533243 - After starting YaST LDAP server, during initialization get error
+
+-------------------------------------------------------------------
 Thu Mar 29 10:21:20 CEST 2012 - jsuchome@suse.cz
 
 - fixed build failure (symlink to find include file)
