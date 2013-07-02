@@ -118,14 +118,6 @@ define boolean cb_read_daemon()
     {
         UI::ChangeWidget( `cb_interface_ldaps, `Value, false );
     }
-    if ( LdapServer::ReadProtocolListenerEnabled("ldapi") )
-    {
-        UI::ChangeWidget( `cb_interface_ldapi, `Value, true );
-    }
-    else
-    {
-        UI::ChangeWidget( `cb_interface_ldapi, `Value, false );
-    }
     return true;
 }
 
@@ -146,7 +138,7 @@ define boolean cb_write_daemon()
 
     LdapServer::WriteSLPEnabled( (boolean) UI::QueryWidget( `id( `cb_register_slp ), `Value ) );
     LdapServer::WriteProtocolListenerEnabled( "ldap", (boolean) UI::QueryWidget( `id( `cb_interface_ldap ), `Value ) );
-    LdapServer::WriteProtocolListenerEnabled( "ldapi", (boolean) UI::QueryWidget( `id( `cb_interface_ldapi ), `Value ) );
+    LdapServer::WriteProtocolListenerEnabled( "ldapi", true );
     if ( (boolean) UI::QueryWidget( `id( `cb_interface_ldaps ), `Value ) )
     {
         map<string, any> tls = LdapServer::ReadTlsConfig();
