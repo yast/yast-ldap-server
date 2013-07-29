@@ -116,9 +116,7 @@ any MirrorModeOverview()
                     continue;
                 }
 
-                if( Popup::YesNo( _("Do you really want to remove ") +
-                                  "\"" + serverids[ selected, "uri" ]:"" + "\"" +
-                                  _("from the MirrorMode setup?\n") +
+                if( Popup::YesNo( sformat(_("Do you really want to remove \"%1\" from the MirrorMode setup?\n"),serverids[ selected, "uri" ]:"") +
                                   _("Changes will take effect immediately after clicking \"Yes\"") ) )
                 {
                     LdapServer::RemoveMMSyncrepl( serverids[ selected, "uri" ]:"" );

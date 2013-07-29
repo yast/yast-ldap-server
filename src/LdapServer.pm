@@ -1519,7 +1519,7 @@ sub WriteTlsConfig
         {
             $self->SetError(_("Can not set a filesystem ACL on the private key."),
                                    "setfacl -m u:ldap:r ".$tls->{'certKeyFile'}." failed.\n".
-                                   "Do you have filesystem acl support disabled?" );
+                                   _("Do you have filesystem acl support disabled?") );
             return 0;
         }
     }
@@ -2554,7 +2554,7 @@ sub CheckSuffixAutoCreate
     if(!defined $attr[0] || !defined $val)
     {
         y2error("Error while extracting RDN values");
-        $self->SetError( _("Invalid LDAP DN: \""). $suffix. _("\", cannot extract RDN values"));
+        $self->SetError( sprintf(_("Invalid LDAP DN: \"%s\", cannot extract RDN values"),$suffix), "");
         return -1;
     }
     if( (lc($attr[0]) eq "ou") || ( lc($attr[0]) eq "o") || ( lc($attr[0]) eq "l") ||
@@ -2581,12 +2581,12 @@ sub CheckDatabase
     y2milestone("CheckDatabase");
     my $suffix_object = X500::DN->ParseRFC2253($db->{'suffix'});
     if(! defined $suffix_object) {
-        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("is not a valid LDAP DN."), "");
+        $self->SetError( sprintf(_("Base DN \"%s\" is not a valid LDAP DN."),$db->{'suffix'}), "");
         return 0;
     }
     elsif ( $suffix_object->hasMultivaluedRDNs() )
     {
-        $self->SetError( _("Base DN") ." \"". $db->{'suffix'} ."\" ". _("has multivalued RDNs (not supported by YaST)."), "");
+        $self->SetError( sprintf(_("Base DN \"%s\" has multivalued RDNs (not supported by YaST)."),$db->{'suffix'}), "");
         return 0;
     }
 
@@ -2595,13 +2595,12 @@ sub CheckDatabase
     {
         my $object = X500::DN->ParseRFC2253($db->{'rootdn'});
         if(! defined $object) {
-            $self->SetError(_("Root DN"). " \"". $db->{'rootdn'} ."\" ". _("is not a valid LDAP DN."), "");
+            $self->SetError( sprintf(_("Root DN \"%s\" is not a valid LDAP DN."),$db->{'rootdn'}), "");
             return 0;
         }
         elsif ( $object->hasMultivaluedRDNs() )
         {
-            $self->SetError(_("Root DN"). " \"". $db->{'rootdn'} ."\" ". 
-                            _("has multivalued RDNs (not supported by YaST)."), "");
+            $self->SetError( sprintf(_("Root DN \"%s\" has multivalued RDNs (not supported by YaST)."),$db->{'rootdn'}), "");
             return 0;
         }
 
@@ -3402,7 +3401,7 @@ sub VerifyTlsSetup
     y2milestone("TlsConfig ". Data::Dumper->Dump([$tls]) );
     if ( SCR->Read(".target.size", $tls->{"caCertFile"}) <= 0)
     {
-        $self->SetError( _("CA Certificate File: \"") .  $tls->{"caCertFile"}. _("\" does not exist."), "");
+        $self->SetError( sprintf(_("CA Certificate File: \"%s\" does not exist."),$tls->{"caCertFile"}), "");
         return 0;
     }
     else
@@ -3413,7 +3412,7 @@ sub VerifyTlsSetup
         if ( $rc->{'exit'} != 0 )
         {
             $self->SetError( _("Error while trying to verify the server certificate of the provider server.\n").
-                             _("Please make sure that \"".$tls->{"caCertFile"}."\" contains the correct\nCA file to verify the remote Server Certificate."),
+                             sprintf(_("Please make sure that \"%s\" contains the correct\nCA file to verify the remote Server Certificate."),$tls->{"caCertFile"}),
                              $rc->{'stderr'} );
             return 0;
         }
@@ -3421,12 +3420,12 @@ sub VerifyTlsSetup
 
     if ( SCR->Read(".target.size", $tls->{"certFile"}) <= 0)
     {
-        $self->SetError( _("Certificate File: \""). $tls->{"certFile"}. _(\" does not exist."), "" );
+        $self->SetError( sprintf(_("Certificate File: \"%s\" does not exist."),$tls->{"certFile"}), "" );
         return 0;
     }
     if ( SCR->Read(".target.size", $tls->{"certKeyFile"}) <= 0)
     {
-        $self->SetError( _("Certificate Key File: \""). $tls->{"certKeyFile"} . _("\" does not exist."), "");
+        $self->SetError( sprintf(_("Certificate Key File: \"%s\" does not exist."),$tls->{"certKeyFile"}), "" );
         return 0;
     }
     return 1;
